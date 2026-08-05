@@ -1,0 +1,163 @@
+-- =====================================================================
+-- Web SCATI - Sistema de Controle de Ativos de TI
+-- Script de criação do banco de dados
+-- =====================================================================
+
+CREATE DATABASE IF NOT EXISTS scati CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE scati;
+
+-- ---------------------------------------------------------------------
+-- Tabela: redes
+-- ---------------------------------------------------------------------
+CREATE TABLE redes (
+    id              INT AUTO_INCREMENT PRIMARY KEY,
+    nome            VARCHAR(100) NOT NULL,
+    faixa_ip        VARCHAR(50)  NULL,
+    gateway         VARCHAR(50)  NULL,
+    observacoes     TEXT         NULL,
+    criado_em       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    atualizado_em   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+-- ---------------------------------------------------------------------
+-- Tabela: categorias_estoque
+-- ---------------------------------------------------------------------
+CREATE TABLE categorias_estoque (
+    id      INT AUTO_INCREMENT PRIMARY KEY,
+    nome    VARCHAR(60) NOT NULL UNIQUE
+) ENGINE=InnoDB;
+
+INSERT INTO categorias_estoque (nome) VALUES
+('Memória RAM'), ('SSD'), ('HD'), ('Mouse'), ('Teclado'), ('Monitor'),
+('Computador'), ('Notebook'), ('Toner'), ('Tinta'), ('Cabos'),
+('Adaptadores'), ('Outros');
+
+-- ---------------------------------------------------------------------
+-- Tabela: equipamentos
+-- ---------------------------------------------------------------------
+CREATE TABLE equipamentos (
+    id                      INT AUTO_INCREMENT PRIMARY KEY,
+
+    -- Identificação
+    patrimonio              VARCHAR(50)  NOT NULL UNIQUE,
+    tipo                    ENUM('Computador','Notebook','Impressora','Monitor','Switch',
+                                  'Roteador','Access Point','Nobreak','Outros') NOT NULL,
+    marca                   VARCHAR(80)  NULL,
+    modelo                  VARCHAR(80)  NULL,
+    numero_serie            VARCHAR(100) NULL,
+    hostname                VARCHAR(100) NULL,
+
+    -- Hardware
+    processador             VARCHAR(120) NULL,
+    memoria_ram              VARCHAR(60)  NULL,
+    armazenamento            VARCHAR(60)  NULL,
+    sistema_operacional      VARCHAR(80)  NULL,
+
+    -- Localização e uso
+    status                   ENUM('Em uso','Disponível','Em manutenção','Com defeito','Descartado')
+                             NOT NULL DEFAULT 'Disponível',
+    localizacao              VARCHAR(120) NULL,
+    usuario_responsavel      VARCHAR(120) NULL,
+    rede_id                  INT NULL,
+
+    -- Campos específicos de impressoras
+    ip                       VARCHAR(45)  NULL,
+    modelo_toner             VARCHAR(80)  NULL,
+    qtd_toners               INT NULL,
+
+    -- Financeiro (opcional)
+    valor_aquisicao          DECIMAL(12,2) NULL,
+    data_compra              DATE NULL,
+    fornecedor               VARCHAR(120) NULL,
+    numero_nota_fiscal       VARCHAR(60) NULL,
+    garantia                 VARCHAR(60) NULL,
+    valor_atual              DECIMAL(12,2) NULL,
+    observacoes_financeiras  TEXT NULL,
+
+    criado_em                DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    atualizado_em             DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_equipamentos_rede
+        FOREIGN KEY (rede_id) REFERENCES redes(id) ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+-- ---------------------------------------------------------------------
+-- Tabela: estoque
+-- ---------------------------------------------------------------------
+CREATE TABLE estoque (
+    id                  INT AUTO_INCREMENT PRIMARY KEY,
+    nome                VARCHAR(120) NOT NULL,
+    categoria_id        INT NOT NULL,
+    marca               VARCHAR(80) NULL,
+    modelo              VARCHAR(80) NULL,
+    quantidade          INT NOT NULL DEFAULT 0,
+    quantidade_minima   INT NOT NULL DEFAULT 0,
+    localizacao         VARCHAR(120) NULL,
+    observacoes         TEXT NULL,
+    criado_em           DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    atualizado_em        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_estoque_categoria
+        FOREIGN KEY (categoria_id) REFERENCES categorias_estoque(id),
+    CONSTRAINT chk_estoque_qtd_nao_negativa CHECK (quantidade >= 0)
+) ENGINE=InnoDB;
+
+-- ---------------------------------------------------------------------
+-- Tabela: licencas
+-- Regra: EQUIPAMENTO (1) -------- (N) LICENÇAS
+-- Uma licença pertence a, no máximo, um único equipamento.
+-- ---------------------------------------------------------------------
+CREATE TABLE licencas (
+    id                  INT AUTO_INCREMENT PRIMARY KEY,
+    equipamento_id      INT NULL,
+    software            VARCHAR(120) NOT NULL,
+    fabricante          VARCHAR(80) NULL,
+    tipo                ENUM('OEM','Retail','Volume','Assinatura','Trial') NOT NULL DEFAULT 'OEM',
+    chave               VARCHAR(120) NULL,
+    versao              VARCHAR(40) NULL,
+    data_aquisicao      DATE NULL,
+    data_validade       DATE NULL,
+    observacoes         TEXT NULL,
+    criado_em           DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    atualizado_em        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_licencas_equipamento
+        FOREIGN KEY (equipamento_id) REFERENCES equipamentos(id) ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+-- ---------------------------------------------------------------------
+-- Tabela: historico_equipamentos (registro automático de alterações)
+-- ---------------------------------------------------------------------
+CREATE TABLE historico_equipamentos (
+    id              INT AUTO_INCREMENT PRIMARY KEY,
+    equipamento_id  INT NOT NULL,
+    data_hora       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    evento          VARCHAR(60) NOT NULL,
+    descricao       VARCHAR(255) NOT NULL,
+
+    CONSTRAINT fk_historico_equipamento
+        FOREIGN KEY (equipamento_id) REFERENCES equipamentos(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- ---------------------------------------------------------------------
+-- Tabela: observacoes_equipamentos (registro manual, cronológico)
+-- ---------------------------------------------------------------------
+CREATE TABLE observacoes_equipamentos (
+    id              INT AUTO_INCREMENT PRIMARY KEY,
+    equipamento_id  INT NOT NULL,
+    data_hora       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    texto           TEXT NOT NULL,
+
+    CONSTRAINT fk_observacoes_equipamento
+        FOREIGN KEY (equipamento_id) REFERENCES equipamentos(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- ---------------------------------------------------------------------
+-- Índices auxiliares para pesquisa (seção 13 da documentação)
+-- ---------------------------------------------------------------------
+CREATE INDEX idx_equip_hostname   ON equipamentos(hostname);
+CREATE INDEX idx_equip_serie      ON equipamentos(numero_serie);
+CREATE INDEX idx_equip_marca      ON equipamentos(marca);
+CREATE INDEX idx_equip_modelo     ON equipamentos(modelo);
+CREATE INDEX idx_equip_responsavel ON equipamentos(usuario_responsavel);
+CREATE INDEX idx_equip_status     ON equipamentos(status);

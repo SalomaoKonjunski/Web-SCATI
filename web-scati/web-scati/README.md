@@ -1,0 +1,105 @@
+# Web SCATI — Sistema de Controle de Ativos de TI
+
+Sistema web para inventário interno de ativos de TI, desenvolvido em PHP 8+,
+MySQL, HTML5, CSS3, JavaScript e Bootstrap 5, conforme a Documentação
+Funcional (v1.0).
+
+## Requisitos
+
+- PHP 8.0 ou superior, com extensão **PDO MySQL** habilitada
+- MySQL 5.7+ ou MariaDB 10.3+
+- Servidor web (Apache, Nginx ou o servidor embutido do PHP)
+
+## Instalação
+
+1. **Banco de dados**
+   Importe o script `database/scati.sql`, que cria o banco `scati` e todas
+   as tabelas necessárias:
+   ```bash
+   mysql -u root -p < database/scati.sql
+   ```
+
+2. **Configuração**
+   Edite `config/database.php` e ajuste:
+   - `DB_HOST`, `DB_NAME`, `DB_USER`, `DB_PASS` — credenciais do MySQL
+   - `BASE_URL` — caminho onde o sistema será acessado
+     (ex.: `/web-scati` se acessado em `http://localhost/web-scati`,
+     ou `''` se estiver na raiz do domínio)
+
+3. **Publicação**
+   Copie a pasta `web-scati` inteira para o diretório público do seu
+   servidor web (ex.: `htdocs`, `www`, `public_html`).
+
+   Para testar rapidamente com o servidor embutido do PHP:
+   ```bash
+   cd web-scati
+   php -S localhost:8000
+   ```
+   Neste caso, defina `BASE_URL` como `''` (string vazia) em `config/database.php`.
+
+4. Acesse o sistema pelo navegador e comece cadastrando as **Redes** e
+   **Categorias de Estoque** (já vêm pré-cadastradas) antes dos equipamentos,
+   para poder vinculá-los.
+
+## Estrutura do projeto
+
+```
+web-scati/
+├── config/
+│   └── database.php        # Conexão PDO e constantes de configuração
+├── includes/
+│   ├── functions.php       # Funções auxiliares (formatação, histórico, etc.)
+│   ├── header.php          # Cabeçalho HTML + navbar (compartilhado)
+│   ├── sidebar.php         # Menu lateral (compartilhado)
+│   └── footer.php          # Rodapé HTML + scripts (compartilhado)
+├── database/
+│   └── scati.sql           # Script de criação do banco de dados
+├── modules/
+│   ├── equipamentos/       # CRUD + ficha detalhada (histórico e observações)
+│   ├── estoque/            # CRUD de itens de estoque
+│   ├── redes/               # CRUD de redes
+│   ├── licencas/            # CRUD de licenças + transferência entre equipamentos
+│   └── relatorios/          # Relatórios básicos (seção 14 da documentação)
+├── assets/
+│   ├── css/style.css
+│   └── js/scripts.js
+└── index.php                # Dashboard
+```
+
+## Funcionalidades implementadas
+
+- **Dashboard** com indicadores de equipamentos, estoque, licenças e (se
+  preenchido) valor total do patrimônio.
+- **Equipamentos**: CRUD completo, pesquisa e filtros (tipo, status, rede),
+  ficha individual com abas de Dados Gerais, Hardware, Licenciamento,
+  Financeiro, Histórico e Observações.
+- **Histórico automático**: toda alteração de status, localização,
+  responsável, rede, informações financeiras ou licenças gera um registro
+  automático com data, hora, evento e descrição.
+- **Observações**: registros cronológicos, nunca substituídos, com data e
+  hora automáticas.
+- **Estoque**: CRUD com controle de quantidade mínima, destaque visual para
+  itens abaixo do mínimo e regra de quantidade nunca negativa (validada na
+  aplicação e reforçada por `CHECK` no banco).
+- **Redes**: CRUD simples, com contagem de equipamentos vinculados.
+- **Licenças**: CRUD com a regra `1 equipamento : N licenças` (uma licença
+  pertence a no máximo um equipamento) e tela dedicada de **transferência**
+  de licença entre equipamentos, que registra o evento no histórico de
+  ambos os equipamentos envolvidos.
+- **Relatórios**: todos os relatórios listados na seção 14 da documentação
+  (equipamentos, estoque, licenças e financeiro), com opção de impressão.
+- **Interface responsiva** com Bootstrap 5, menu lateral recolhível em
+  telas pequenas.
+
+## Notas de projeto
+
+- O sistema foi propositalmente mantido **sem autenticação/login** e sem
+  módulo de usuários, pois a documentação define "Controle de usuários do
+  sistema" como fora do escopo desta versão.
+- O código usa **PDO com prepared statements** em todas as consultas para
+  evitar SQL Injection, e `htmlspecialchars()` em todas as saídas para
+  evitar XSS.
+- A estrutura modular (uma pasta por módulo, funções isoladas em
+  `includes/functions.php`) foi escolhida para permitir expansões futuras
+  (ex.: autenticação, Help Desk, integração com AD) sem exigir reescrita do
+  que já existe.

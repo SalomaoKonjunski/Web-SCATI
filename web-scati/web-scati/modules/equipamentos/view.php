@@ -1,0 +1,240 @@
+<?php
+declare(strict_types=1);
+require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../includes/functions.php';
+
+$pdo = db();
+$id = (int) ($_GET['id'] ?? 0);
+
+$stmt = $pdo->prepare(
+    'SELECT e.*, r.nome AS rede_nome, r.faixa_ip AS rede_faixa_ip
+     FROM equipamentos e LEFT JOIN redes r ON r.id = e.rede_id
+     WHERE e.id = :id'
+);
+$stmt->execute(['id' => $id]);
+$eq = $stmt->fetch();
+
+if (!$eq) {
+    flash('danger', 'Equipamento não encontrado.');
+    redirect('/modules/equipamentos/index.php');
+}
+
+// Trata o envio do formulário de nova observação (POST nesta mesma página)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['nova_observacao'])) {
+    $texto = trim($_POST['nova_observacao']);
+    if ($texto !== '') {
+        $stmtObs = $pdo->prepare(
+            'INSERT INTO observacoes_equipamentos (equipamento_id, texto) VALUES (:id, :texto)'
+        );
+        $stmtObs->execute(['id' => $id, 'texto' => $texto]);
+        flash('success', 'Observação registrada.');
+    }
+    redirect('/modules/equipamentos/view.php?id=' . $id . '#observacoes');
+}
+
+// Licenças vinculadas a este equipamento
+$licencas = $pdo->prepare('SELECT * FROM licencas WHERE equipamento_id = :id ORDER BY software');
+$licencas->execute(['id' => $id]);
+$licencas = $licencas->fetchAll();
+
+// Histórico automático (mais recente primeiro)
+$historico = $pdo->prepare('SELECT * FROM historico_equipamentos WHERE equipamento_id = :id ORDER BY data_hora DESC');
+$historico->execute(['id' => $id]);
+$historico = $historico->fetchAll();
+
+// Observações (cronológicas, mais recente primeiro)
+$observacoes = $pdo->prepare('SELECT * FROM observacoes_equipamentos WHERE equipamento_id = :id ORDER BY data_hora DESC');
+$observacoes->execute(['id' => $id]);
+$observacoes = $observacoes->fetchAll();
+
+$pageTitle = 'Ficha do Equipamento';
+include __DIR__ . '/../../includes/header.php';
+?>
+
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <div>
+        <h1 class="h3 mb-0"><i class="bi bi-pc-display me-2"></i><?= e($eq['patrimonio']) ?></h1>
+        <span class="badge <?= statusBadgeClass($eq['status']) ?> mt-1"><?= e($eq['status']) ?></span>
+        <span class="text-muted ms-2"><?= e($eq['tipo']) ?> · <?= e(trim(($eq['marca'] ?? '') . ' ' . ($eq['modelo'] ?? ''))) ?: '' ?></span>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="index.php" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Voltar</a>
+        <a href="form.php?id=<?= (int) $eq['id'] ?>" class="btn btn-primary"><i class="bi bi-pencil"></i> Editar</a>
+        <a href="delete.php?id=<?= (int) $eq['id'] ?>" class="btn btn-outline-danger js-confirm-delete"
+           data-confirm-msg="Excluir o equipamento <?= e($eq['patrimonio']) ?>? Esta ação não pode ser desfeita.">
+            <i class="bi bi-trash"></i> Excluir
+        </a>
+    </div>
+</div>
+
+<ul class="nav nav-tabs" id="fichaTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#dados" type="button">Dados Gerais</button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#licenciamento" type="button">
+            Licenciamento <span class="badge bg-secondary"><?= count($licencas) ?></span>
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#financeiro" type="button">Financeiro</button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#historico" type="button">
+            Histórico <span class="badge bg-secondary"><?= count($historico) ?></span>
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#observacoes" type="button">
+            Observações <span class="badge bg-secondary"><?= count($observacoes) ?></span>
+        </button>
+    </li>
+</ul>
+
+<div class="tab-content bg-white border border-top-0 p-4 rounded-bottom mb-5">
+
+    <!-- Dados Gerais -->
+    <div class="tab-pane fade show active" id="dados">
+        <div class="row">
+            <div class="col-md-6">
+                <h6 class="text-muted text-uppercase small mb-3">Identificação</h6>
+                <table class="table table-sm">
+                    <tr><th style="width:40%">Patrimônio</th><td><?= e($eq['patrimonio']) ?></td></tr>
+                    <tr><th>Tipo</th><td><?= e($eq['tipo']) ?></td></tr>
+                    <tr><th>Marca</th><td><?= e($eq['marca']) ?: '-' ?></td></tr>
+                    <tr><th>Modelo</th><td><?= e($eq['modelo']) ?: '-' ?></td></tr>
+                    <tr><th>Número de Série</th><td><?= e($eq['numero_serie']) ?: '-' ?></td></tr>
+                    <tr><th>Hostname</th><td><?= e($eq['hostname']) ?: '-' ?></td></tr>
+                </table>
+
+                <h6 class="text-muted text-uppercase small mb-3 mt-4">Hardware</h6>
+                <table class="table table-sm">
+                    <tr><th style="width:40%">Processador</th><td><?= e($eq['processador']) ?: '-' ?></td></tr>
+                    <tr><th>Memória RAM</th><td><?= e($eq['memoria_ram']) ?: '-' ?></td></tr>
+                    <tr><th>Armazenamento</th><td><?= e($eq['armazenamento']) ?: '-' ?></td></tr>
+                    <tr><th>Sistema Operacional</th><td><?= e($eq['sistema_operacional']) ?: '-' ?></td></tr>
+                </table>
+
+                <?php if (ehImpressora($eq['tipo'])): ?>
+                <h6 class="text-muted text-uppercase small mb-3 mt-4">Dados da Impressora</h6>
+                <table class="table table-sm">
+                    <tr><th style="width:40%">Endereço IP</th><td><?= e($eq['ip']) ?: '-' ?></td></tr>
+                    <tr><th>Modelo do Toner</th><td><?= e($eq['modelo_toner']) ?: '-' ?></td></tr>
+                    <tr><th>Qtd. de Toners</th><td><?= $eq['qtd_toners'] !== null ? (int) $eq['qtd_toners'] : '-' ?></td></tr>
+                </table>
+                <?php endif; ?>
+            </div>
+
+            <div class="col-md-6">
+                <h6 class="text-muted text-uppercase small mb-3">Localização e Uso</h6>
+                <table class="table table-sm">
+                    <tr><th style="width:40%">Status</th><td><span class="badge <?= statusBadgeClass($eq['status']) ?>"><?= e($eq['status']) ?></span></td></tr>
+                    <tr><th>Localização</th><td><?= e($eq['localizacao']) ?: '-' ?></td></tr>
+                    <tr><th>Usuário Responsável</th><td><?= e($eq['usuario_responsavel']) ?: '-' ?></td></tr>
+                    <tr>
+                        <th>Rede</th>
+                        <td>
+                            <?php if ($eq['rede_nome']): ?>
+                                <?= e($eq['rede_nome']) ?> <span class="text-muted small">(<?= e($eq['rede_faixa_ip']) ?>)</span>
+                            <?php else: ?>-<?php endif; ?>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Licenciamento -->
+    <div class="tab-pane fade" id="licenciamento">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h6 class="text-muted text-uppercase small mb-0">Licenças vinculadas a este equipamento</h6>
+            <a href="../licencas/form.php?equipamento_id=<?= (int) $eq['id'] ?>" class="btn btn-sm btn-primary">
+                <i class="bi bi-plus-lg"></i> Vincular Nova Licença
+            </a>
+        </div>
+        <?php if (empty($licencas)): ?>
+            <p class="text-muted">Nenhuma licença vinculada a este equipamento.</p>
+        <?php else: ?>
+            <table class="table table-sm table-hover">
+                <thead class="table-light">
+                    <tr><th>Software</th><th>Fabricante</th><th>Tipo</th><th>Versão</th><th>Validade</th><th class="text-end">Ações</th></tr>
+                </thead>
+                <tbody>
+                <?php foreach ($licencas as $lic): ?>
+                    <tr>
+                        <td><?= e($lic['software']) ?></td>
+                        <td><?= e($lic['fabricante']) ?: '-' ?></td>
+                        <td><?= e($lic['tipo']) ?></td>
+                        <td><?= e($lic['versao']) ?: '-' ?></td>
+                        <td><?= formatDate($lic['data_validade']) ?></td>
+                        <td class="text-end">
+                            <a href="../licencas/form.php?id=<?= (int) $lic['id'] ?>" class="btn btn-sm btn-outline-primary"><i class="bi bi-pencil"></i></a>
+                            <a href="../licencas/transferir.php?id=<?= (int) $lic['id'] ?>" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left-right"></i></a>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+                </tbody>
+            </table>
+        <?php endif; ?>
+    </div>
+
+    <!-- Financeiro -->
+    <div class="tab-pane fade" id="financeiro">
+        <table class="table table-sm">
+            <tr><th style="width:40%">Valor de Aquisição</th><td><?= formatMoney($eq['valor_aquisicao']) ?></td></tr>
+            <tr><th>Data da Compra</th><td><?= formatDate($eq['data_compra']) ?></td></tr>
+            <tr><th>Fornecedor</th><td><?= e($eq['fornecedor']) ?: '-' ?></td></tr>
+            <tr><th>Número da Nota Fiscal</th><td><?= e($eq['numero_nota_fiscal']) ?: '-' ?></td></tr>
+            <tr><th>Garantia</th><td><?= e($eq['garantia']) ?: '-' ?></td></tr>
+            <tr><th>Valor Atual</th><td><?= formatMoney($eq['valor_atual']) ?></td></tr>
+            <tr><th>Observações Financeiras</th><td><?= e($eq['observacoes_financeiras']) ?: '-' ?></td></tr>
+        </table>
+    </div>
+
+    <!-- Histórico -->
+    <div class="tab-pane fade" id="historico">
+        <h6 class="text-muted text-uppercase small mb-3">Histórico automático de alterações</h6>
+        <?php if (empty($historico)): ?>
+            <p class="text-muted">Nenhum evento registrado.</p>
+        <?php else: ?>
+            <table class="table table-sm table-hover">
+                <thead class="table-light"><tr><th style="width:160px">Data / Hora</th><th style="width:160px">Evento</th><th>Descrição</th></tr></thead>
+                <tbody>
+                <?php foreach ($historico as $h): ?>
+                    <tr>
+                        <td><?= formatDateTime($h['data_hora']) ?></td>
+                        <td><span class="badge bg-light text-dark border"><?= e($h['evento']) ?></span></td>
+                        <td><?= e($h['descricao']) ?></td>
+                    </tr>
+                <?php endforeach; ?>
+                </tbody>
+            </table>
+        <?php endif; ?>
+    </div>
+
+    <!-- Observações -->
+    <div class="tab-pane fade" id="observacoes">
+        <form method="post" class="mb-4">
+            <label class="form-label fw-semibold">+ Nova Observação</label>
+            <div class="input-group">
+                <input type="text" name="nova_observacao" class="form-control" placeholder="Descreva a observação..." required>
+                <button type="submit" class="btn btn-primary"><i class="bi bi-plus-lg"></i> Adicionar</button>
+            </div>
+        </form>
+
+        <?php if (empty($observacoes)): ?>
+            <p class="text-muted">Nenhuma observação registrada.</p>
+        <?php else: ?>
+            <ul class="list-group">
+                <?php foreach ($observacoes as $obs): ?>
+                    <li class="list-group-item">
+                        <div class="small text-muted"><?= formatDateTime($obs['data_hora']) ?></div>
+                        <div><?= nl2br(e($obs['texto'])) ?></div>
+                    </li>
+                <?php endforeach; ?>
+            </ul>
+        <?php endif; ?>
+    </div>
+</div>
+
+<?php include __DIR__ . '/../../includes/footer.php'; ?>

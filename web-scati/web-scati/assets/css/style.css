@@ -1,0 +1,105 @@
+/* =====================================================
+   Web SCATI - Estilos customizados
+   ===================================================== */
+
+:root {
+    --scati-primary: #1e3a5f;
+    --scati-primary-dark: #14283f;
+    --scati-accent: #2f7d54;
+    --scati-bg: #f4f6f9;
+}
+
+body {
+    background-color: var(--scati-bg);
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+.scati-navbar {
+    background-color: var(--scati-primary-dark);
+}
+
+.scati-layout {
+    display: flex;
+    min-height: calc(100vh - 56px);
+}
+
+.scati-sidebar {
+    width: 230px;
+    flex-shrink: 0;
+    background-color: var(--scati-primary);
+    padding-top: 1rem;
+}
+
+.scati-sidebar .nav-link {
+    color: rgba(255, 255, 255, 0.85);
+    padding: 0.65rem 1.25rem;
+    border-left: 3px solid transparent;
+}
+
+.scati-sidebar .nav-link i {
+    width: 22px;
+    display: inline-block;
+    text-align: center;
+    margin-right: 6px;
+}
+
+.scati-sidebar .nav-link:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+    color: #fff;
+}
+
+.scati-sidebar .nav-link.active {
+    background-color: rgba(255, 255, 255, 0.12);
+    border-left-color: var(--scati-accent);
+    color: #fff;
+    font-weight: 600;
+}
+
+.scati-content {
+    flex: 1;
+    padding: 1.75rem;
+    min-width: 0;
+}
+
+.scati-kpi-card {
+    border: none;
+    border-radius: 0.6rem;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+    height: 100%;
+}
+
+.scati-kpi-card .kpi-value {
+    font-size: 1.8rem;
+    font-weight: 700;
+}
+
+.scati-kpi-card .kpi-icon {
+    font-size: 1.8rem;
+    opacity: 0.35;
+}
+
+.table-hover tbody tr {
+    cursor: pointer;
+}
+
+.estoque-baixo {
+    background-color: #fdecea !important;
+}
+
+@media (max-width: 767.98px) {
+    .scati-sidebar {
+        position: fixed;
+        top: 56px;
+        left: 0;
+        bottom: 0;
+        z-index: 1030;
+        transform: translateX(-100%);
+        transition: transform 0.2s ease-in-out;
+    }
+    .scati-sidebar.show {
+        transform: translateX(0);
+    }
+    .scati-content {
+        padding: 1rem;
+    }
+}
