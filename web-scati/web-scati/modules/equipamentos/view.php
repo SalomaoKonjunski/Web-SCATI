@@ -32,6 +32,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['nova_observacao'])) {
     redirect('/modules/equipamentos/view.php?id=' . $id . '#observacoes');
 }
 
+// Trata a vinculação de um item de estoque a este equipamento (POST nesta mesma página)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['vincular_item'])) {
+    $itemId = (int) ($_POST['item_estoque_id'] ?? 0);
+    if ($itemId > 0) {
+        $stmtItem = $pdo->prepare('SELECT * FROM estoque WHERE id = :id AND status = :status');
+        $stmtItem->execute(['id' => $itemId, 'status' => 'Disponível']);
+        $itemEstoque = $stmtItem->fetch();
+        if ($itemEstoque) {
+            $pdo->prepare('UPDATE estoque SET status = :status, equipamento_id = :eq WHERE id = :id')
+                ->execute(['status' => 'Em uso', 'eq' => $id, 'id' => $itemId]);
+            registrarHistorico($id, 'Item', 'Item "' . $itemEstoque['nome'] . '" vinculado a este equipamento');
+            flash('success', 'Item vinculado com sucesso.');
+        } else {
+            flash('danger', 'Item indisponível para vínculo.');
+        }
+    }
+    redirect('/modules/equipamentos/view.php?id=' . $id . '#itens');
+}
+
 // Licenças vinculadas a este equipamento
 $licencas = $pdo->prepare('SELECT * FROM licencas WHERE equipamento_id = :id ORDER BY software');
 $licencas->execute(['id' => $id]);
@@ -46,6 +65,24 @@ $historico = $historico->fetchAll();
 $observacoes = $pdo->prepare('SELECT * FROM observacoes_equipamentos WHERE equipamento_id = :id ORDER BY data_hora DESC');
 $observacoes->execute(['id' => $id]);
 $observacoes = $observacoes->fetchAll();
+
+// Itens de estoque vinculados a este equipamento
+$itensVinculados = $pdo->prepare(
+    'SELECT es.*, c.nome AS categoria_nome
+     FROM estoque es JOIN categorias_estoque c ON c.id = es.categoria_id
+     WHERE es.equipamento_id = :id ORDER BY es.nome'
+);
+$itensVinculados->execute(['id' => $id]);
+$itensVinculados = $itensVinculados->fetchAll();
+
+// Itens de estoque disponíveis para vincular a este equipamento
+$stmtItensDisponiveis = $pdo->prepare(
+    'SELECT es.*, c.nome AS categoria_nome
+     FROM estoque es JOIN categorias_estoque c ON c.id = es.categoria_id
+     WHERE es.status = :status ORDER BY c.nome, es.nome'
+);
+$stmtItensDisponiveis->execute(['status' => 'Disponível']);
+$itensDisponiveis = $stmtItensDisponiveis->fetchAll();
 
 // Compartilhamentos de rede (apenas para equipamentos do tipo Servidor)
 $compartilhamentos = $pdo->prepare('SELECT * FROM compartilhamentos_servidor WHERE equipamento_id = :id ORDER BY nome');
@@ -95,6 +132,11 @@ include __DIR__ . '/../../includes/header.php';
     <li class="nav-item" role="presentation">
         <button class="nav-link" data-bs-toggle="tab" data-bs-target="#licenciamento" type="button">
             Licenciamento <span class="badge bg-secondary"><?= count($licencas) ?></span>
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#itens" type="button">
+            Itens Vinculados <span class="badge bg-secondary"><?= count($itensVinculados) ?></span>
         </button>
     </li>
     <li class="nav-item" role="presentation">
@@ -220,6 +262,59 @@ include __DIR__ . '/../../includes/header.php';
                 </tbody>
             </table>
         <?php endif; ?>
+    </div>
+
+    <!-- Itens Vinculados -->
+    <div class="tab-pane fade" id="itens">
+        <h6 class="text-muted text-uppercase small mb-3">Itens de estoque vinculados a este equipamento</h6>
+        <?php if (empty($itensVinculados)): ?>
+            <p class="text-muted">Nenhum item vinculado a este equipamento.</p>
+        <?php else: ?>
+            <table class="table table-sm table-hover mb-4">
+                <thead class="table-light">
+                    <tr><th>Nome</th><th>Categoria</th><th>Marca/Modelo</th><th class="text-end">Ações</th></tr>
+                </thead>
+                <tbody>
+                <?php foreach ($itensVinculados as $iv): ?>
+                    <tr>
+                        <td><?= e($iv['nome']) ?></td>
+                        <td><?= e($iv['categoria_nome']) ?></td>
+                        <td><?= e(trim(($iv['marca'] ?? '') . ' ' . ($iv['modelo'] ?? ''))) ?: '-' ?></td>
+                        <td class="text-end">
+                            <a href="../estoque/desvincular.php?id=<?= (int) $iv['id'] ?>" class="btn btn-sm btn-outline-danger js-confirm-delete"
+                               data-confirm-msg="Desvincular o item &quot;<?= e($iv['nome']) ?>&quot; deste equipamento? Ele voltará a ficar disponível no estoque.">
+                                <i class="bi bi-x-lg"></i> Desvincular
+                            </a>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+                </tbody>
+            </table>
+        <?php endif; ?>
+
+        <form method="post" class="row g-2 align-items-end">
+            <div class="col-md-8">
+                <label class="form-label fw-semibold">+ Vincular Item do Estoque</label>
+                <select name="item_estoque_id" class="form-select" <?= empty($itensDisponiveis) ? 'disabled' : '' ?> required>
+                    <?php if (empty($itensDisponiveis)): ?>
+                        <option value="">Nenhum item disponível no estoque</option>
+                    <?php else: ?>
+                        <option value="">Selecione um item...</option>
+                        <?php foreach ($itensDisponiveis as $disp): ?>
+                            <?php $marcaModelo = trim(($disp['marca'] ?? '') . ' ' . ($disp['modelo'] ?? '')); ?>
+                            <option value="<?= (int) $disp['id'] ?>">
+                                <?= e($disp['nome']) ?> — <?= e($disp['categoria_nome']) ?><?= $marcaModelo ? ' (' . e($marcaModelo) . ')' : '' ?>
+                            </option>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <button type="submit" name="vincular_item" value="1" class="btn btn-primary w-100" <?= empty($itensDisponiveis) ? 'disabled' : '' ?>>
+                    <i class="bi bi-plus-lg"></i> Vincular
+                </button>
+            </div>
+        </form>
     </div>
 
     <!-- Financeiro -->

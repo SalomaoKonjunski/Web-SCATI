@@ -99,11 +99,18 @@ CREATE TABLE estoque (
     quantidade_minima   INT NOT NULL DEFAULT 0,
     localizacao         VARCHAR(120) NULL,
     observacoes         TEXT NULL,
+
+    -- Vinculação com equipamentos (seção 5 da atualização: Itens Vinculados)
+    status              ENUM('Disponível','Em uso') NOT NULL DEFAULT 'Disponível',
+    equipamento_id      INT NULL,
+
     criado_em           DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     atualizado_em        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
     CONSTRAINT fk_estoque_categoria
         FOREIGN KEY (categoria_id) REFERENCES categorias_estoque(id),
+    CONSTRAINT fk_estoque_equipamento
+        FOREIGN KEY (equipamento_id) REFERENCES equipamentos(id) ON DELETE SET NULL,
     CONSTRAINT chk_estoque_qtd_nao_negativa CHECK (quantidade >= 0)
 ) ENGINE=InnoDB;
 
@@ -202,3 +209,4 @@ CREATE INDEX idx_equip_modelo     ON equipamentos(modelo);
 CREATE INDEX idx_equip_responsavel ON equipamentos(usuario_responsavel);
 CREATE INDEX idx_equip_status     ON equipamentos(status);
 CREATE INDEX idx_compart_equipamento ON compartilhamentos_servidor(equipamento_id);
+CREATE INDEX idx_estoque_equipamento ON estoque(equipamento_id);

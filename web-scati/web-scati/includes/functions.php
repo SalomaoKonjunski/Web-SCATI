@@ -181,3 +181,19 @@ function statusServidorBadgeClass(?string $status): string
 {
     return $status === 'Ativo' ? 'bg-success' : 'bg-secondary';
 }
+
+/**
+ * Lista fixa dos status aceitos para itens de estoque vinculáveis a equipamentos.
+ */
+function statusEstoque(): array
+{
+    return ['Disponível', 'Em uso'];
+}
+
+/**
+ * Retorna a classe de badge Bootstrap correspondente ao status do item de estoque.
+ */
+function statusEstoqueBadgeClass(?string $status): string
+{
+    return $status === 'Em uso' ? 'bg-primary' : 'bg-success';
+}

@@ -29,6 +29,18 @@ Funcional (v1.0).
    mysql -u root -p scati < database/migration_servidor.sql
    ```
 
+   Da mesma forma, se o banco já existia antes do suporte a **Itens
+   Vinculados** (antes das colunas `status` e `equipamento_id` na tabela
+   `estoque`), rode também esta migração incremental **uma única vez**:
+   ```bash
+   mysql -u root -p scati < database/migration_itens_vinculados.sql
+   ```
+
+   > Importante: ao importar qualquer um dos arquivos `.sql` deste projeto,
+   > garanta que o cliente MySQL use UTF-8 (ex.: `mysql --default-character-set=utf8mb4 -u root -p < arquivo.sql`),
+   > caso contrário os valores acentuados dos campos `ENUM` (como "Disponível")
+   > podem ser salvos corrompidos.
+
 2. **Configuração**
    Edite `config/database.php` e ajuste:
    - `DB_HOST`, `DB_NAME`, `DB_USER`, `DB_PASS` — credenciais do MySQL
@@ -98,6 +110,13 @@ web-scati/
 - **Estoque**: CRUD com controle de quantidade mínima, destaque visual para
   itens abaixo do mínimo e regra de quantidade nunca negativa (validada na
   aplicação e reforçada por `CHECK` no banco).
+- **Itens Vinculados**: aba na ficha do equipamento para vincular itens já
+  cadastrados no Estoque (periféricos, cabos, etc.) diretamente a ele, sem
+  duplicar o cadastro. Regra `1 equipamento : N itens` (um item pertence a
+  no máximo um equipamento por vez). Ao vincular, o item muda automaticamente
+  de status para "Em uso" e some da lista de disponíveis; ao desvincular (ou
+  ao excluir o equipamento), o item volta para "Disponível" e pode ser
+  vinculado a outro equipamento.
 - **Redes**: CRUD simples, com contagem de equipamentos vinculados.
 - **Licenças**: CRUD com a regra `1 equipamento : N licenças` (uma licença
   pertence a no máximo um equipamento) e tela dedicada de **transferência**
