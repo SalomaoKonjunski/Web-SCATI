@@ -156,6 +156,14 @@ function ehServidor(?string $tipo): bool
 }
 
 /**
+ * Retorna true se o equipamento é do tipo Computador (para exibir campos extras).
+ */
+function ehComputador(?string $tipo): bool
+{
+    return $tipo === 'Computador';
+}
+
+/**
  * Lista fixa dos status operacionais aceitos para servidores.
  */
 function statusServidor(): array
