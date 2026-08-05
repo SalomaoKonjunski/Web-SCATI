@@ -32,6 +32,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['nova_observacao'])) {
     redirect('/modules/equipamentos/view.php?id=' . $id . '#observacoes');
 }
 
+// Trata o registro de uma manutenção no histórico (POST nesta mesma página)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['registrar_manutencao'])) {
+    $tipoManutencao = $_POST['tipo_manutencao'] ?? '';
+    $dataManutencao = $_POST['data_manutencao'] ?? '';
+    $descricaoManutencao = trim($_POST['descricao_manutencao'] ?? '');
+
+    if (in_array($tipoManutencao, tiposManutencao(), true) && $dataManutencao !== '') {
+        $descricaoFinal = $descricaoManutencao !== '' ? $descricaoManutencao : $tipoManutencao;
+        $stmtManut = $pdo->prepare(
+            'INSERT INTO historico_equipamentos (equipamento_id, data_hora, evento, descricao)
+             VALUES (:id, :data_hora, :evento, :descricao)'
+        );
+        $stmtManut->execute([
+            'id' => $id,
+            'data_hora' => $dataManutencao . ' ' . date('H:i:s'),
+            'evento' => $tipoManutencao,
+            'descricao' => $descricaoFinal,
+        ]);
+        flash('success', 'Manutenção registrada no histórico.');
+    } else {
+        flash('danger', 'Selecione o tipo de manutenção e a data.');
+    }
+    redirect('/modules/equipamentos/view.php?id=' . $id . '#historico');
+}
+
 // Trata a vinculação de uma unidade de um item de estoque a este equipamento (POST nesta mesma página)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['vincular_item'])) {
     $itemId = (int) ($_POST['item_estoque_id'] ?? 0);
@@ -339,6 +364,31 @@ include __DIR__ . '/../../includes/header.php';
 
     <!-- Histórico -->
     <div class="tab-pane fade" id="historico">
+        <form method="post" class="mb-4">
+            <label class="form-label fw-semibold">+ Registrar Manutenção</label>
+            <div class="row g-2">
+                <div class="col-md-3">
+                    <select name="tipo_manutencao" class="form-select" required>
+                        <option value="">Tipo de manutenção...</option>
+                        <?php foreach (tiposManutencao() as $tipo): ?>
+                            <option value="<?= e($tipo) ?>"><?= e($tipo) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <input type="date" name="data_manutencao" class="form-control" required value="<?= date('Y-m-d') ?>">
+                </div>
+                <div class="col-md-5">
+                    <input type="text" name="descricao_manutencao" class="form-control" placeholder="Descrição (opcional)">
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" name="registrar_manutencao" value="1" class="btn btn-primary w-100">
+                        <i class="bi bi-tools"></i> Registrar
+                    </button>
+                </div>
+            </div>
+        </form>
+
         <h6 class="text-muted text-uppercase small mb-3">Histórico automático de alterações</h6>
         <?php if (empty($historico)): ?>
             <p class="text-muted">Nenhum evento registrado.</p>

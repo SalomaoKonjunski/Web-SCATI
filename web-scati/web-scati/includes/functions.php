@@ -181,3 +181,11 @@ function statusServidorBadgeClass(?string $status): string
 {
     return $status === 'Ativo' ? 'bg-success' : 'bg-secondary';
 }
+
+/**
+ * Lista fixa dos tipos de manutenção aceitos ao registrar uma manutenção no histórico.
+ */
+function tiposManutencao(): array
+{
+    return ['Manutenção Preventiva', 'Limpeza', 'Troca de Componente', 'Outro'];
+}

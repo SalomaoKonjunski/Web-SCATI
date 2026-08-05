@@ -23,6 +23,7 @@ $titulosRelatorios = [
     'financeiro_valor_total'  => 'Valor total dos equipamentos',
     'financeiro_sem_valor'    => 'Equipamentos sem valor cadastrado',
     'financeiro_garantia'     => 'Equipamentos em garantia',
+    'historico_alteracoes'    => 'Histórico de alterações',
 ];
 
 $linhas = [];
@@ -105,6 +106,16 @@ if ($relatorio !== '' && isset($titulosRelatorios[$relatorio])) {
             $rows = $pdo->query("SELECT patrimonio, tipo, garantia, data_compra FROM equipamentos WHERE garantia IS NOT NULL AND garantia <> '' ORDER BY patrimonio")->fetchAll();
             foreach ($rows as $r) { $linhas[] = [$r['patrimonio'], $r['tipo'], $r['garantia'], formatDate($r['data_compra'])]; }
             break;
+
+        case 'historico_alteracoes':
+            $colunas = ['Data/Hora', 'Patrimônio', 'Evento', 'Descrição'];
+            $rows = $pdo->query(
+                "SELECT h.data_hora, e.patrimonio, h.evento, h.descricao
+                 FROM historico_equipamentos h JOIN equipamentos e ON e.id = h.equipamento_id
+                 ORDER BY h.data_hora DESC"
+            )->fetchAll();
+            foreach ($rows as $r) { $linhas[] = [formatDateTime($r['data_hora']), $r['patrimonio'], $r['evento'], $r['descricao']]; }
+            break;
     }
 }
 
@@ -137,6 +148,9 @@ include __DIR__ . '/../../includes/header.php';
             <a class="list-group-item list-group-item-action <?= $relatorio === 'financeiro_valor_total' ? 'active' : '' ?>" href="?relatorio=financeiro_valor_total">Valor dos equipamentos</a>
             <a class="list-group-item list-group-item-action <?= $relatorio === 'financeiro_sem_valor' ? 'active' : '' ?>" href="?relatorio=financeiro_sem_valor">Sem valor cadastrado</a>
             <a class="list-group-item list-group-item-action <?= $relatorio === 'financeiro_garantia' ? 'active' : '' ?>" href="?relatorio=financeiro_garantia">Em garantia</a>
+
+            <div class="list-group-item list-group-item-secondary fw-semibold">Histórico</div>
+            <a class="list-group-item list-group-item-action <?= $relatorio === 'historico_alteracoes' ? 'active' : '' ?>" href="?relatorio=historico_alteracoes">Histórico de alterações</a>
         </div>
     </div>
 
