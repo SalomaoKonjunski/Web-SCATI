@@ -15,11 +15,15 @@ if (!$equipamento) {
     redirect('/modules/equipamentos/index.php');
 }
 
-// Itens de estoque vinculados voltam a ficar disponíveis em vez de permanecerem presos a um equipamento inexistente.
-$pdo->prepare('UPDATE estoque SET status = :status, equipamento_id = NULL WHERE equipamento_id = :id')
-    ->execute(['status' => 'Disponível', 'id' => $id]);
+// Itens de estoque vinculados devolvem suas unidades ao estoque em vez de ficarem presos a um equipamento inexistente.
+$stmtItensVinc = $pdo->prepare('SELECT estoque_id FROM itens_vinculados WHERE equipamento_id = :id');
+$stmtItensVinc->execute(['id' => $id]);
+$stmtIncrementa = $pdo->prepare('UPDATE estoque SET quantidade = quantidade + 1 WHERE id = :id');
+foreach ($stmtItensVinc->fetchAll() as $vinc) {
+    $stmtIncrementa->execute(['id' => $vinc['estoque_id']]);
+}
 
-// A exclusão do equipamento remove em cascata seu histórico e observações.
+// A exclusão do equipamento remove em cascata seu histórico, observações e vínculos de itens.
 // Licenças vinculadas ficam sem equipamento (equipamento_id = NULL) em vez de serem apagadas.
 $pdo->prepare('DELETE FROM equipamentos WHERE id = :id')->execute(['id' => $id]);
 

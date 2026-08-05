@@ -30,11 +30,17 @@ Funcional (v1.0).
    ```
 
    Da mesma forma, se o banco já existia antes do suporte a **Itens
-   Vinculados** (antes das colunas `status` e `equipamento_id` na tabela
-   `estoque`), rode também esta migração incremental **uma única vez**:
+   Vinculados** (antes da tabela `itens_vinculados`), rode também esta
+   migração incremental **uma única vez**:
    ```bash
    mysql -u root -p scati < database/migration_itens_vinculados.sql
    ```
+
+   > Se você já rodou uma versão **anterior** dessa migração (a que
+   > adicionava as colunas `status` e `equipamento_id` diretamente na
+   > tabela `estoque` — modelo que tinha um bug com itens de quantidade > 1),
+   > use `database/migration_itens_vinculados_fix.sql` no lugar do arquivo
+   > acima para corrigir a estrutura sem perder os vínculos já cadastrados.
 
    > Importante: ao importar qualquer um dos arquivos `.sql` deste projeto,
    > garanta que o cliente MySQL use UTF-8 (ex.: `mysql --default-character-set=utf8mb4 -u root -p < arquivo.sql`),
@@ -112,11 +118,13 @@ web-scati/
   aplicação e reforçada por `CHECK` no banco).
 - **Itens Vinculados**: aba na ficha do equipamento para vincular itens já
   cadastrados no Estoque (periféricos, cabos, etc.) diretamente a ele, sem
-  duplicar o cadastro. Regra `1 equipamento : N itens` (um item pertence a
-  no máximo um equipamento por vez). Ao vincular, o item muda automaticamente
-  de status para "Em uso" e some da lista de disponíveis; ao desvincular (ou
-  ao excluir o equipamento), o item volta para "Disponível" e pode ser
-  vinculado a outro equipamento.
+  duplicar o cadastro. Cada vínculo consome 1 unidade da quantidade
+  disponível do item (tabela `itens_vinculados`), permitindo que um mesmo
+  item com várias unidades em estoque (ex.: "Adaptador de Vídeo",
+  quantidade = 4) seja distribuído entre vários equipamentos ao mesmo
+  tempo — vincular uma unidade não trava as demais. Ao desvincular (ou ao
+  excluir o equipamento), a unidade volta automaticamente para a
+  quantidade disponível do item.
 - **Redes**: CRUD simples, com contagem de equipamentos vinculados.
 - **Licenças**: CRUD com a regra `1 equipamento : N licenças` (uma licença
   pertence a no máximo um equipamento) e tela dedicada de **transferência**

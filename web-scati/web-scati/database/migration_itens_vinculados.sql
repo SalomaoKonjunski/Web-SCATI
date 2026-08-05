@@ -2,22 +2,32 @@
 -- Web SCATI - Migração: vinculação de itens de estoque a equipamentos
 -- =====================================================================
 -- Use este script SOMENTE se o banco "scati" já existia antes desta
--- atualização (ou seja, a tabela "estoque" ainda não tem as colunas
--- "status" e "equipamento_id"). Se for uma instalação nova, basta
--- importar o scati.sql atualizado — não é necessário rodar este arquivo.
+-- atualização e ainda NÃO tem a tabela "itens_vinculados". Se for uma
+-- instalação nova, basta importar o scati.sql atualizado — não é
+-- necessário rodar este arquivo.
+--
+-- Se você já rodou uma versão ANTERIOR desta migração (que adicionava as
+-- colunas "status" e "equipamento_id" diretamente na tabela "estoque"),
+-- NÃO use este arquivo — use database/migration_itens_vinculados_fix.sql
+-- em vez dele.
 --
 -- Rode uma única vez:
---   mysql -u root -p scati < database/migration_itens_vinculados.sql
+--   mysql --default-character-set=utf8mb4 -u root -p scati < database/migration_itens_vinculados.sql
 -- =====================================================================
 
 USE scati;
 
-ALTER TABLE estoque
-    ADD COLUMN status         ENUM('Disponível','Em uso') NOT NULL DEFAULT 'Disponível' AFTER observacoes,
-    ADD COLUMN equipamento_id INT NULL AFTER status;
+CREATE TABLE itens_vinculados (
+    id              INT AUTO_INCREMENT PRIMARY KEY,
+    estoque_id      INT NOT NULL,
+    equipamento_id  INT NOT NULL,
+    data_vinculo    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-ALTER TABLE estoque
-    ADD CONSTRAINT fk_estoque_equipamento
-        FOREIGN KEY (equipamento_id) REFERENCES equipamentos(id) ON DELETE SET NULL;
+    CONSTRAINT fk_itemvinc_estoque
+        FOREIGN KEY (estoque_id) REFERENCES estoque(id) ON DELETE CASCADE,
+    CONSTRAINT fk_itemvinc_equipamento
+        FOREIGN KEY (equipamento_id) REFERENCES equipamentos(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
 
-CREATE INDEX idx_estoque_equipamento ON estoque(equipamento_id);
+CREATE INDEX idx_itemvinc_estoque ON itens_vinculados(estoque_id);
+CREATE INDEX idx_itemvinc_equipamento ON itens_vinculados(equipamento_id);
