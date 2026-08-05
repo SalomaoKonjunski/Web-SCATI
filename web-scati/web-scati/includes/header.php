@@ -37,7 +37,7 @@ $flash = getFlash();
 
     <main class="scati-content">
         <?php if ($flash): ?>
-            <div class="alert alert-<?= e($flash['tipo']) ?> alert-dismissible fade show" role="alert">
+            <div class="alert alert-<?= e($flash['tipo']) ?> alert-dismissible fade show d-print-none" role="alert">
                 <?= e($flash['mensagem']) ?>
                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>

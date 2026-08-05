@@ -32,6 +32,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['nova_observacao'])) {
     redirect('/modules/equipamentos/view.php?id=' . $id . '#observacoes');
 }
 
+// Trata a vinculação de um item de estoque a este equipamento (POST nesta mesma página)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['vincular_item'])) {
+    $itemId = (int) ($_POST['item_estoque_id'] ?? 0);
+    if ($itemId > 0) {
+        $stmtItem = $pdo->prepare('SELECT * FROM estoque WHERE id = :id AND status = :status');
+        $stmtItem->execute(['id' => $itemId, 'status' => 'Disponível']);
+        $itemEstoque = $stmtItem->fetch();
+        if ($itemEstoque) {
+            $pdo->prepare('UPDATE estoque SET status = :status, equipamento_id = :eq WHERE id = :id')
+                ->execute(['status' => 'Em uso', 'eq' => $id, 'id' => $itemId]);
+            registrarHistorico($id, 'Item', 'Item "' . $itemEstoque['nome'] . '" vinculado a este equipamento');
+            flash('success', 'Item vinculado com sucesso.');
+        } else {
+            flash('danger', 'Item indisponível para vínculo.');
+        }
+    }
+    redirect('/modules/equipamentos/view.php?id=' . $id . '#itens');
+}
+
 // Licenças vinculadas a este equipamento
 $licencas = $pdo->prepare('SELECT * FROM licencas WHERE equipamento_id = :id ORDER BY software');
 $licencas->execute(['id' => $id]);
@@ -46,6 +65,45 @@ $historico = $historico->fetchAll();
 $observacoes = $pdo->prepare('SELECT * FROM observacoes_equipamentos WHERE equipamento_id = :id ORDER BY data_hora DESC');
 $observacoes->execute(['id' => $id]);
 $observacoes = $observacoes->fetchAll();
+
+// Itens de estoque vinculados a este equipamento
+$itensVinculados = $pdo->prepare(
+    'SELECT es.*, c.nome AS categoria_nome
+     FROM estoque es JOIN categorias_estoque c ON c.id = es.categoria_id
+     WHERE es.equipamento_id = :id ORDER BY es.nome'
+);
+$itensVinculados->execute(['id' => $id]);
+$itensVinculados = $itensVinculados->fetchAll();
+
+// Itens de estoque disponíveis para vincular a este equipamento
+$stmtItensDisponiveis = $pdo->prepare(
+    'SELECT es.*, c.nome AS categoria_nome
+     FROM estoque es JOIN categorias_estoque c ON c.id = es.categoria_id
+     WHERE es.status = :status ORDER BY c.nome, es.nome'
+);
+$stmtItensDisponiveis->execute(['status' => 'Disponível']);
+$itensDisponiveis = $stmtItensDisponiveis->fetchAll();
+
+// Compartilhamentos de rede (apenas para equipamentos do tipo Servidor)
+$compartilhamentos = $pdo->prepare('SELECT * FROM compartilhamentos_servidor WHERE equipamento_id = :id ORDER BY nome');
+$compartilhamentos->execute(['id' => $id]);
+$compartilhamentos = $compartilhamentos->fetchAll();
+
+$computadoresVinculados = [];
+if (!empty($compartilhamentos)) {
+    $placeholders = implode(',', array_fill(0, count($compartilhamentos), '?'));
+    $stmtVinc = $pdo->prepare(
+        "SELECT cc.compartilhamento_id, e.id, e.patrimonio, e.hostname
+         FROM compartilhamento_computadores cc
+         JOIN equipamentos e ON e.id = cc.equipamento_id
+         WHERE cc.compartilhamento_id IN ($placeholders)
+         ORDER BY e.patrimonio"
+    );
+    $stmtVinc->execute(array_column($compartilhamentos, 'id'));
+    foreach ($stmtVinc->fetchAll() as $v) {
+        $computadoresVinculados[$v['compartilhamento_id']][] = $v;
+    }
+}
 
 $pageTitle = 'Ficha do Equipamento';
 include __DIR__ . '/../../includes/header.php';
@@ -77,6 +135,11 @@ include __DIR__ . '/../../includes/header.php';
         </button>
     </li>
     <li class="nav-item" role="presentation">
+        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#itens" type="button">
+            Itens Vinculados <span class="badge bg-secondary"><?= count($itensVinculados) ?></span>
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
         <button class="nav-link" data-bs-toggle="tab" data-bs-target="#financeiro" type="button">Financeiro</button>
     </li>
     <li class="nav-item" role="presentation">
@@ -89,6 +152,13 @@ include __DIR__ . '/../../includes/header.php';
             Observações <span class="badge bg-secondary"><?= count($observacoes) ?></span>
         </button>
     </li>
+    <?php if (ehServidor($eq['tipo'])): ?>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#compartilhamentos" type="button">
+            Compartilhamentos <span class="badge bg-secondary"><?= count($compartilhamentos) ?></span>
+        </button>
+    </li>
+    <?php endif; ?>
 </ul>
 
 <div class="tab-content bg-white border border-top-0 p-4 rounded-bottom mb-5">
@@ -121,6 +191,22 @@ include __DIR__ . '/../../includes/header.php';
                     <tr><th style="width:40%">Endereço IP</th><td><?= e($eq['ip']) ?: '-' ?></td></tr>
                     <tr><th>Modelo do Toner</th><td><?= e($eq['modelo_toner']) ?: '-' ?></td></tr>
                     <tr><th>Qtd. de Toners</th><td><?= $eq['qtd_toners'] !== null ? (int) $eq['qtd_toners'] : '-' ?></td></tr>
+                </table>
+                <?php endif; ?>
+
+                <?php if (ehServidor($eq['tipo'])): ?>
+                <h6 class="text-muted text-uppercase small mb-3 mt-4">Informações do Servidor</h6>
+                <table class="table table-sm">
+                    <tr><th style="width:40%">Função do Servidor</th><td><?= e($eq['funcao_servidor']) ?: '-' ?></td></tr>
+                    <tr>
+                        <th>Status do Servidor</th>
+                        <td>
+                            <?php if ($eq['servidor_status']): ?>
+                                <span class="badge <?= statusServidorBadgeClass($eq['servidor_status']) ?>"><?= e($eq['servidor_status']) ?></span>
+                            <?php else: ?>-<?php endif; ?>
+                        </td>
+                    </tr>
+                    <tr><th>Observações</th><td><?= $eq['servidor_observacoes'] ? nl2br(e($eq['servidor_observacoes'])) : '-' ?></td></tr>
                 </table>
                 <?php endif; ?>
             </div>
@@ -176,6 +262,59 @@ include __DIR__ . '/../../includes/header.php';
                 </tbody>
             </table>
         <?php endif; ?>
+    </div>
+
+    <!-- Itens Vinculados -->
+    <div class="tab-pane fade" id="itens">
+        <h6 class="text-muted text-uppercase small mb-3">Itens de estoque vinculados a este equipamento</h6>
+        <?php if (empty($itensVinculados)): ?>
+            <p class="text-muted">Nenhum item vinculado a este equipamento.</p>
+        <?php else: ?>
+            <table class="table table-sm table-hover mb-4">
+                <thead class="table-light">
+                    <tr><th>Nome</th><th>Categoria</th><th>Marca/Modelo</th><th class="text-end">Ações</th></tr>
+                </thead>
+                <tbody>
+                <?php foreach ($itensVinculados as $iv): ?>
+                    <tr>
+                        <td><?= e($iv['nome']) ?></td>
+                        <td><?= e($iv['categoria_nome']) ?></td>
+                        <td><?= e(trim(($iv['marca'] ?? '') . ' ' . ($iv['modelo'] ?? ''))) ?: '-' ?></td>
+                        <td class="text-end">
+                            <a href="../estoque/desvincular.php?id=<?= (int) $iv['id'] ?>" class="btn btn-sm btn-outline-danger js-confirm-delete"
+                               data-confirm-msg="Desvincular o item &quot;<?= e($iv['nome']) ?>&quot; deste equipamento? Ele voltará a ficar disponível no estoque.">
+                                <i class="bi bi-x-lg"></i> Desvincular
+                            </a>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+                </tbody>
+            </table>
+        <?php endif; ?>
+
+        <form method="post" class="row g-2 align-items-end">
+            <div class="col-md-8">
+                <label class="form-label fw-semibold">+ Vincular Item do Estoque</label>
+                <select name="item_estoque_id" class="form-select" <?= empty($itensDisponiveis) ? 'disabled' : '' ?> required>
+                    <?php if (empty($itensDisponiveis)): ?>
+                        <option value="">Nenhum item disponível no estoque</option>
+                    <?php else: ?>
+                        <option value="">Selecione um item...</option>
+                        <?php foreach ($itensDisponiveis as $disp): ?>
+                            <?php $marcaModelo = trim(($disp['marca'] ?? '') . ' ' . ($disp['modelo'] ?? '')); ?>
+                            <option value="<?= (int) $disp['id'] ?>">
+                                <?= e($disp['nome']) ?> — <?= e($disp['categoria_nome']) ?><?= $marcaModelo ? ' (' . e($marcaModelo) . ')' : '' ?>
+                            </option>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <button type="submit" name="vincular_item" value="1" class="btn btn-primary w-100" <?= empty($itensDisponiveis) ? 'disabled' : '' ?>>
+                    <i class="bi bi-plus-lg"></i> Vincular
+                </button>
+            </div>
+        </form>
     </div>
 
     <!-- Financeiro -->
@@ -235,6 +374,58 @@ include __DIR__ . '/../../includes/header.php';
             </ul>
         <?php endif; ?>
     </div>
+
+    <?php if (ehServidor($eq['tipo'])): ?>
+    <!-- Compartilhamentos -->
+    <div class="tab-pane fade" id="compartilhamentos">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h6 class="text-muted text-uppercase small mb-0">Pastas compartilhadas deste servidor</h6>
+            <a href="../compartilhamentos/form.php?equipamento_id=<?= (int) $eq['id'] ?>" class="btn btn-sm btn-primary">
+                <i class="bi bi-plus-lg"></i> Novo Compartilhamento
+            </a>
+        </div>
+        <?php if (empty($compartilhamentos)): ?>
+            <p class="text-muted">Nenhum compartilhamento cadastrado para este servidor.</p>
+        <?php else: ?>
+            <?php foreach ($compartilhamentos as $comp): ?>
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h6 class="mb-1"><?= e($comp['nome']) ?></h6>
+                                <div class="small text-muted mb-2"><i class="bi bi-folder2 me-1"></i><?= e($comp['caminho_pasta']) ?></div>
+                                <?php if ($comp['descricao']): ?><p class="mb-1"><?= nl2br(e($comp['descricao'])) ?></p><?php endif; ?>
+                                <?php if ($comp['permissoes']): ?><div class="small"><strong>Permissões:</strong> <?= e($comp['permissoes']) ?></div><?php endif; ?>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <a href="../compartilhamentos/form.php?id=<?= (int) $comp['id'] ?>" class="btn btn-sm btn-outline-primary" title="Editar">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <a href="../compartilhamentos/delete.php?id=<?= (int) $comp['id'] ?>" class="btn btn-sm btn-outline-danger js-confirm-delete"
+                                   data-confirm-msg="Excluir o compartilhamento <?= e($comp['nome']) ?>? Esta ação não pode ser desfeita." title="Excluir">
+                                    <i class="bi bi-trash"></i>
+                                </a>
+                            </div>
+                        </div>
+                        <div class="mt-2">
+                            <span class="small text-muted d-block mb-1">Computadores vinculados:</span>
+                            <?php $vinc = $computadoresVinculados[$comp['id']] ?? []; ?>
+                            <?php if (empty($vinc)): ?>
+                                <span class="text-muted small">Nenhum computador vinculado.</span>
+                            <?php else: ?>
+                                <?php foreach ($vinc as $v): ?>
+                                    <a href="view.php?id=<?= (int) $v['id'] ?>" class="badge bg-light text-dark border text-decoration-none me-1">
+                                        <?= e($v['patrimonio']) ?><?= $v['hostname'] ? ' — ' . e($v['hostname']) : '' ?>
+                                    </a>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                </div>
+            <?php endforeach; ?>
+        <?php endif; ?>
+    </div>
+    <?php endif; ?>
 </div>
 
 <?php include __DIR__ . '/../../includes/footer.php'; ?>

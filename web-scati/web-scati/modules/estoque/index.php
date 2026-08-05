@@ -10,8 +10,10 @@ $busca = trim($_GET['busca'] ?? '');
 $filtroCategoria = $_GET['categoria_id'] ?? '';
 $somenteAbaixoMinimo = isset($_GET['abaixo_minimo']);
 
-$sql = "SELECT es.*, c.nome AS categoria_nome
-        FROM estoque es JOIN categorias_estoque c ON c.id = es.categoria_id
+$sql = "SELECT es.*, c.nome AS categoria_nome, eq.patrimonio AS equipamento_patrimonio
+        FROM estoque es
+        JOIN categorias_estoque c ON c.id = es.categoria_id
+        LEFT JOIN equipamentos eq ON eq.id = es.equipamento_id
         WHERE 1=1";
 $params = [];
 
@@ -83,12 +85,13 @@ include __DIR__ . '/../../includes/header.php';
                     <th class="text-center">Quantidade</th>
                     <th class="text-center">Mínimo</th>
                     <th>Localização</th>
+                    <th>Status</th>
                     <th class="text-end">Ações</th>
                 </tr>
             </thead>
             <tbody>
                 <?php if (empty($itens)): ?>
-                    <tr><td colspan="7" class="text-center text-muted py-4">Nenhum item encontrado.</td></tr>
+                    <tr><td colspan="8" class="text-center text-muted py-4">Nenhum item encontrado.</td></tr>
                 <?php endif; ?>
                 <?php foreach ($itens as $item): ?>
                     <?php $abaixoMinimo = $item['quantidade'] < $item['quantidade_minima']; ?>
@@ -99,6 +102,16 @@ include __DIR__ . '/../../includes/header.php';
                         <td class="text-center fw-semibold"><?= (int) $item['quantidade'] ?></td>
                         <td class="text-center text-muted"><?= (int) $item['quantidade_minima'] ?></td>
                         <td><?= e($item['localizacao']) ?: '-' ?></td>
+                        <td>
+                            <span class="badge <?= statusEstoqueBadgeClass($item['status']) ?>"><?= e($item['status']) ?></span>
+                            <?php if ($item['equipamento_patrimonio']): ?>
+                                <div class="small text-muted mt-1">
+                                    <a href="../equipamentos/view.php?id=<?= (int) $item['equipamento_id'] ?>#itens" class="text-decoration-none">
+                                        <i class="bi bi-link-45deg"></i> <?= e($item['equipamento_patrimonio']) ?>
+                                    </a>
+                                </div>
+                            <?php endif; ?>
+                        </td>
                         <td class="text-end">
                             <?php if ($abaixoMinimo): ?>
                                 <span class="badge bg-danger me-2"><i class="bi bi-exclamation-triangle"></i> Baixo</span>

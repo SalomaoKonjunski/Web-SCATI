@@ -103,3 +103,25 @@ body {
         padding: 1rem;
     }
 }
+
+/* =====================================================
+   Impressão / exportação em PDF: exibe apenas o conteúdo
+   principal da página, sem navbar, menu lateral ou ações.
+   ===================================================== */
+@media print {
+    .scati-navbar,
+    .scati-sidebar {
+        display: none !important;
+    }
+    .scati-layout {
+        display: block;
+    }
+    .scati-content {
+        padding: 0;
+    }
+    #relatorioPrintArea {
+        width: 100% !important;
+        max-width: 100% !important;
+        flex: 0 0 100% !important;
+    }
+}

@@ -111,10 +111,10 @@ if ($relatorio !== '' && isset($titulosRelatorios[$relatorio])) {
 include __DIR__ . '/../../includes/header.php';
 ?>
 
-<h1 class="h3 mb-4"><i class="bi bi-bar-chart-line me-2"></i>Relatórios</h1>
+<h1 class="h3 mb-4 d-print-none"><i class="bi bi-bar-chart-line me-2"></i>Relatórios</h1>
 
 <div class="row g-4">
-    <div class="col-md-3">
+    <div class="col-md-3 d-print-none">
         <div class="list-group">
             <div class="list-group-item list-group-item-secondary fw-semibold">Equipamentos</div>
             <a class="list-group-item list-group-item-action <?= $relatorio === 'todos_equipamentos' ? 'active' : '' ?>" href="?relatorio=todos_equipamentos">Lista completa</a>
@@ -140,9 +140,9 @@ include __DIR__ . '/../../includes/header.php';
         </div>
     </div>
 
-    <div class="col-md-9">
+    <div class="col-md-9" id="relatorioPrintArea">
         <?php if ($relatorio === ''): ?>
-            <div class="card">
+            <div class="card d-print-none">
                 <div class="card-body text-center text-muted py-5">
                     <i class="bi bi-arrow-left fs-3"></i>
                     <p class="mt-2 mb-0">Selecione um relatório na lista ao lado.</p>
@@ -152,7 +152,7 @@ include __DIR__ . '/../../includes/header.php';
             <div class="card">
                 <div class="card-header bg-white d-flex justify-content-between align-items-center">
                     <strong><?= e($titulosRelatorios[$relatorio]) ?></strong>
-                    <button class="btn btn-sm btn-outline-secondary" onclick="window.print()"><i class="bi bi-printer"></i> Imprimir</button>
+                    <button class="btn btn-sm btn-outline-secondary d-print-none" onclick="window.print()"><i class="bi bi-printer"></i> Imprimir</button>
                 </div>
                 <div class="table-responsive">
                     <table class="table table-sm table-hover mb-0">
