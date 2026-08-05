@@ -19,6 +19,16 @@ Funcional (v1.0).
    mysql -u root -p < database/scati.sql
    ```
 
+   Se o banco `scati` **já existia** antes do suporte a equipamentos do tipo
+   Servidor (antes das colunas `funcao_servidor`, `servidor_status`,
+   `servidor_observacoes` e das tabelas `compartilhamentos_servidor` /
+   `compartilhamento_computadores`), não reimporte o `scati.sql` do zero —
+   isso falharia por conflito com as tabelas já existentes. Em vez disso,
+   rode a migração incremental **uma única vez**:
+   ```bash
+   mysql -u root -p scati < database/migration_servidor.sql
+   ```
+
 2. **Configuração**
    Edite `config/database.php` e ajuste:
    - `DB_HOST`, `DB_NAME`, `DB_USER`, `DB_PASS` — credenciais do MySQL
