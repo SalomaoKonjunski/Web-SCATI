@@ -166,6 +166,25 @@ CREATE TABLE historico_equipamentos (
 ) ENGINE=InnoDB;
 
 -- ---------------------------------------------------------------------
+-- Tabela: historico_estoque (registro de cadastro/exclusão de itens)
+-- estoque_id fica NULL quando o item é excluído (ON DELETE SET NULL),
+-- mas o nome/categoria ficam gravados na própria linha para que o
+-- registro continue legível mesmo após a exclusão do item.
+-- ---------------------------------------------------------------------
+CREATE TABLE historico_estoque (
+    id              INT AUTO_INCREMENT PRIMARY KEY,
+    estoque_id      INT NULL,
+    item_nome       VARCHAR(120) NOT NULL,
+    categoria_nome  VARCHAR(60) NULL,
+    evento          VARCHAR(60) NOT NULL,
+    descricao       VARCHAR(255) NULL,
+    data_hora       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_historico_estoque_item
+        FOREIGN KEY (estoque_id) REFERENCES estoque(id) ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+-- ---------------------------------------------------------------------
 -- Tabela: observacoes_equipamentos (registro manual, cronológico)
 -- ---------------------------------------------------------------------
 CREATE TABLE observacoes_equipamentos (
@@ -225,3 +244,5 @@ CREATE INDEX idx_equip_status     ON equipamentos(status);
 CREATE INDEX idx_compart_equipamento ON compartilhamentos_servidor(equipamento_id);
 CREATE INDEX idx_itemvinc_estoque ON itens_vinculados(estoque_id);
 CREATE INDEX idx_itemvinc_equipamento ON itens_vinculados(equipamento_id);
+CREATE INDEX idx_historico_estoque_item ON historico_estoque(estoque_id);
+CREATE INDEX idx_historico_estoque_data ON historico_estoque(data_hora);

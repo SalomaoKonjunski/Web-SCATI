@@ -99,7 +99,7 @@ $observacoes = $observacoes->fetchAll();
 
 // Itens de estoque vinculados a este equipamento (uma linha por unidade vinculada)
 $itensVinculados = $pdo->prepare(
-    'SELECT iv.id AS vinculo_id, es.nome, es.marca, es.modelo, c.nome AS categoria_nome
+    'SELECT iv.id AS vinculo_id, es.id AS estoque_id, es.nome, es.marca, es.modelo, c.nome AS categoria_nome
      FROM itens_vinculados iv
      JOIN estoque es ON es.id = iv.estoque_id
      JOIN categorias_estoque c ON c.id = es.categoria_id
@@ -115,6 +115,10 @@ $itensDisponiveis = $pdo->query(
      FROM estoque es JOIN categorias_estoque c ON c.id = es.categoria_id
      WHERE es.quantidade > 0 ORDER BY c.nome, es.nome'
 )->fetchAll();
+
+// Toners vinculados/disponíveis (subconjunto dos itens acima, restrito à categoria "Toner")
+$tonersVinculados = array_values(array_filter($itensVinculados, fn($iv) => $iv['categoria_nome'] === 'Toner'));
+$tonersDisponiveis = array_values(array_filter($itensDisponiveis, fn($disp) => $disp['categoria_nome'] === 'Toner'));
 
 // Compartilhamentos de rede (apenas para equipamentos do tipo Servidor)
 $compartilhamentos = $pdo->prepare('SELECT * FROM compartilhamentos_servidor WHERE equipamento_id = :id ORDER BY nome');
@@ -171,6 +175,13 @@ include __DIR__ . '/../../includes/header.php';
             Itens Vinculados <span class="badge bg-secondary"><?= count($itensVinculados) ?></span>
         </button>
     </li>
+    <?php if (ehImpressora($eq['tipo'])): ?>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#toner" type="button">
+            Toner <span class="badge bg-secondary"><?= count($tonersVinculados) ?></span>
+        </button>
+    </li>
+    <?php endif; ?>
     <li class="nav-item" role="presentation">
         <button class="nav-link" data-bs-toggle="tab" data-bs-target="#financeiro" type="button">Financeiro</button>
     </li>
@@ -348,6 +359,64 @@ include __DIR__ . '/../../includes/header.php';
             </div>
         </form>
     </div>
+
+    <?php if (ehImpressora($eq['tipo'])): ?>
+    <!-- Toner -->
+    <div class="tab-pane fade" id="toner">
+        <h6 class="text-muted text-uppercase small mb-3">Toner instalado nesta impressora</h6>
+        <?php if (empty($tonersVinculados)): ?>
+            <p class="text-muted">Nenhum toner vinculado a esta impressora.</p>
+        <?php else: ?>
+            <table class="table table-sm table-hover mb-4">
+                <thead class="table-light">
+                    <tr><th>Nome</th><th>Marca/Modelo</th><th class="text-end">Ações</th></tr>
+                </thead>
+                <tbody>
+                <?php foreach ($tonersVinculados as $tv): ?>
+                    <tr>
+                        <td><?= e($tv['nome']) ?></td>
+                        <td><?= e(trim(($tv['marca'] ?? '') . ' ' . ($tv['modelo'] ?? ''))) ?: '-' ?></td>
+                        <td class="text-end">
+                            <a href="../estoque/desvincular.php?id=<?= (int) $tv['vinculo_id'] ?>" class="btn btn-sm btn-outline-secondary js-confirm-delete"
+                               data-confirm-msg="Desvincular o toner &quot;<?= e($tv['nome']) ?>&quot; desta impressora? Ele voltará a ficar disponível no estoque.">
+                                <i class="bi bi-x-lg"></i> Desvincular
+                            </a>
+                            <a href="../estoque/delete.php?id=<?= (int) $tv['estoque_id'] ?>&equipamento_id=<?= (int) $eq['id'] ?>" class="btn btn-sm btn-outline-danger">
+                                <i class="bi bi-trash"></i> Excluir Toner
+                            </a>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+                </tbody>
+            </table>
+        <?php endif; ?>
+
+        <form method="post" class="row g-2 align-items-end">
+            <div class="col-md-8">
+                <label class="form-label fw-semibold">+ Vincular Toner do Estoque</label>
+                <select name="item_estoque_id" class="form-select" <?= empty($tonersDisponiveis) ? 'disabled' : '' ?> required>
+                    <?php if (empty($tonersDisponiveis)): ?>
+                        <option value="">Nenhum toner disponível no estoque</option>
+                    <?php else: ?>
+                        <option value="">Selecione um toner...</option>
+                        <?php foreach ($tonersDisponiveis as $disp): ?>
+                            <?php $marcaModelo = trim(($disp['marca'] ?? '') . ' ' . ($disp['modelo'] ?? '')); ?>
+                            <option value="<?= (int) $disp['id'] ?>">
+                                <?= e($disp['nome']) ?><?= $marcaModelo ? ' (' . e($marcaModelo) . ')' : '' ?> · <?= (int) $disp['quantidade'] ?> disponível(is)
+                            </option>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </select>
+                <div class="form-text">Somente itens da categoria "Toner" aparecem aqui.</div>
+            </div>
+            <div class="col-md-4">
+                <button type="submit" name="vincular_item" value="1" class="btn btn-primary w-100" <?= empty($tonersDisponiveis) ? 'disabled' : '' ?>>
+                    <i class="bi bi-plus-lg"></i> Vincular
+                </button>
+            </div>
+        </form>
+    </div>
+    <?php endif; ?>
 
     <!-- Financeiro -->
     <div class="tab-pane fade" id="financeiro">

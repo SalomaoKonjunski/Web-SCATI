@@ -118,8 +118,7 @@ include __DIR__ . '/../../includes/header.php';
                                 <span class="badge bg-danger me-2"><i class="bi bi-exclamation-triangle"></i> Baixo</span>
                             <?php endif; ?>
                             <a href="form.php?id=<?= (int) $item['id'] ?>" class="btn btn-sm btn-outline-primary"><i class="bi bi-pencil"></i></a>
-                            <a href="delete.php?id=<?= (int) $item['id'] ?>" class="btn btn-sm btn-outline-danger js-confirm-delete"
-                               data-confirm-msg="Excluir o item &quot;<?= e($item['nome']) ?>&quot; do estoque?"><i class="bi bi-trash"></i></a>
+                            <a href="delete.php?id=<?= (int) $item['id'] ?>" class="btn btn-sm btn-outline-danger" title="Excluir"><i class="bi bi-trash"></i></a>
                         </td>
                     </tr>
                 <?php endforeach; ?>

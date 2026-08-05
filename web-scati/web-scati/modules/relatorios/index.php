@@ -29,6 +29,21 @@ $titulosRelatorios = [
 $linhas = [];
 $colunas = [];
 
+// Filtros específicos do relatório "Histórico de alterações"
+$filtroHistEvento = $_GET['h_evento'] ?? '';
+$filtroHistCategoria = $_GET['h_categoria'] ?? '';
+$filtroHistDataIni = $_GET['h_data_ini'] ?? '';
+$filtroHistDataFim = $_GET['h_data_fim'] ?? '';
+$filtroHistBusca = trim($_GET['h_busca'] ?? '');
+$eventosHistorico = $pdo->query(
+    "SELECT DISTINCT evento FROM (
+        SELECT evento FROM historico_equipamentos
+        UNION
+        SELECT evento FROM historico_estoque
+    ) t ORDER BY evento"
+)->fetchAll(PDO::FETCH_COLUMN);
+$categoriasHistorico = $pdo->query('SELECT nome FROM categorias_estoque ORDER BY nome')->fetchAll(PDO::FETCH_COLUMN);
+
 if ($relatorio !== '' && isset($titulosRelatorios[$relatorio])) {
     switch ($relatorio) {
         case 'todos_equipamentos':
@@ -108,13 +123,44 @@ if ($relatorio !== '' && isset($titulosRelatorios[$relatorio])) {
             break;
 
         case 'historico_alteracoes':
-            $colunas = ['Data/Hora', 'Patrimônio', 'Evento', 'Descrição'];
-            $rows = $pdo->query(
-                "SELECT h.data_hora, e.patrimonio, h.evento, h.descricao
-                 FROM historico_equipamentos h JOIN equipamentos e ON e.id = h.equipamento_id
-                 ORDER BY h.data_hora DESC"
-            )->fetchAll();
-            foreach ($rows as $r) { $linhas[] = [formatDateTime($r['data_hora']), $r['patrimonio'], $r['evento'], $r['descricao']]; }
+            $colunas = ['Data/Hora', 'Origem', 'Patrimônio/Item', 'Categoria', 'Evento', 'Descrição'];
+
+            $sql = "SELECT * FROM (
+                        SELECT h.data_hora, 'Equipamento' AS origem, e.patrimonio AS identificacao, NULL AS categoria, h.evento, h.descricao
+                        FROM historico_equipamentos h JOIN equipamentos e ON e.id = h.equipamento_id
+                        UNION ALL
+                        SELECT he.data_hora, 'Item de Estoque' AS origem, he.item_nome AS identificacao, he.categoria_nome AS categoria, he.evento, he.descricao
+                        FROM historico_estoque he
+                    ) AS combinado WHERE 1=1";
+            $params = [];
+
+            if ($filtroHistEvento !== '') {
+                $sql .= ' AND evento = :evento';
+                $params['evento'] = $filtroHistEvento;
+            }
+            if ($filtroHistCategoria !== '') {
+                $sql .= ' AND categoria = :categoria';
+                $params['categoria'] = $filtroHistCategoria;
+            }
+            if ($filtroHistDataIni !== '') {
+                $sql .= ' AND DATE(data_hora) >= :data_ini';
+                $params['data_ini'] = $filtroHistDataIni;
+            }
+            if ($filtroHistDataFim !== '') {
+                $sql .= ' AND DATE(data_hora) <= :data_fim';
+                $params['data_fim'] = $filtroHistDataFim;
+            }
+            if ($filtroHistBusca !== '') {
+                $sql .= ' AND identificacao LIKE :busca';
+                $params['busca'] = '%' . $filtroHistBusca . '%';
+            }
+
+            $sql .= ' ORDER BY data_hora DESC';
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute($params);
+            foreach ($stmt->fetchAll() as $r) {
+                $linhas[] = [formatDateTime($r['data_hora']), $r['origem'], $r['identificacao'], $r['categoria'] ?: '-', $r['evento'], $r['descricao']];
+            }
             break;
     }
 }
@@ -168,6 +214,47 @@ include __DIR__ . '/../../includes/header.php';
                     <strong><?= e($titulosRelatorios[$relatorio]) ?></strong>
                     <button class="btn btn-sm btn-outline-secondary d-print-none" onclick="window.print()"><i class="bi bi-printer"></i> Imprimir</button>
                 </div>
+                <?php if ($relatorio === 'historico_alteracoes'): ?>
+                <div class="card-body border-bottom d-print-none">
+                    <form method="get" class="row g-2 align-items-end">
+                        <input type="hidden" name="relatorio" value="historico_alteracoes">
+                        <div class="col-md-2">
+                            <label class="form-label small text-muted mb-1">Tipo de Ação</label>
+                            <select name="h_evento" class="form-select form-select-sm">
+                                <option value="">Todos</option>
+                                <?php foreach ($eventosHistorico as $ev): ?>
+                                    <option value="<?= e($ev) ?>" <?= $filtroHistEvento === $ev ? 'selected' : '' ?>><?= e($ev) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small text-muted mb-1">Categoria</label>
+                            <select name="h_categoria" class="form-select form-select-sm">
+                                <option value="">Todas</option>
+                                <?php foreach ($categoriasHistorico as $cat): ?>
+                                    <option value="<?= e($cat) ?>" <?= $filtroHistCategoria === $cat ? 'selected' : '' ?>><?= e($cat) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small text-muted mb-1">De</label>
+                            <input type="date" name="h_data_ini" class="form-control form-control-sm" value="<?= e($filtroHistDataIni) ?>">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small text-muted mb-1">Até</label>
+                            <input type="date" name="h_data_fim" class="form-control form-control-sm" value="<?= e($filtroHistDataFim) ?>">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small text-muted mb-1">Patrimônio / Item</label>
+                            <input type="text" name="h_busca" class="form-control form-control-sm" value="<?= e($filtroHistBusca) ?>">
+                        </div>
+                        <div class="col-md-2 d-flex gap-2">
+                            <button type="submit" class="btn btn-sm btn-outline-primary w-100"><i class="bi bi-search"></i> Filtrar</button>
+                            <a href="?relatorio=historico_alteracoes" class="btn btn-sm btn-outline-secondary" title="Limpar"><i class="bi bi-x-lg"></i></a>
+                        </div>
+                    </form>
+                </div>
+                <?php endif; ?>
                 <div class="table-responsive">
                     <table class="table table-sm table-hover mb-0">
                         <thead class="table-light">

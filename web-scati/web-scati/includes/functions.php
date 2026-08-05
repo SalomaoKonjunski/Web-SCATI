@@ -189,3 +189,23 @@ function tiposManutencao(): array
 {
     return ['Manutenção Preventiva', 'Limpeza', 'Troca de Componente', 'Outro'];
 }
+
+/**
+ * Registra um evento no histórico de cadastro/exclusão de um item de estoque.
+ * Nome e categoria são gravados na própria linha (além do estoque_id) para que
+ * o registro continue legível mesmo depois que o item seja excluído.
+ */
+function registrarHistoricoEstoque(?int $estoqueId, string $itemNome, ?string $categoriaNome, string $evento, ?string $descricao = null): void
+{
+    $stmt = db()->prepare(
+        'INSERT INTO historico_estoque (estoque_id, item_nome, categoria_nome, evento, descricao)
+         VALUES (:estoque_id, :item_nome, :categoria_nome, :evento, :descricao)'
+    );
+    $stmt->execute([
+        'estoque_id' => $estoqueId,
+        'item_nome' => $itemNome,
+        'categoria_nome' => $categoriaNome,
+        'evento' => $evento,
+        'descricao' => $descricao,
+    ]);
+}

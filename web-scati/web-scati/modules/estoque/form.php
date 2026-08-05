@@ -70,6 +70,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'INSERT INTO estoque (nome, categoria_id, marca, modelo, quantidade, quantidade_minima, localizacao, observacoes)
                  VALUES (:nome, :categoria_id, :marca, :modelo, :quantidade, :quantidade_minima, :localizacao, :observacoes)'
             )->execute($dados);
+            $novoId = (int) $pdo->lastInsertId();
+
+            $stmtCat = $pdo->prepare('SELECT nome FROM categorias_estoque WHERE id = :id');
+            $stmtCat->execute(['id' => $dados['categoria_id']]);
+            $categoriaNome = $stmtCat->fetchColumn() ?: null;
+
+            registrarHistoricoEstoque($novoId, $dados['nome'], $categoriaNome, 'Cadastro', 'Item cadastrado no estoque');
+
             flash('success', 'Item de estoque cadastrado com sucesso.');
         }
         redirect('/modules/estoque/index.php');
