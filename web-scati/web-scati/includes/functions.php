@@ -120,7 +120,7 @@ function registrarHistorico(int $equipamentoId, string $evento, string $descrica
  */
 function tiposEquipamento(): array
 {
-    return ['Computador', 'Notebook', 'Impressora', 'Monitor', 'Switch', 'Roteador', 'Access Point', 'Nobreak', 'Outros'];
+    return ['Computador', 'Notebook', 'Impressora', 'Monitor', 'Switch', 'Roteador', 'Access Point', 'Nobreak', 'Servidor', 'Outros'];
 }
 
 /**
@@ -145,4 +145,39 @@ function tiposLicenca(): array
 function ehImpressora(?string $tipo): bool
 {
     return $tipo === 'Impressora';
+}
+
+/**
+ * Retorna true se o equipamento é do tipo Servidor (para exibir campos extras).
+ */
+function ehServidor(?string $tipo): bool
+{
+    return $tipo === 'Servidor';
+}
+
+/**
+ * Lista fixa dos status operacionais aceitos para servidores.
+ */
+function statusServidor(): array
+{
+    return ['Ativo', 'Inativo'];
+}
+
+/**
+ * Sugestões de função do servidor (lista aberta, exibida em um datalist).
+ */
+function funcoesServidor(): array
+{
+    return [
+        'Servidor de Arquivos', 'Active Directory', 'Banco de Dados', 'Backup',
+        'Virtualização', 'Aplicação', 'Servidor Web', 'DNS/DHCP', 'Outros',
+    ];
+}
+
+/**
+ * Retorna a classe de badge Bootstrap correspondente ao status do servidor.
+ */
+function statusServidorBadgeClass(?string $status): string
+{
+    return $status === 'Ativo' ? 'bg-success' : 'bg-secondary';
 }

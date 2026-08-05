@@ -41,7 +41,7 @@ CREATE TABLE equipamentos (
     -- Identificação
     patrimonio              VARCHAR(50)  NOT NULL UNIQUE,
     tipo                    ENUM('Computador','Notebook','Impressora','Monitor','Switch',
-                                  'Roteador','Access Point','Nobreak','Outros') NOT NULL,
+                                  'Roteador','Access Point','Nobreak','Servidor','Outros') NOT NULL,
     marca                   VARCHAR(80)  NULL,
     modelo                  VARCHAR(80)  NULL,
     numero_serie            VARCHAR(100) NULL,
@@ -64,6 +64,11 @@ CREATE TABLE equipamentos (
     ip                       VARCHAR(45)  NULL,
     modelo_toner             VARCHAR(80)  NULL,
     qtd_toners               INT NULL,
+
+    -- Campos específicos de servidores
+    funcao_servidor          VARCHAR(100) NULL,
+    servidor_status          ENUM('Ativo','Inativo') NULL,
+    servidor_observacoes     TEXT NULL,
 
     -- Financeiro (opcional)
     valor_aquisicao          DECIMAL(12,2) NULL,
@@ -153,6 +158,41 @@ CREATE TABLE observacoes_equipamentos (
 ) ENGINE=InnoDB;
 
 -- ---------------------------------------------------------------------
+-- Tabela: compartilhamentos_servidor
+-- Pastas de rede compartilhadas por um equipamento do tipo Servidor.
+-- ---------------------------------------------------------------------
+CREATE TABLE compartilhamentos_servidor (
+    id                  INT AUTO_INCREMENT PRIMARY KEY,
+    equipamento_id      INT NOT NULL,
+    nome                VARCHAR(120) NOT NULL,
+    caminho_pasta       VARCHAR(255) NOT NULL,
+    descricao           TEXT NULL,
+    permissoes          VARCHAR(255) NULL,
+    criado_em           DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    atualizado_em        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_compartilhamento_equipamento
+        FOREIGN KEY (equipamento_id) REFERENCES equipamentos(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- ---------------------------------------------------------------------
+-- Tabela: compartilhamento_computadores
+-- Vincula cada pasta compartilhada aos computadores que a utilizam,
+-- reaproveitando o cadastro de equipamentos já existente (N:N).
+-- ---------------------------------------------------------------------
+CREATE TABLE compartilhamento_computadores (
+    id                  INT AUTO_INCREMENT PRIMARY KEY,
+    compartilhamento_id INT NOT NULL,
+    equipamento_id      INT NOT NULL,
+
+    CONSTRAINT fk_compcomp_compartilhamento
+        FOREIGN KEY (compartilhamento_id) REFERENCES compartilhamentos_servidor(id) ON DELETE CASCADE,
+    CONSTRAINT fk_compcomp_equipamento
+        FOREIGN KEY (equipamento_id) REFERENCES equipamentos(id) ON DELETE CASCADE,
+    CONSTRAINT uq_compcomp UNIQUE (compartilhamento_id, equipamento_id)
+) ENGINE=InnoDB;
+
+-- ---------------------------------------------------------------------
 -- Índices auxiliares para pesquisa (seção 13 da documentação)
 -- ---------------------------------------------------------------------
 CREATE INDEX idx_equip_hostname   ON equipamentos(hostname);
@@ -161,3 +201,4 @@ CREATE INDEX idx_equip_marca      ON equipamentos(marca);
 CREATE INDEX idx_equip_modelo     ON equipamentos(modelo);
 CREATE INDEX idx_equip_responsavel ON equipamentos(usuario_responsavel);
 CREATE INDEX idx_equip_status     ON equipamentos(status);
+CREATE INDEX idx_compart_equipamento ON compartilhamentos_servidor(equipamento_id);

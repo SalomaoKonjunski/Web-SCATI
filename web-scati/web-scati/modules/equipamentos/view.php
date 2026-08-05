@@ -47,6 +47,27 @@ $observacoes = $pdo->prepare('SELECT * FROM observacoes_equipamentos WHERE equip
 $observacoes->execute(['id' => $id]);
 $observacoes = $observacoes->fetchAll();
 
+// Compartilhamentos de rede (apenas para equipamentos do tipo Servidor)
+$compartilhamentos = $pdo->prepare('SELECT * FROM compartilhamentos_servidor WHERE equipamento_id = :id ORDER BY nome');
+$compartilhamentos->execute(['id' => $id]);
+$compartilhamentos = $compartilhamentos->fetchAll();
+
+$computadoresVinculados = [];
+if (!empty($compartilhamentos)) {
+    $placeholders = implode(',', array_fill(0, count($compartilhamentos), '?'));
+    $stmtVinc = $pdo->prepare(
+        "SELECT cc.compartilhamento_id, e.id, e.patrimonio, e.hostname
+         FROM compartilhamento_computadores cc
+         JOIN equipamentos e ON e.id = cc.equipamento_id
+         WHERE cc.compartilhamento_id IN ($placeholders)
+         ORDER BY e.patrimonio"
+    );
+    $stmtVinc->execute(array_column($compartilhamentos, 'id'));
+    foreach ($stmtVinc->fetchAll() as $v) {
+        $computadoresVinculados[$v['compartilhamento_id']][] = $v;
+    }
+}
+
 $pageTitle = 'Ficha do Equipamento';
 include __DIR__ . '/../../includes/header.php';
 ?>
@@ -89,6 +110,13 @@ include __DIR__ . '/../../includes/header.php';
             Observações <span class="badge bg-secondary"><?= count($observacoes) ?></span>
         </button>
     </li>
+    <?php if (ehServidor($eq['tipo'])): ?>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#compartilhamentos" type="button">
+            Compartilhamentos <span class="badge bg-secondary"><?= count($compartilhamentos) ?></span>
+        </button>
+    </li>
+    <?php endif; ?>
 </ul>
 
 <div class="tab-content bg-white border border-top-0 p-4 rounded-bottom mb-5">
@@ -121,6 +149,22 @@ include __DIR__ . '/../../includes/header.php';
                     <tr><th style="width:40%">Endereço IP</th><td><?= e($eq['ip']) ?: '-' ?></td></tr>
                     <tr><th>Modelo do Toner</th><td><?= e($eq['modelo_toner']) ?: '-' ?></td></tr>
                     <tr><th>Qtd. de Toners</th><td><?= $eq['qtd_toners'] !== null ? (int) $eq['qtd_toners'] : '-' ?></td></tr>
+                </table>
+                <?php endif; ?>
+
+                <?php if (ehServidor($eq['tipo'])): ?>
+                <h6 class="text-muted text-uppercase small mb-3 mt-4">Informações do Servidor</h6>
+                <table class="table table-sm">
+                    <tr><th style="width:40%">Função do Servidor</th><td><?= e($eq['funcao_servidor']) ?: '-' ?></td></tr>
+                    <tr>
+                        <th>Status do Servidor</th>
+                        <td>
+                            <?php if ($eq['servidor_status']): ?>
+                                <span class="badge <?= statusServidorBadgeClass($eq['servidor_status']) ?>"><?= e($eq['servidor_status']) ?></span>
+                            <?php else: ?>-<?php endif; ?>
+                        </td>
+                    </tr>
+                    <tr><th>Observações</th><td><?= $eq['servidor_observacoes'] ? nl2br(e($eq['servidor_observacoes'])) : '-' ?></td></tr>
                 </table>
                 <?php endif; ?>
             </div>
@@ -235,6 +279,58 @@ include __DIR__ . '/../../includes/header.php';
             </ul>
         <?php endif; ?>
     </div>
+
+    <?php if (ehServidor($eq['tipo'])): ?>
+    <!-- Compartilhamentos -->
+    <div class="tab-pane fade" id="compartilhamentos">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h6 class="text-muted text-uppercase small mb-0">Pastas compartilhadas deste servidor</h6>
+            <a href="../compartilhamentos/form.php?equipamento_id=<?= (int) $eq['id'] ?>" class="btn btn-sm btn-primary">
+                <i class="bi bi-plus-lg"></i> Novo Compartilhamento
+            </a>
+        </div>
+        <?php if (empty($compartilhamentos)): ?>
+            <p class="text-muted">Nenhum compartilhamento cadastrado para este servidor.</p>
+        <?php else: ?>
+            <?php foreach ($compartilhamentos as $comp): ?>
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h6 class="mb-1"><?= e($comp['nome']) ?></h6>
+                                <div class="small text-muted mb-2"><i class="bi bi-folder2 me-1"></i><?= e($comp['caminho_pasta']) ?></div>
+                                <?php if ($comp['descricao']): ?><p class="mb-1"><?= nl2br(e($comp['descricao'])) ?></p><?php endif; ?>
+                                <?php if ($comp['permissoes']): ?><div class="small"><strong>Permissões:</strong> <?= e($comp['permissoes']) ?></div><?php endif; ?>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <a href="../compartilhamentos/form.php?id=<?= (int) $comp['id'] ?>" class="btn btn-sm btn-outline-primary" title="Editar">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <a href="../compartilhamentos/delete.php?id=<?= (int) $comp['id'] ?>" class="btn btn-sm btn-outline-danger js-confirm-delete"
+                                   data-confirm-msg="Excluir o compartilhamento <?= e($comp['nome']) ?>? Esta ação não pode ser desfeita." title="Excluir">
+                                    <i class="bi bi-trash"></i>
+                                </a>
+                            </div>
+                        </div>
+                        <div class="mt-2">
+                            <span class="small text-muted d-block mb-1">Computadores vinculados:</span>
+                            <?php $vinc = $computadoresVinculados[$comp['id']] ?? []; ?>
+                            <?php if (empty($vinc)): ?>
+                                <span class="text-muted small">Nenhum computador vinculado.</span>
+                            <?php else: ?>
+                                <?php foreach ($vinc as $v): ?>
+                                    <a href="view.php?id=<?= (int) $v['id'] ?>" class="badge bg-light text-dark border text-decoration-none me-1">
+                                        <?= e($v['patrimonio']) ?><?= $v['hostname'] ? ' — ' . e($v['hostname']) : '' ?>
+                                    </a>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                </div>
+            <?php endforeach; ?>
+        <?php endif; ?>
+    </div>
+    <?php endif; ?>
 </div>
 
 <?php include __DIR__ . '/../../includes/footer.php'; ?>

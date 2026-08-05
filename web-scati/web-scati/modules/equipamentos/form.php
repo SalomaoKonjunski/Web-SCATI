@@ -12,6 +12,7 @@ $equipamento = [
     'hostname' => '', 'processador' => '', 'memoria_ram' => '', 'armazenamento' => '', 'sistema_operacional' => '',
     'status' => 'Disponível', 'localizacao' => '', 'usuario_responsavel' => '', 'rede_id' => '',
     'ip' => '', 'modelo_toner' => '', 'qtd_toners' => '',
+    'funcao_servidor' => '', 'servidor_status' => 'Ativo', 'servidor_observacoes' => '',
     'valor_aquisicao' => '', 'data_compra' => '', 'fornecedor' => '', 'numero_nota_fiscal' => '',
     'garantia' => '', 'valor_atual' => '', 'observacoes_financeiras' => '',
 ];
@@ -86,6 +87,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'ip' => $equipamento['ip'] ?: null,
             'modelo_toner' => $equipamento['modelo_toner'] ?: null,
             'qtd_toners' => $qtdToners,
+            'funcao_servidor' => $equipamento['funcao_servidor'] ?: null,
+            'servidor_status' => $equipamento['servidor_status'] ?: null,
+            'servidor_observacoes' => $equipamento['servidor_observacoes'] ?: null,
             'valor_aquisicao' => $valorAquisicao,
             'data_compra' => $dataCompra,
             'fornecedor' => $equipamento['fornecedor'] ?: null,
@@ -115,6 +119,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if ((int) ($registro['rede_id'] ?? 0) !== (int) ($dadosParaSalvar['rede_id'] ?? 0)) {
                     $mudancas[] = ['Alteração', 'Rede do equipamento foi alterada'];
                 }
+                if (ehServidor($dadosParaSalvar['tipo']) && ($registro['servidor_status'] ?? null) !== $dadosParaSalvar['servidor_status']) {
+                    $de = $registro['servidor_status'] ?: '(vazio)';
+                    $para = $dadosParaSalvar['servidor_status'] ?: '(vazio)';
+                    $mudancas[] = ['Alteração', "Status do servidor alterado de \"$de\" para \"$para\""];
+                }
                 $camposFinanceiros = ['valor_aquisicao', 'data_compra', 'fornecedor', 'numero_nota_fiscal', 'garantia', 'valor_atual', 'observacoes_financeiras'];
                 foreach ($camposFinanceiros as $campoFin) {
                     if ((string) ($registro[$campoFin] ?? '') !== (string) ($dadosParaSalvar[$campoFin] ?? '')) {
@@ -129,6 +138,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         memoria_ram = :memoria_ram, armazenamento = :armazenamento, sistema_operacional = :sistema_operacional,
                         status = :status, localizacao = :localizacao, usuario_responsavel = :usuario_responsavel, rede_id = :rede_id,
                         ip = :ip, modelo_toner = :modelo_toner, qtd_toners = :qtd_toners,
+                        funcao_servidor = :funcao_servidor, servidor_status = :servidor_status, servidor_observacoes = :servidor_observacoes,
                         valor_aquisicao = :valor_aquisicao, data_compra = :data_compra, fornecedor = :fornecedor,
                         numero_nota_fiscal = :numero_nota_fiscal, garantia = :garantia, valor_atual = :valor_atual,
                         observacoes_financeiras = :observacoes_financeiras
@@ -146,12 +156,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $sql = 'INSERT INTO equipamentos
                         (patrimonio, tipo, marca, modelo, numero_serie, hostname, processador, memoria_ram,
                          armazenamento, sistema_operacional, status, localizacao, usuario_responsavel, rede_id,
-                         ip, modelo_toner, qtd_toners, valor_aquisicao, data_compra, fornecedor, numero_nota_fiscal,
+                         ip, modelo_toner, qtd_toners, funcao_servidor, servidor_status, servidor_observacoes,
+                         valor_aquisicao, data_compra, fornecedor, numero_nota_fiscal,
                          garantia, valor_atual, observacoes_financeiras)
                         VALUES
                         (:patrimonio, :tipo, :marca, :modelo, :numero_serie, :hostname, :processador, :memoria_ram,
                          :armazenamento, :sistema_operacional, :status, :localizacao, :usuario_responsavel, :rede_id,
-                         :ip, :modelo_toner, :qtd_toners, :valor_aquisicao, :data_compra, :fornecedor, :numero_nota_fiscal,
+                         :ip, :modelo_toner, :qtd_toners, :funcao_servidor, :servidor_status, :servidor_observacoes,
+                         :valor_aquisicao, :data_compra, :fornecedor, :numero_nota_fiscal,
                          :garantia, :valor_atual, :observacoes_financeiras)';
                 $pdo->prepare($sql)->execute($dadosParaSalvar);
                 $novoId = (int) $pdo->lastInsertId();
@@ -262,6 +274,34 @@ include __DIR__ . '/../../includes/header.php';
             <div class="col-md-4">
                 <label class="form-label">Qtd. de Toners Disponíveis</label>
                 <input type="number" min="0" name="qtd_toners" class="form-control" value="<?= e((string) $equipamento['qtd_toners']) ?>">
+            </div>
+        </div>
+    </div>
+
+    <!-- Campos específicos de servidor -->
+    <div class="card mb-3" id="serverFields">
+        <div class="card-header bg-white"><strong><i class="bi bi-hdd-rack me-1"></i> Informações do Servidor</strong></div>
+        <div class="card-body row g-3">
+            <div class="col-md-4">
+                <label class="form-label">Função do Servidor</label>
+                <input type="text" name="funcao_servidor" class="form-control" list="funcoesServidorList" value="<?= e($equipamento['funcao_servidor']) ?>">
+                <datalist id="funcoesServidorList">
+                    <?php foreach (funcoesServidor() as $funcao): ?>
+                        <option value="<?= e($funcao) ?>">
+                    <?php endforeach; ?>
+                </datalist>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Status do Servidor</label>
+                <select name="servidor_status" class="form-select">
+                    <?php foreach (statusServidor() as $st): ?>
+                        <option value="<?= e($st) ?>" <?= $equipamento['servidor_status'] === $st ? 'selected' : '' ?>><?= e($st) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="col-md-12">
+                <label class="form-label">Observações</label>
+                <textarea name="servidor_observacoes" class="form-control" rows="3"><?= e($equipamento['servidor_observacoes']) ?></textarea>
             </div>
         </div>
     </div>

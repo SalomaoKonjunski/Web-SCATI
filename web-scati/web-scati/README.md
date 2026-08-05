@@ -56,6 +56,7 @@ web-scati/
 │   └── scati.sql           # Script de criação do banco de dados
 ├── modules/
 │   ├── equipamentos/       # CRUD + ficha detalhada (histórico e observações)
+│   ├── compartilhamentos/  # CRUD de pastas de rede compartilhadas por servidores
 │   ├── estoque/            # CRUD de itens de estoque
 │   ├── redes/               # CRUD de redes
 │   ├── licencas/            # CRUD de licenças + transferência entre equipamentos
@@ -73,6 +74,12 @@ web-scati/
 - **Equipamentos**: CRUD completo, pesquisa e filtros (tipo, status, rede),
   ficha individual com abas de Dados Gerais, Hardware, Licenciamento,
   Financeiro, Histórico e Observações.
+- **Servidores**: tipo de equipamento cadastrado no mesmo módulo de
+  Equipamentos, com campos adicionais (função do servidor, status
+  Ativo/Inativo e observações) e uma aba própria de **Compartilhamentos**,
+  onde é possível cadastrar pastas de rede (nome, caminho, descrição e
+  permissões) e vincular cada uma a um ou mais computadores já cadastrados
+  no sistema.
 - **Histórico automático**: toda alteração de status, localização,
   responsável, rede, informações financeiras ou licenças gera um registro
   automático com data, hora, evento e descrição.
@@ -87,7 +94,9 @@ web-scati/
   de licença entre equipamentos, que registra o evento no histórico de
   ambos os equipamentos envolvidos.
 - **Relatórios**: todos os relatórios listados na seção 14 da documentação
-  (equipamentos, estoque, licenças e financeiro), com opção de impressão.
+  (equipamentos, estoque, licenças e financeiro), com opção de impressão em
+  layout limpo (sem navbar/menu lateral), pronto para impressão ou
+  exportação em PDF pelo próprio diálogo de impressão do navegador.
 - **Interface responsiva** com Bootstrap 5, menu lateral recolhível em
   telas pequenas.
 
