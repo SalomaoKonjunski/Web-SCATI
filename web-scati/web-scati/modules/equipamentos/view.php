@@ -158,6 +158,9 @@ include __DIR__ . '/../../includes/header.php';
     </div>
     <div class="d-flex gap-2">
         <a href="index.php" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Voltar</a>
+        <a href="ficha_impressao.php?id=<?= (int) $eq['id'] ?>" class="btn btn-outline-secondary" target="_blank">
+            <i class="bi bi-printer"></i> Ficha para Impressão
+        </a>
         <a href="form.php?id=<?= (int) $eq['id'] ?>" class="btn btn-primary"><i class="bi bi-pencil"></i> Editar</a>
         <a href="delete.php?id=<?= (int) $eq['id'] ?>" class="btn btn-outline-danger js-confirm-delete"
            data-confirm-msg="Excluir o equipamento <?= e($eq['patrimonio']) ?>? Esta ação não pode ser desfeita.">
