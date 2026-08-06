@@ -129,7 +129,13 @@ web-scati/
   preenchido) valor total do patrimônio, além de uma **Central de Alertas**
   no topo da página reunindo licenças vencidas ou vencendo nos próximos 30
   dias, itens de estoque abaixo do mínimo e impressoras sem toner
-  vinculado — cada alerta linka direto para a tela correspondente.
+  vinculado — cada alerta linka direto para a tela correspondente. Logo
+  abaixo, o card **"Itens de Estoque por Categoria"** mostra em um gráfico
+  de pizza (donut) como a quantidade em estoque está distribuída entre as
+  categorias cadastradas, com legenda (quantidade e percentual), tooltip
+  ao passar o mouse/focar em cada fatia e um botão para alternar para
+  visualização em tabela. As 5 categorias com mais itens aparecem com cor
+  própria; o restante é agrupado em "Outras categorias".
 - **Equipamentos**: CRUD completo, pesquisa e filtros (tipo, status, rede),
   ficha individual com abas de Dados Gerais, Hardware, Licenciamento,
   Financeiro, Histórico e Observações.
