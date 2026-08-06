@@ -63,6 +63,13 @@ Funcional (v1.0).
    mysql -u root -p scati < database/migration_anexos.sql
    ```
 
+   Se o banco já existia antes do campo **Placa Mãe** de computadores
+   (antes da coluna `placa_mae` na tabela `equipamentos`), rode também esta
+   migração incremental **uma única vez**:
+   ```bash
+   mysql -u root -p scati < database/migration_placa_mae.sql
+   ```
+
    > Importante: ao importar qualquer um dos arquivos `.sql` deste projeto,
    > garanta que o cliente MySQL use UTF-8 (ex.: `mysql --default-character-set=utf8mb4 -u root -p < arquivo.sql`),
    > caso contrário os valores acentuados dos campos `ENUM` (como "Disponível")
@@ -132,8 +139,8 @@ web-scati/
   onde é possível cadastrar pastas de rede (nome, caminho, descrição e
   permissões) e vincular cada uma a um ou mais computadores já cadastrados
   no sistema.
-- **Computadores**: campo adicional de **IP Fixo**, exibido apenas quando
-  o tipo do equipamento é Computador.
+- **Computadores**: campos adicionais de **IP Fixo** e **Placa Mãe**,
+  exibidos apenas quando o tipo do equipamento é Computador.
 - **Anexos**: aba na ficha de qualquer equipamento para anexar arquivos
   (nota fiscal, foto, manual em PDF, etc.), com descrição opcional,
   download e exclusão. O upload valida extensão (imagens, PDF, Office,

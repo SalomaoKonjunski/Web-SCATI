@@ -251,9 +251,10 @@ include __DIR__ . '/../../includes/header.php';
                 <?php endif; ?>
 
                 <?php if (ehComputador($eq['tipo'])): ?>
-                <h6 class="text-muted text-uppercase small mb-3 mt-4">Rede do Computador</h6>
+                <h6 class="text-muted text-uppercase small mb-3 mt-4">Informações do Computador</h6>
                 <table class="table table-sm">
                     <tr><th style="width:40%">IP Fixo</th><td><?= e($eq['ip_fixo']) ?: '-' ?></td></tr>
+                    <tr><th>Placa Mãe</th><td><?= e($eq['placa_mae']) ?: '-' ?></td></tr>
                 </table>
                 <?php endif; ?>
 

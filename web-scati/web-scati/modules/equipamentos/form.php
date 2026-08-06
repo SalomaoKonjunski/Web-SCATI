@@ -12,7 +12,7 @@ $equipamento = [
     'hostname' => '', 'processador' => '', 'memoria_ram' => '', 'armazenamento' => '', 'sistema_operacional' => '',
     'status' => 'Disponível', 'localizacao' => '', 'usuario_responsavel' => '', 'rede_id' => '',
     'ip' => '', 'modelo_toner' => '', 'qtd_toners' => '',
-    'ip_fixo' => '',
+    'ip_fixo' => '', 'placa_mae' => '',
     'funcao_servidor' => '', 'servidor_status' => 'Ativo', 'servidor_observacoes' => '',
     'valor_aquisicao' => '', 'data_compra' => '', 'fornecedor' => '', 'numero_nota_fiscal' => '',
     'garantia' => '', 'valor_atual' => '', 'observacoes_financeiras' => '',
@@ -89,6 +89,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'modelo_toner' => $equipamento['modelo_toner'] ?: null,
             'qtd_toners' => $qtdToners,
             'ip_fixo' => $equipamento['ip_fixo'] ?: null,
+            'placa_mae' => $equipamento['placa_mae'] ?: null,
             'funcao_servidor' => $equipamento['funcao_servidor'] ?: null,
             'servidor_status' => $equipamento['servidor_status'] ?: null,
             'servidor_observacoes' => $equipamento['servidor_observacoes'] ?: null,
@@ -139,7 +140,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         numero_serie = :numero_serie, hostname = :hostname, processador = :processador,
                         memoria_ram = :memoria_ram, armazenamento = :armazenamento, sistema_operacional = :sistema_operacional,
                         status = :status, localizacao = :localizacao, usuario_responsavel = :usuario_responsavel, rede_id = :rede_id,
-                        ip = :ip, modelo_toner = :modelo_toner, qtd_toners = :qtd_toners, ip_fixo = :ip_fixo,
+                        ip = :ip, modelo_toner = :modelo_toner, qtd_toners = :qtd_toners, ip_fixo = :ip_fixo, placa_mae = :placa_mae,
                         funcao_servidor = :funcao_servidor, servidor_status = :servidor_status, servidor_observacoes = :servidor_observacoes,
                         valor_aquisicao = :valor_aquisicao, data_compra = :data_compra, fornecedor = :fornecedor,
                         numero_nota_fiscal = :numero_nota_fiscal, garantia = :garantia, valor_atual = :valor_atual,
@@ -158,13 +159,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $sql = 'INSERT INTO equipamentos
                         (patrimonio, tipo, marca, modelo, numero_serie, hostname, processador, memoria_ram,
                          armazenamento, sistema_operacional, status, localizacao, usuario_responsavel, rede_id,
-                         ip, modelo_toner, qtd_toners, ip_fixo, funcao_servidor, servidor_status, servidor_observacoes,
+                         ip, modelo_toner, qtd_toners, ip_fixo, placa_mae, funcao_servidor, servidor_status, servidor_observacoes,
                          valor_aquisicao, data_compra, fornecedor, numero_nota_fiscal,
                          garantia, valor_atual, observacoes_financeiras)
                         VALUES
                         (:patrimonio, :tipo, :marca, :modelo, :numero_serie, :hostname, :processador, :memoria_ram,
                          :armazenamento, :sistema_operacional, :status, :localizacao, :usuario_responsavel, :rede_id,
-                         :ip, :modelo_toner, :qtd_toners, :ip_fixo, :funcao_servidor, :servidor_status, :servidor_observacoes,
+                         :ip, :modelo_toner, :qtd_toners, :ip_fixo, :placa_mae, :funcao_servidor, :servidor_status, :servidor_observacoes,
                          :valor_aquisicao, :data_compra, :fornecedor, :numero_nota_fiscal,
                          :garantia, :valor_atual, :observacoes_financeiras)';
                 $pdo->prepare($sql)->execute($dadosParaSalvar);
@@ -282,11 +283,15 @@ include __DIR__ . '/../../includes/header.php';
 
     <!-- Campos específicos de computador -->
     <div class="card mb-3" id="computerFields">
-        <div class="card-header bg-white"><strong><i class="bi bi-ethernet me-1"></i> Rede do Computador</strong></div>
+        <div class="card-header bg-white"><strong><i class="bi bi-pc-display-horizontal me-1"></i> Informações do Computador</strong></div>
         <div class="card-body row g-3">
             <div class="col-md-4">
                 <label class="form-label">IP Fixo</label>
                 <input type="text" name="ip_fixo" class="form-control" placeholder="Ex: 192.168.1.10" value="<?= e($equipamento['ip_fixo']) ?>">
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Placa Mãe</label>
+                <input type="text" name="placa_mae" class="form-control" placeholder="Ex: ASUS PRIME B460M-A" value="<?= e($equipamento['placa_mae']) ?>">
             </div>
         </div>
     </div>

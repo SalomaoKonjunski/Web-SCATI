@@ -101,8 +101,9 @@ if (!$eq) {
                 <?php endif; ?>
 
                 <?php if (ehComputador($eq['tipo'])): ?>
-                    <h6 class="text-uppercase small mt-4">Rede do Computador</h6>
+                    <h6 class="text-uppercase small mt-4">Informações do Computador</h6>
                     <div class="ficha-campo"><strong>IP Fixo:</strong> <?= e($eq['ip_fixo']) ?: '-' ?></div>
+                    <div class="ficha-campo"><strong>Placa Mãe:</strong> <?= e($eq['placa_mae']) ?: '-' ?></div>
                 <?php endif; ?>
 
                 <?php if (ehServidor($eq['tipo'])): ?>

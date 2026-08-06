@@ -65,8 +65,9 @@ CREATE TABLE equipamentos (
     modelo_toner             VARCHAR(80)  NULL,
     qtd_toners               INT NULL,
 
-    -- Campo específico de computadores
+    -- Campos específicos de computadores
     ip_fixo                  VARCHAR(45)  NULL,
+    placa_mae                VARCHAR(120) NULL,
 
     -- Campos específicos de servidores
     funcao_servidor          VARCHAR(100) NULL,
