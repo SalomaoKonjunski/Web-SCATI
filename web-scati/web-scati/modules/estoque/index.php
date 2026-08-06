@@ -10,10 +10,13 @@ $busca = trim($_GET['busca'] ?? '');
 $filtroCategoria = $_GET['categoria_id'] ?? '';
 $somenteAbaixoMinimo = isset($_GET['abaixo_minimo']);
 
-$sql = "SELECT es.*, c.nome AS categoria_nome, eq.patrimonio AS equipamento_patrimonio
+$sql = "SELECT es.*, c.nome AS categoria_nome,
+               COUNT(iv.id) AS qtd_vinculada,
+               GROUP_CONCAT(DISTINCT eq.patrimonio ORDER BY eq.patrimonio SEPARATOR ', ') AS equipamentos_vinculados
         FROM estoque es
         JOIN categorias_estoque c ON c.id = es.categoria_id
-        LEFT JOIN equipamentos eq ON eq.id = es.equipamento_id
+        LEFT JOIN itens_vinculados iv ON iv.estoque_id = es.id
+        LEFT JOIN equipamentos eq ON eq.id = iv.equipamento_id
         WHERE 1=1";
 $params = [];
 
@@ -29,7 +32,7 @@ if ($somenteAbaixoMinimo) {
     $sql .= " AND es.quantidade < es.quantidade_minima";
 }
 
-$sql .= " ORDER BY es.nome ASC";
+$sql .= " GROUP BY es.id ORDER BY es.nome ASC";
 $stmt = $pdo->prepare($sql);
 $stmt->execute($params);
 $itens = $stmt->fetchAll();
@@ -85,7 +88,7 @@ include __DIR__ . '/../../includes/header.php';
                     <th class="text-center">Quantidade</th>
                     <th class="text-center">Mínimo</th>
                     <th>Localização</th>
-                    <th>Status</th>
+                    <th>Vinculado a</th>
                     <th class="text-end">Ações</th>
                 </tr>
             </thead>
@@ -103,13 +106,11 @@ include __DIR__ . '/../../includes/header.php';
                         <td class="text-center text-muted"><?= (int) $item['quantidade_minima'] ?></td>
                         <td><?= e($item['localizacao']) ?: '-' ?></td>
                         <td>
-                            <span class="badge <?= statusEstoqueBadgeClass($item['status']) ?>"><?= e($item['status']) ?></span>
-                            <?php if ($item['equipamento_patrimonio']): ?>
-                                <div class="small text-muted mt-1">
-                                    <a href="../equipamentos/view.php?id=<?= (int) $item['equipamento_id'] ?>#itens" class="text-decoration-none">
-                                        <i class="bi bi-link-45deg"></i> <?= e($item['equipamento_patrimonio']) ?>
-                                    </a>
-                                </div>
+                            <?php if ((int) $item['qtd_vinculada'] > 0): ?>
+                                <span class="badge bg-primary"><?= (int) $item['qtd_vinculada'] ?> unidade(s)</span>
+                                <div class="small text-muted mt-1"><?= e($item['equipamentos_vinculados']) ?></div>
+                            <?php else: ?>
+                                -
                             <?php endif; ?>
                         </td>
                         <td class="text-end">
@@ -117,8 +118,7 @@ include __DIR__ . '/../../includes/header.php';
                                 <span class="badge bg-danger me-2"><i class="bi bi-exclamation-triangle"></i> Baixo</span>
                             <?php endif; ?>
                             <a href="form.php?id=<?= (int) $item['id'] ?>" class="btn btn-sm btn-outline-primary"><i class="bi bi-pencil"></i></a>
-                            <a href="delete.php?id=<?= (int) $item['id'] ?>" class="btn btn-sm btn-outline-danger js-confirm-delete"
-                               data-confirm-msg="Excluir o item &quot;<?= e($item['nome']) ?>&quot; do estoque?"><i class="bi bi-trash"></i></a>
+                            <a href="delete.php?id=<?= (int) $item['id'] ?>" class="btn btn-sm btn-outline-danger" title="Excluir"><i class="bi bi-trash"></i></a>
                         </td>
                     </tr>
                 <?php endforeach; ?>

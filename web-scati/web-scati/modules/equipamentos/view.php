@@ -32,20 +32,51 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['nova_observacao'])) {
     redirect('/modules/equipamentos/view.php?id=' . $id . '#observacoes');
 }
 
-// Trata a vinculação de um item de estoque a este equipamento (POST nesta mesma página)
+// Trata o registro de uma manutenção no histórico (POST nesta mesma página)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['registrar_manutencao'])) {
+    $tipoManutencao = $_POST['tipo_manutencao'] ?? '';
+    $dataManutencao = $_POST['data_manutencao'] ?? '';
+    $descricaoManutencao = trim($_POST['descricao_manutencao'] ?? '');
+
+    if (in_array($tipoManutencao, tiposManutencao(), true) && $dataManutencao !== '') {
+        $descricaoFinal = $descricaoManutencao !== '' ? $descricaoManutencao : $tipoManutencao;
+        $stmtManut = $pdo->prepare(
+            'INSERT INTO historico_equipamentos (equipamento_id, data_hora, evento, descricao)
+             VALUES (:id, :data_hora, :evento, :descricao)'
+        );
+        $stmtManut->execute([
+            'id' => $id,
+            'data_hora' => $dataManutencao . ' ' . date('H:i:s'),
+            'evento' => $tipoManutencao,
+            'descricao' => $descricaoFinal,
+        ]);
+        flash('success', 'Manutenção registrada no histórico.');
+    } else {
+        flash('danger', 'Selecione o tipo de manutenção e a data.');
+    }
+    redirect('/modules/equipamentos/view.php?id=' . $id . '#historico');
+}
+
+// Trata a vinculação de uma unidade de um item de estoque a este equipamento (POST nesta mesma página)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['vincular_item'])) {
     $itemId = (int) ($_POST['item_estoque_id'] ?? 0);
     if ($itemId > 0) {
-        $stmtItem = $pdo->prepare('SELECT * FROM estoque WHERE id = :id AND status = :status');
-        $stmtItem->execute(['id' => $itemId, 'status' => 'Disponível']);
-        $itemEstoque = $stmtItem->fetch();
-        if ($itemEstoque) {
-            $pdo->prepare('UPDATE estoque SET status = :status, equipamento_id = :eq WHERE id = :id')
-                ->execute(['status' => 'Em uso', 'eq' => $id, 'id' => $itemId]);
-            registrarHistorico($id, 'Item', 'Item "' . $itemEstoque['nome'] . '" vinculado a este equipamento');
+        // Reserva 1 unidade de forma atômica: só decrementa se ainda houver quantidade disponível
+        $stmtDecr = $pdo->prepare('UPDATE estoque SET quantidade = quantidade - 1 WHERE id = :id AND quantidade > 0');
+        $stmtDecr->execute(['id' => $itemId]);
+
+        if ($stmtDecr->rowCount() > 0) {
+            $stmtNome = $pdo->prepare('SELECT nome FROM estoque WHERE id = :id');
+            $stmtNome->execute(['id' => $itemId]);
+            $nomeItem = $stmtNome->fetchColumn();
+
+            $pdo->prepare('INSERT INTO itens_vinculados (estoque_id, equipamento_id) VALUES (:estoque_id, :equipamento_id)')
+                ->execute(['estoque_id' => $itemId, 'equipamento_id' => $id]);
+
+            registrarHistorico($id, 'Item', 'Item "' . $nomeItem . '" vinculado a este equipamento');
             flash('success', 'Item vinculado com sucesso.');
         } else {
-            flash('danger', 'Item indisponível para vínculo.');
+            flash('danger', 'Item indisponível para vínculo (sem unidades em estoque).');
         }
     }
     redirect('/modules/equipamentos/view.php?id=' . $id . '#itens');
@@ -66,23 +97,28 @@ $observacoes = $pdo->prepare('SELECT * FROM observacoes_equipamentos WHERE equip
 $observacoes->execute(['id' => $id]);
 $observacoes = $observacoes->fetchAll();
 
-// Itens de estoque vinculados a este equipamento
+// Itens de estoque vinculados a este equipamento (uma linha por unidade vinculada)
 $itensVinculados = $pdo->prepare(
-    'SELECT es.*, c.nome AS categoria_nome
-     FROM estoque es JOIN categorias_estoque c ON c.id = es.categoria_id
-     WHERE es.equipamento_id = :id ORDER BY es.nome'
+    'SELECT iv.id AS vinculo_id, es.id AS estoque_id, es.nome, es.marca, es.modelo, c.nome AS categoria_nome
+     FROM itens_vinculados iv
+     JOIN estoque es ON es.id = iv.estoque_id
+     JOIN categorias_estoque c ON c.id = es.categoria_id
+     WHERE iv.equipamento_id = :id
+     ORDER BY es.nome, iv.id'
 );
 $itensVinculados->execute(['id' => $id]);
 $itensVinculados = $itensVinculados->fetchAll();
 
-// Itens de estoque disponíveis para vincular a este equipamento
-$stmtItensDisponiveis = $pdo->prepare(
+// Itens de estoque com unidades disponíveis para vincular a este equipamento
+$itensDisponiveis = $pdo->query(
     'SELECT es.*, c.nome AS categoria_nome
      FROM estoque es JOIN categorias_estoque c ON c.id = es.categoria_id
-     WHERE es.status = :status ORDER BY c.nome, es.nome'
-);
-$stmtItensDisponiveis->execute(['status' => 'Disponível']);
-$itensDisponiveis = $stmtItensDisponiveis->fetchAll();
+     WHERE es.quantidade > 0 ORDER BY c.nome, es.nome'
+)->fetchAll();
+
+// Toners vinculados/disponíveis (subconjunto dos itens acima, restrito à categoria "Toner")
+$tonersVinculados = array_values(array_filter($itensVinculados, fn($iv) => $iv['categoria_nome'] === 'Toner'));
+$tonersDisponiveis = array_values(array_filter($itensDisponiveis, fn($disp) => $disp['categoria_nome'] === 'Toner'));
 
 // Compartilhamentos de rede (apenas para equipamentos do tipo Servidor)
 $compartilhamentos = $pdo->prepare('SELECT * FROM compartilhamentos_servidor WHERE equipamento_id = :id ORDER BY nome');
@@ -139,6 +175,13 @@ include __DIR__ . '/../../includes/header.php';
             Itens Vinculados <span class="badge bg-secondary"><?= count($itensVinculados) ?></span>
         </button>
     </li>
+    <?php if (ehImpressora($eq['tipo'])): ?>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#toner" type="button">
+            Toner <span class="badge bg-secondary"><?= count($tonersVinculados) ?></span>
+        </button>
+    </li>
+    <?php endif; ?>
     <li class="nav-item" role="presentation">
         <button class="nav-link" data-bs-toggle="tab" data-bs-target="#financeiro" type="button">Financeiro</button>
     </li>
@@ -191,6 +234,13 @@ include __DIR__ . '/../../includes/header.php';
                     <tr><th style="width:40%">Endereço IP</th><td><?= e($eq['ip']) ?: '-' ?></td></tr>
                     <tr><th>Modelo do Toner</th><td><?= e($eq['modelo_toner']) ?: '-' ?></td></tr>
                     <tr><th>Qtd. de Toners</th><td><?= $eq['qtd_toners'] !== null ? (int) $eq['qtd_toners'] : '-' ?></td></tr>
+                </table>
+                <?php endif; ?>
+
+                <?php if (ehComputador($eq['tipo'])): ?>
+                <h6 class="text-muted text-uppercase small mb-3 mt-4">Rede do Computador</h6>
+                <table class="table table-sm">
+                    <tr><th style="width:40%">IP Fixo</th><td><?= e($eq['ip_fixo']) ?: '-' ?></td></tr>
                 </table>
                 <?php endif; ?>
 
@@ -281,7 +331,7 @@ include __DIR__ . '/../../includes/header.php';
                         <td><?= e($iv['categoria_nome']) ?></td>
                         <td><?= e(trim(($iv['marca'] ?? '') . ' ' . ($iv['modelo'] ?? ''))) ?: '-' ?></td>
                         <td class="text-end">
-                            <a href="../estoque/desvincular.php?id=<?= (int) $iv['id'] ?>" class="btn btn-sm btn-outline-danger js-confirm-delete"
+                            <a href="../estoque/desvincular.php?id=<?= (int) $iv['vinculo_id'] ?>" class="btn btn-sm btn-outline-danger js-confirm-delete"
                                data-confirm-msg="Desvincular o item &quot;<?= e($iv['nome']) ?>&quot; deste equipamento? Ele voltará a ficar disponível no estoque.">
                                 <i class="bi bi-x-lg"></i> Desvincular
                             </a>
@@ -303,7 +353,7 @@ include __DIR__ . '/../../includes/header.php';
                         <?php foreach ($itensDisponiveis as $disp): ?>
                             <?php $marcaModelo = trim(($disp['marca'] ?? '') . ' ' . ($disp['modelo'] ?? '')); ?>
                             <option value="<?= (int) $disp['id'] ?>">
-                                <?= e($disp['nome']) ?> — <?= e($disp['categoria_nome']) ?><?= $marcaModelo ? ' (' . e($marcaModelo) . ')' : '' ?>
+                                <?= e($disp['nome']) ?> — <?= e($disp['categoria_nome']) ?><?= $marcaModelo ? ' (' . e($marcaModelo) . ')' : '' ?> · <?= (int) $disp['quantidade'] ?> disponível(is)
                             </option>
                         <?php endforeach; ?>
                     <?php endif; ?>
@@ -316,6 +366,64 @@ include __DIR__ . '/../../includes/header.php';
             </div>
         </form>
     </div>
+
+    <?php if (ehImpressora($eq['tipo'])): ?>
+    <!-- Toner -->
+    <div class="tab-pane fade" id="toner">
+        <h6 class="text-muted text-uppercase small mb-3">Toner instalado nesta impressora</h6>
+        <?php if (empty($tonersVinculados)): ?>
+            <p class="text-muted">Nenhum toner vinculado a esta impressora.</p>
+        <?php else: ?>
+            <table class="table table-sm table-hover mb-4">
+                <thead class="table-light">
+                    <tr><th>Nome</th><th>Marca/Modelo</th><th class="text-end">Ações</th></tr>
+                </thead>
+                <tbody>
+                <?php foreach ($tonersVinculados as $tv): ?>
+                    <tr>
+                        <td><?= e($tv['nome']) ?></td>
+                        <td><?= e(trim(($tv['marca'] ?? '') . ' ' . ($tv['modelo'] ?? ''))) ?: '-' ?></td>
+                        <td class="text-end">
+                            <a href="../estoque/desvincular.php?id=<?= (int) $tv['vinculo_id'] ?>" class="btn btn-sm btn-outline-secondary js-confirm-delete"
+                               data-confirm-msg="Desvincular o toner &quot;<?= e($tv['nome']) ?>&quot; desta impressora? Ele voltará a ficar disponível no estoque.">
+                                <i class="bi bi-x-lg"></i> Desvincular
+                            </a>
+                            <a href="../estoque/delete.php?id=<?= (int) $tv['estoque_id'] ?>&equipamento_id=<?= (int) $eq['id'] ?>" class="btn btn-sm btn-outline-danger">
+                                <i class="bi bi-trash"></i> Excluir Toner
+                            </a>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+                </tbody>
+            </table>
+        <?php endif; ?>
+
+        <form method="post" class="row g-2 align-items-end">
+            <div class="col-md-8">
+                <label class="form-label fw-semibold">+ Vincular Toner do Estoque</label>
+                <select name="item_estoque_id" class="form-select" <?= empty($tonersDisponiveis) ? 'disabled' : '' ?> required>
+                    <?php if (empty($tonersDisponiveis)): ?>
+                        <option value="">Nenhum toner disponível no estoque</option>
+                    <?php else: ?>
+                        <option value="">Selecione um toner...</option>
+                        <?php foreach ($tonersDisponiveis as $disp): ?>
+                            <?php $marcaModelo = trim(($disp['marca'] ?? '') . ' ' . ($disp['modelo'] ?? '')); ?>
+                            <option value="<?= (int) $disp['id'] ?>">
+                                <?= e($disp['nome']) ?><?= $marcaModelo ? ' (' . e($marcaModelo) . ')' : '' ?> · <?= (int) $disp['quantidade'] ?> disponível(is)
+                            </option>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </select>
+                <div class="form-text">Somente itens da categoria "Toner" aparecem aqui.</div>
+            </div>
+            <div class="col-md-4">
+                <button type="submit" name="vincular_item" value="1" class="btn btn-primary w-100" <?= empty($tonersDisponiveis) ? 'disabled' : '' ?>>
+                    <i class="bi bi-plus-lg"></i> Vincular
+                </button>
+            </div>
+        </form>
+    </div>
+    <?php endif; ?>
 
     <!-- Financeiro -->
     <div class="tab-pane fade" id="financeiro">
@@ -332,6 +440,31 @@ include __DIR__ . '/../../includes/header.php';
 
     <!-- Histórico -->
     <div class="tab-pane fade" id="historico">
+        <form method="post" class="mb-4">
+            <label class="form-label fw-semibold">+ Registrar Manutenção</label>
+            <div class="row g-2">
+                <div class="col-md-3">
+                    <select name="tipo_manutencao" class="form-select" required>
+                        <option value="">Tipo de manutenção...</option>
+                        <?php foreach (tiposManutencao() as $tipo): ?>
+                            <option value="<?= e($tipo) ?>"><?= e($tipo) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <input type="date" name="data_manutencao" class="form-control" required value="<?= date('Y-m-d') ?>">
+                </div>
+                <div class="col-md-5">
+                    <input type="text" name="descricao_manutencao" class="form-control" placeholder="Descrição (opcional)">
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" name="registrar_manutencao" value="1" class="btn btn-primary w-100">
+                        <i class="bi bi-tools"></i> Registrar
+                    </button>
+                </div>
+            </div>
+        </form>
+
         <h6 class="text-muted text-uppercase small mb-3">Histórico automático de alterações</h6>
         <?php if (empty($historico)): ?>
             <p class="text-muted">Nenhum evento registrado.</p>

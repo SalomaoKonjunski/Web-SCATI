@@ -30,10 +30,30 @@ Funcional (v1.0).
    ```
 
    Da mesma forma, se o banco já existia antes do suporte a **Itens
-   Vinculados** (antes das colunas `status` e `equipamento_id` na tabela
-   `estoque`), rode também esta migração incremental **uma única vez**:
+   Vinculados** (antes da tabela `itens_vinculados`), rode também esta
+   migração incremental **uma única vez**:
    ```bash
    mysql -u root -p scati < database/migration_itens_vinculados.sql
+   ```
+
+   > Se você já rodou uma versão **anterior** dessa migração (a que
+   > adicionava as colunas `status` e `equipamento_id` diretamente na
+   > tabela `estoque` — modelo que tinha um bug com itens de quantidade > 1),
+   > use `database/migration_itens_vinculados_fix.sql` no lugar do arquivo
+   > acima para corrigir a estrutura sem perder os vínculos já cadastrados.
+
+   Se o banco já existia antes do suporte a **histórico de cadastro/exclusão
+   de itens de estoque** (antes da tabela `historico_estoque`), rode também
+   esta migração incremental **uma única vez**:
+   ```bash
+   mysql -u root -p scati < database/migration_historico_estoque.sql
+   ```
+
+   Se o banco já existia antes do campo **IP Fixo** de computadores (antes
+   da coluna `ip_fixo` na tabela `equipamentos`), rode também esta migração
+   incremental **uma única vez**:
+   ```bash
+   mysql -u root -p scati < database/migration_ip_fixo.sql
    ```
 
    > Importante: ao importar qualquer um dos arquivos `.sql` deste projeto,
@@ -102,6 +122,8 @@ web-scati/
   onde é possível cadastrar pastas de rede (nome, caminho, descrição e
   permissões) e vincular cada uma a um ou mais computadores já cadastrados
   no sistema.
+- **Computadores**: campo adicional de **IP Fixo**, exibido apenas quando
+  o tipo do equipamento é Computador.
 - **Histórico automático**: toda alteração de status, localização,
   responsável, rede, informações financeiras ou licenças gera um registro
   automático com data, hora, evento e descrição.
@@ -112,11 +134,24 @@ web-scati/
   aplicação e reforçada por `CHECK` no banco).
 - **Itens Vinculados**: aba na ficha do equipamento para vincular itens já
   cadastrados no Estoque (periféricos, cabos, etc.) diretamente a ele, sem
-  duplicar o cadastro. Regra `1 equipamento : N itens` (um item pertence a
-  no máximo um equipamento por vez). Ao vincular, o item muda automaticamente
-  de status para "Em uso" e some da lista de disponíveis; ao desvincular (ou
-  ao excluir o equipamento), o item volta para "Disponível" e pode ser
-  vinculado a outro equipamento.
+  duplicar o cadastro. Cada vínculo consome 1 unidade da quantidade
+  disponível do item (tabela `itens_vinculados`), permitindo que um mesmo
+  item com várias unidades em estoque (ex.: "Adaptador de Vídeo",
+  quantidade = 4) seja distribuído entre vários equipamentos ao mesmo
+  tempo — vincular uma unidade não trava as demais. Ao desvincular (ou ao
+  excluir o equipamento), a unidade volta automaticamente para a
+  quantidade disponível do item.
+- **Toner de impressoras**: aba própria "Toner" na ficha de equipamentos do
+  tipo Impressora (reaproveita o mecanismo de Itens Vinculados acima,
+  restrito à categoria de estoque "Toner"). Permite vincular, desvincular e
+  também excluir o toner diretamente da tela da impressora.
+- **Cadastro e exclusão de itens de estoque com histórico**: toda vez que
+  um item é cadastrado no Estoque, um evento "Cadastro" é gravado
+  automaticamente na tabela `historico_estoque`. A exclusão de qualquer
+  item passa por uma tela de confirmação que exige um motivo por escrito
+  antes de concluir — a exclusão só acontece depois do motivo preenchido,
+  e fica registrada no histórico (inclusive no histórico do equipamento,
+  se o item estava vinculado a algum).
 - **Redes**: CRUD simples, com contagem de equipamentos vinculados.
 - **Licenças**: CRUD com a regra `1 equipamento : N licenças` (uma licença
   pertence a no máximo um equipamento) e tela dedicada de **transferência**
@@ -125,7 +160,10 @@ web-scati/
 - **Relatórios**: todos os relatórios listados na seção 14 da documentação
   (equipamentos, estoque, licenças e financeiro), com opção de impressão em
   layout limpo (sem navbar/menu lateral), pronto para impressão ou
-  exportação em PDF pelo próprio diálogo de impressão do navegador.
+  exportação em PDF pelo próprio diálogo de impressão do navegador. O
+  relatório "Histórico de alterações" reúne o histórico de equipamentos e
+  de itens de estoque numa lista só, com filtros por tipo de ação,
+  categoria, período e patrimônio/item.
 - **Interface responsiva** com Bootstrap 5, menu lateral recolhível em
   telas pequenas.
 

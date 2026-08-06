@@ -6,26 +6,28 @@ require_once __DIR__ . '/../../includes/functions.php';
 $pdo = db();
 $id = (int) ($_GET['id'] ?? 0);
 
-$stmt = $pdo->prepare('SELECT * FROM estoque WHERE id = :id');
+$stmt = $pdo->prepare(
+    'SELECT iv.*, es.nome AS item_nome
+     FROM itens_vinculados iv JOIN estoque es ON es.id = iv.estoque_id
+     WHERE iv.id = :id'
+);
 $stmt->execute(['id' => $id]);
-$item = $stmt->fetch();
+$vinculo = $stmt->fetch();
 
-if (!$item) {
-    flash('danger', 'Item de estoque não encontrado.');
+if (!$vinculo) {
+    flash('danger', 'Vínculo não encontrado.');
     redirect('/modules/estoque/index.php');
 }
 
-if (!$item['equipamento_id']) {
-    flash('danger', 'Este item não está vinculado a nenhum equipamento.');
-    redirect('/modules/estoque/index.php');
-}
+$equipamentoId = (int) $vinculo['equipamento_id'];
 
-$equipamentoId = (int) $item['equipamento_id'];
+$pdo->prepare('DELETE FROM itens_vinculados WHERE id = :id')->execute(['id' => $id]);
 
-$pdo->prepare('UPDATE estoque SET status = :status, equipamento_id = NULL WHERE id = :id')
-    ->execute(['status' => 'Disponível', 'id' => $id]);
+// A unidade volta a ficar disponível no estoque.
+$pdo->prepare('UPDATE estoque SET quantidade = quantidade + 1 WHERE id = :id')
+    ->execute(['id' => $vinculo['estoque_id']]);
 
-registrarHistorico($equipamentoId, 'Item', 'Item "' . $item['nome'] . '" desvinculado deste equipamento');
+registrarHistorico($equipamentoId, 'Item', 'Item "' . $vinculo['item_nome'] . '" desvinculado deste equipamento');
 
-flash('success', 'Item "' . $item['nome'] . '" desvinculado e devolvido ao estoque.');
+flash('success', 'Item "' . $vinculo['item_nome'] . '" desvinculado e devolvido ao estoque.');
 redirect('/modules/equipamentos/view.php?id=' . $equipamentoId . '#itens');

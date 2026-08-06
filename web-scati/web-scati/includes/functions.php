@@ -156,6 +156,14 @@ function ehServidor(?string $tipo): bool
 }
 
 /**
+ * Retorna true se o equipamento é do tipo Computador (para exibir campos extras).
+ */
+function ehComputador(?string $tipo): bool
+{
+    return $tipo === 'Computador';
+}
+
+/**
  * Lista fixa dos status operacionais aceitos para servidores.
  */
 function statusServidor(): array
@@ -183,17 +191,29 @@ function statusServidorBadgeClass(?string $status): string
 }
 
 /**
- * Lista fixa dos status aceitos para itens de estoque vinculáveis a equipamentos.
+ * Lista fixa dos tipos de manutenção aceitos ao registrar uma manutenção no histórico.
  */
-function statusEstoque(): array
+function tiposManutencao(): array
 {
-    return ['Disponível', 'Em uso'];
+    return ['Manutenção Preventiva', 'Limpeza', 'Troca de Componente', 'Outro'];
 }
 
 /**
- * Retorna a classe de badge Bootstrap correspondente ao status do item de estoque.
+ * Registra um evento no histórico de cadastro/exclusão de um item de estoque.
+ * Nome e categoria são gravados na própria linha (além do estoque_id) para que
+ * o registro continue legível mesmo depois que o item seja excluído.
  */
-function statusEstoqueBadgeClass(?string $status): string
+function registrarHistoricoEstoque(?int $estoqueId, string $itemNome, ?string $categoriaNome, string $evento, ?string $descricao = null): void
 {
-    return $status === 'Em uso' ? 'bg-primary' : 'bg-success';
+    $stmt = db()->prepare(
+        'INSERT INTO historico_estoque (estoque_id, item_nome, categoria_nome, evento, descricao)
+         VALUES (:estoque_id, :item_nome, :categoria_nome, :evento, :descricao)'
+    );
+    $stmt->execute([
+        'estoque_id' => $estoqueId,
+        'item_nome' => $itemNome,
+        'categoria_nome' => $categoriaNome,
+        'evento' => $evento,
+        'descricao' => $descricao,
+    ]);
 }

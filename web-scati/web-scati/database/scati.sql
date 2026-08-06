@@ -65,6 +65,9 @@ CREATE TABLE equipamentos (
     modelo_toner             VARCHAR(80)  NULL,
     qtd_toners               INT NULL,
 
+    -- Campo específico de computadores
+    ip_fixo                  VARCHAR(45)  NULL,
+
     -- Campos específicos de servidores
     funcao_servidor          VARCHAR(100) NULL,
     servidor_status          ENUM('Ativo','Inativo') NULL,
@@ -99,19 +102,33 @@ CREATE TABLE estoque (
     quantidade_minima   INT NOT NULL DEFAULT 0,
     localizacao         VARCHAR(120) NULL,
     observacoes         TEXT NULL,
-
-    -- Vinculação com equipamentos (seção 5 da atualização: Itens Vinculados)
-    status              ENUM('Disponível','Em uso') NOT NULL DEFAULT 'Disponível',
-    equipamento_id      INT NULL,
-
     criado_em           DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     atualizado_em        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
     CONSTRAINT fk_estoque_categoria
         FOREIGN KEY (categoria_id) REFERENCES categorias_estoque(id),
-    CONSTRAINT fk_estoque_equipamento
-        FOREIGN KEY (equipamento_id) REFERENCES equipamentos(id) ON DELETE SET NULL,
     CONSTRAINT chk_estoque_qtd_nao_negativa CHECK (quantidade >= 0)
+) ENGINE=InnoDB;
+
+-- ---------------------------------------------------------------------
+-- Tabela: itens_vinculados
+-- Vincula unidades de um item de estoque a um equipamento (seção 5 da
+-- atualização: Itens Vinculados). Cada linha representa UMA unidade
+-- vinculada, permitindo que um mesmo item do estoque (ex.: "Adaptador de
+-- Vídeo", quantidade = 4) seja distribuído entre vários equipamentos ao
+-- mesmo tempo. A coluna "quantidade" em estoque reflete sempre as
+-- unidades ainda disponíveis (não vinculadas).
+-- ---------------------------------------------------------------------
+CREATE TABLE itens_vinculados (
+    id              INT AUTO_INCREMENT PRIMARY KEY,
+    estoque_id      INT NOT NULL,
+    equipamento_id  INT NOT NULL,
+    data_vinculo    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_itemvinc_estoque
+        FOREIGN KEY (estoque_id) REFERENCES estoque(id) ON DELETE CASCADE,
+    CONSTRAINT fk_itemvinc_equipamento
+        FOREIGN KEY (equipamento_id) REFERENCES equipamentos(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
 -- ---------------------------------------------------------------------
@@ -149,6 +166,25 @@ CREATE TABLE historico_equipamentos (
 
     CONSTRAINT fk_historico_equipamento
         FOREIGN KEY (equipamento_id) REFERENCES equipamentos(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- ---------------------------------------------------------------------
+-- Tabela: historico_estoque (registro de cadastro/exclusão de itens)
+-- estoque_id fica NULL quando o item é excluído (ON DELETE SET NULL),
+-- mas o nome/categoria ficam gravados na própria linha para que o
+-- registro continue legível mesmo após a exclusão do item.
+-- ---------------------------------------------------------------------
+CREATE TABLE historico_estoque (
+    id              INT AUTO_INCREMENT PRIMARY KEY,
+    estoque_id      INT NULL,
+    item_nome       VARCHAR(120) NOT NULL,
+    categoria_nome  VARCHAR(60) NULL,
+    evento          VARCHAR(60) NOT NULL,
+    descricao       VARCHAR(255) NULL,
+    data_hora       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_historico_estoque_item
+        FOREIGN KEY (estoque_id) REFERENCES estoque(id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
 -- ---------------------------------------------------------------------
@@ -209,4 +245,7 @@ CREATE INDEX idx_equip_modelo     ON equipamentos(modelo);
 CREATE INDEX idx_equip_responsavel ON equipamentos(usuario_responsavel);
 CREATE INDEX idx_equip_status     ON equipamentos(status);
 CREATE INDEX idx_compart_equipamento ON compartilhamentos_servidor(equipamento_id);
-CREATE INDEX idx_estoque_equipamento ON estoque(equipamento_id);
+CREATE INDEX idx_itemvinc_estoque ON itens_vinculados(estoque_id);
+CREATE INDEX idx_itemvinc_equipamento ON itens_vinculados(equipamento_id);
+CREATE INDEX idx_historico_estoque_item ON historico_estoque(estoque_id);
+CREATE INDEX idx_historico_estoque_data ON historico_estoque(data_hora);

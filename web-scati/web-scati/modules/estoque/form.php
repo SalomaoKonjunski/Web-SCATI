@@ -64,12 +64,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                  quantidade=:quantidade, quantidade_minima=:quantidade_minima, localizacao=:localizacao,
                  observacoes=:observacoes WHERE id=:id'
             )->execute($dados);
+
+            // Se a quantidade mudou (ex.: reposição de estoque), registra no histórico do item.
+            if ((int) $registro['quantidade'] !== $dados['quantidade']) {
+                $stmtCat = $pdo->prepare('SELECT nome FROM categorias_estoque WHERE id = :id');
+                $stmtCat->execute(['id' => $dados['categoria_id']]);
+                $categoriaNome = $stmtCat->fetchColumn() ?: null;
+
+                $diferenca = $dados['quantidade'] - (int) $registro['quantidade'];
+                $sinal = $diferenca > 0 ? '+' . $diferenca : (string) $diferenca;
+                registrarHistoricoEstoque(
+                    $id,
+                    $dados['nome'],
+                    $categoriaNome,
+                    'Alteração',
+                    'Quantidade alterada de ' . (int) $registro['quantidade'] . ' para ' . $dados['quantidade'] . ' (' . $sinal . ')'
+                );
+            }
+
             flash('success', 'Item de estoque atualizado com sucesso.');
         } else {
             $pdo->prepare(
                 'INSERT INTO estoque (nome, categoria_id, marca, modelo, quantidade, quantidade_minima, localizacao, observacoes)
                  VALUES (:nome, :categoria_id, :marca, :modelo, :quantidade, :quantidade_minima, :localizacao, :observacoes)'
             )->execute($dados);
+            $novoId = (int) $pdo->lastInsertId();
+
+            $stmtCat = $pdo->prepare('SELECT nome FROM categorias_estoque WHERE id = :id');
+            $stmtCat->execute(['id' => $dados['categoria_id']]);
+            $categoriaNome = $stmtCat->fetchColumn() ?: null;
+
+            registrarHistoricoEstoque($novoId, $dados['nome'], $categoriaNome, 'Cadastro', 'Item cadastrado no estoque');
+
             flash('success', 'Item de estoque cadastrado com sucesso.');
         }
         redirect('/modules/estoque/index.php');

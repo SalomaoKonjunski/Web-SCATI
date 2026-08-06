@@ -38,10 +38,11 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    // Mostra/oculta campos específicos de impressora ou servidor no formulário de equipamentos
+    // Mostra/oculta campos específicos de impressora, servidor ou computador no formulário de equipamentos
     const tipoSelect = document.getElementById('tipo');
     const printerFields = document.getElementById('printerFields');
     const serverFields = document.getElementById('serverFields');
+    const computerFields = document.getElementById('computerFields');
     function toggleTypeFields() {
         if (!tipoSelect) return;
         if (printerFields) {
@@ -49,6 +50,9 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         if (serverFields) {
             serverFields.style.display = tipoSelect.value === 'Servidor' ? '' : 'none';
+        }
+        if (computerFields) {
+            computerFields.style.display = tipoSelect.value === 'Computador' ? '' : 'none';
         }
     }
     if (tipoSelect) {
