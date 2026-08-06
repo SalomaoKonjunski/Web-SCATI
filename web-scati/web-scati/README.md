@@ -142,6 +142,10 @@ web-scati/
   pasta tem um `.htaccess` que bloqueia a execução de scripts. No
   celular, um botão "Tirar foto" (visível só em telas pequenas) abre a
   câmera diretamente em vez do seletor de arquivos genérico.
+- **Ficha individual para impressão**: botão "Ficha para Impressão" na
+  ficha do equipamento abre um cartão com os dados principais (inclusive
+  os campos específicos de Servidor/Impressora/Computador), pronto para
+  imprimir ou salvar em PDF e arquivar junto ao equipamento físico.
 - **Histórico automático**: toda alteração de status, localização,
   responsável, rede, informações financeiras ou licenças gera um registro
   automático com data, hora, evento e descrição.
