@@ -136,7 +136,9 @@ web-scati/
   download e exclusão. O upload valida extensão (imagens, PDF, Office,
   txt/csv, zip), tamanho máximo (10 MB) e MIME real do arquivo; os
   arquivos ficam em `uploads/anexos/` com nome gerado aleatoriamente e a
-  pasta tem um `.htaccess` que bloqueia a execução de scripts.
+  pasta tem um `.htaccess` que bloqueia a execução de scripts. No
+  celular, um botão "Tirar foto" (visível só em telas pequenas) abre a
+  câmera diretamente em vez do seletor de arquivos genérico.
 - **Histórico automático**: toda alteração de status, localização,
   responsável, rede, informações financeiras ou licenças gera um registro
   automático com data, hora, evento e descrição.
