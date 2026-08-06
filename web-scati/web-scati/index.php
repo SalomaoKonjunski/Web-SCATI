@@ -70,6 +70,50 @@ $impressorasSemToner = $pdo->query(
 
 $totalAlertas = count($licencasVencendo) + count($itensEstoqueBaixo) + count($impressorasSemToner);
 
+// --- Itens de estoque por categoria (gráfico) -----------------------------
+$itensPorCategoriaRaw = $pdo->query(
+    "SELECT c.nome AS categoria, COALESCE(SUM(es.quantidade), 0) AS total
+     FROM categorias_estoque c
+     LEFT JOIN estoque es ON es.categoria_id = c.id
+     GROUP BY c.id, c.nome
+     HAVING total > 0
+     ORDER BY total DESC"
+)->fetchAll();
+
+$totalGeralEstoque = (int) array_sum(array_column($itensPorCategoriaRaw, 'total'));
+
+// No máximo 5 categorias reais na cor própria; o restante é agrupado em "Outros".
+if (count($itensPorCategoriaRaw) > 5) {
+    $itensPorCategoriaChart = array_slice($itensPorCategoriaRaw, 0, 5);
+    $itensPorCategoriaChart[] = [
+        'categoria' => 'Outras categorias',
+        'total' => array_sum(array_column(array_slice($itensPorCategoriaRaw, 5), 'total')),
+    ];
+} else {
+    $itensPorCategoriaChart = $itensPorCategoriaRaw;
+}
+
+$coresCategoriaChart = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#898781'];
+$raioDonut = 80;
+$circunferenciaDonut = 2 * M_PI * $raioDonut;
+$gapDonutPx = 3;
+$anguloAcumuladoDonut = 0;
+$segmentosDonut = [];
+foreach ($itensPorCategoriaChart as $i => $cat) {
+    $fracao = $totalGeralEstoque > 0 ? ((int) $cat['total']) / $totalGeralEstoque : 0;
+    $comprimentoTotal = $fracao * $circunferenciaDonut;
+    $comprimentoDesenhado = max($comprimentoTotal - $gapDonutPx, 0);
+    $segmentosDonut[] = [
+        'categoria'    => $cat['categoria'],
+        'total'        => (int) $cat['total'],
+        'percentual'   => $totalGeralEstoque > 0 ? round($fracao * 100, 1) : 0,
+        'dasharray'    => $comprimentoDesenhado . ' ' . ($circunferenciaDonut - $comprimentoDesenhado),
+        'dashoffset'   => -$anguloAcumuladoDonut,
+        'cor'          => $coresCategoriaChart[$i] ?? '#898781',
+    ];
+    $anguloAcumuladoDonut += $comprimentoTotal;
+}
+
 include __DIR__ . '/includes/header.php';
 ?>
 
@@ -242,6 +286,79 @@ include __DIR__ . '/includes/header.php';
         </div>
     </div>
     <?php endif; ?>
+</div>
+
+<!-- Itens de estoque por categoria -->
+<div class="card mt-4">
+    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <strong><i class="bi bi-pie-chart me-1"></i> Itens de Estoque por Categoria</strong>
+        <?php if (!empty($segmentosDonut)): ?>
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="estoqueChartTableToggle">
+                <i class="bi bi-table"></i> Ver como tabela
+            </button>
+        <?php endif; ?>
+    </div>
+    <div class="card-body">
+        <?php if (empty($segmentosDonut)): ?>
+            <p class="text-muted mb-0">Nenhum item em estoque cadastrado ainda.</p>
+        <?php else: ?>
+            <div class="scati-donut-wrap" id="estoqueChartWrap">
+                <div class="scati-donut-figure">
+                    <svg viewBox="0 0 200 200" width="200" height="200" class="scati-donut-svg" role="img"
+                         aria-label="Distribuição de <?= $totalGeralEstoque ?> itens de estoque entre <?= count($segmentosDonut) ?> categorias">
+                        <g transform="rotate(-90 100 100)">
+                            <?php foreach ($segmentosDonut as $seg): ?>
+                                <circle
+                                    cx="100" cy="100" r="<?= $raioDonut ?>" fill="none"
+                                    stroke="<?= e($seg['cor']) ?>" stroke-width="28"
+                                    stroke-dasharray="<?= $seg['dasharray'] ?>"
+                                    stroke-dashoffset="<?= $seg['dashoffset'] ?>"
+                                    class="scati-donut-seg" tabindex="0"
+                                    data-categoria="<?= e($seg['categoria']) ?>"
+                                    data-total="<?= $seg['total'] ?>"
+                                    data-percentual="<?= $seg['percentual'] ?>"
+                                ><title><?= e($seg['categoria']) ?>: <?= $seg['total'] ?> item(ns) (<?= $seg['percentual'] ?>%)</title></circle>
+                            <?php endforeach; ?>
+                        </g>
+                    </svg>
+                    <div class="scati-donut-center">
+                        <div class="scati-donut-total"><?= $totalGeralEstoque ?></div>
+                        <div class="scati-donut-total-label">itens</div>
+                    </div>
+                </div>
+                <div class="scati-donut-legend">
+                    <?php foreach ($segmentosDonut as $seg): ?>
+                        <div class="scati-legend-item">
+                            <span class="scati-legend-swatch" style="background-color: <?= e($seg['cor']) ?>;"></span>
+                            <span class="scati-legend-label"><?= e($seg['categoria']) ?></span>
+                            <span class="scati-legend-value"><?= $seg['total'] ?> (<?= $seg['percentual'] ?>%)</span>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+            <div class="table-responsive d-none" id="estoqueChartTable">
+                <table class="table table-sm table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Categoria</th>
+                            <th>Quantidade</th>
+                            <th>Percentual</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($segmentosDonut as $seg): ?>
+                            <tr>
+                                <td><?= e($seg['categoria']) ?></td>
+                                <td><?= $seg['total'] ?></td>
+                                <td><?= $seg['percentual'] ?>%</td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+            <div class="scati-donut-tooltip" id="estoqueDonutTooltip" role="tooltip" hidden></div>
+        <?php endif; ?>
+    </div>
 </div>
 
 <!-- Últimos equipamentos cadastrados -->

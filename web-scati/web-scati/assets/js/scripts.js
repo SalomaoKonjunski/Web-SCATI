@@ -64,6 +64,56 @@ document.addEventListener('DOMContentLoaded', function () {
         toggleTypeFields();
     }
 
+    // Gráfico "Itens de Estoque por Categoria": tooltip ao passar o mouse/focar
+    const donutSegs = document.querySelectorAll('.scati-donut-seg');
+    const donutTooltip = document.getElementById('estoqueDonutTooltip');
+    if (donutSegs.length && donutTooltip) {
+        const showDonutTooltip = function (seg, x, y) {
+            donutTooltip.innerHTML = '';
+            const strong = document.createElement('strong');
+            strong.textContent = seg.dataset.total + ' item(ns)';
+            const detalhe = document.createElement('div');
+            detalhe.textContent = seg.dataset.categoria + ' · ' + seg.dataset.percentual + '%';
+            donutTooltip.appendChild(strong);
+            donutTooltip.appendChild(detalhe);
+            donutTooltip.style.left = x + 'px';
+            donutTooltip.style.top = y + 'px';
+            donutTooltip.hidden = false;
+        };
+        const hideDonutTooltip = function () {
+            donutTooltip.hidden = true;
+        };
+        donutSegs.forEach(function (seg) {
+            seg.addEventListener('pointermove', function (e) {
+                showDonutTooltip(seg, e.clientX + 14, e.clientY + 14);
+            });
+            seg.addEventListener('pointerenter', function (e) {
+                showDonutTooltip(seg, e.clientX + 14, e.clientY + 14);
+            });
+            seg.addEventListener('pointerleave', hideDonutTooltip);
+            seg.addEventListener('focus', function () {
+                const rect = seg.getBoundingClientRect();
+                showDonutTooltip(seg, rect.left + rect.width / 2, rect.top - 10);
+            });
+            seg.addEventListener('blur', hideDonutTooltip);
+        });
+    }
+
+    // Alterna entre gráfico e tabela no card "Itens de Estoque por Categoria"
+    const estoqueChartToggle = document.getElementById('estoqueChartTableToggle');
+    const estoqueChartWrap = document.getElementById('estoqueChartWrap');
+    const estoqueChartTable = document.getElementById('estoqueChartTable');
+    if (estoqueChartToggle && estoqueChartWrap && estoqueChartTable) {
+        estoqueChartToggle.addEventListener('click', function () {
+            const vaiMostrarTabela = estoqueChartTable.classList.contains('d-none');
+            estoqueChartTable.classList.toggle('d-none', !vaiMostrarTabela);
+            estoqueChartWrap.classList.toggle('d-none', vaiMostrarTabela);
+            estoqueChartToggle.innerHTML = vaiMostrarTabela
+                ? '<i class="bi bi-pie-chart"></i> Ver como gráfico'
+                : '<i class="bi bi-table"></i> Ver como tabela';
+        });
+    }
+
     // Botão "Tirar foto" (só aparece no celular): copia a foto capturada
     // pela câmera para o campo de arquivo do formulário de anexos.
     const anexoCamera = document.getElementById('anexoCamera');

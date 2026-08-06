@@ -105,6 +105,114 @@ body {
 }
 
 /* =====================================================
+   Dashboard: gráfico de itens de estoque por categoria
+   ===================================================== */
+.scati-donut-wrap {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2rem;
+}
+
+.scati-donut-figure {
+    position: relative;
+    width: 200px;
+    height: 200px;
+    flex-shrink: 0;
+    margin: 0 auto;
+}
+
+.scati-donut-svg {
+    width: 200px;
+    height: 200px;
+}
+
+.scati-donut-seg {
+    cursor: pointer;
+    transition: opacity 0.15s ease;
+}
+
+.scati-donut-seg:hover,
+.scati-donut-seg:focus {
+    opacity: 0.85;
+    outline: none;
+}
+
+.scati-donut-center {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    pointer-events: none;
+}
+
+.scati-donut-total {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: #212529;
+    line-height: 1.1;
+}
+
+.scati-donut-total-label {
+    font-size: 0.72rem;
+    color: #6c757d;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.scati-donut-legend {
+    flex: 1 1 220px;
+    min-width: 220px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+}
+
+.scati-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-size: 0.9rem;
+}
+
+.scati-legend-swatch {
+    width: 12px;
+    height: 12px;
+    min-width: 12px;
+    border-radius: 3px;
+}
+
+.scati-legend-label {
+    flex: 1;
+    color: #212529;
+}
+
+.scati-legend-value {
+    color: #6c757d;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.scati-donut-tooltip {
+    position: fixed;
+    z-index: 1080;
+    background: #212529;
+    color: #fff;
+    padding: 0.4rem 0.65rem;
+    border-radius: 0.35rem;
+    font-size: 0.82rem;
+    line-height: 1.3;
+    pointer-events: none;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+    max-width: 220px;
+}
+
+.scati-donut-tooltip strong {
+    font-variant-numeric: tabular-nums;
+}
+
+/* =====================================================
    Impressão / exportação em PDF: exibe apenas o conteúdo
    principal da página, sem navbar, menu lateral ou ações.
    ===================================================== */
