@@ -525,7 +525,13 @@ include __DIR__ . '/../../includes/header.php';
             <input type="hidden" name="equipamento_id" value="<?= (int) $eq['id'] ?>">
             <div class="row g-2">
                 <div class="col-md-5">
-                    <input type="file" name="arquivo" class="form-control" required>
+                    <div class="d-flex gap-2">
+                        <input type="file" name="arquivo" id="anexoArquivo" class="form-control" required>
+                        <label for="anexoCamera" class="btn btn-outline-secondary d-md-none flex-shrink-0 mb-0" title="Tirar foto">
+                            <i class="bi bi-camera"></i>
+                        </label>
+                        <input type="file" id="anexoCamera" accept="image/*" capture="environment" class="d-none">
+                    </div>
                 </div>
                 <div class="col-md-5">
                     <input type="text" name="descricao" class="form-control" placeholder="Descrição (opcional, ex: Nota fiscal)">
@@ -536,6 +542,7 @@ include __DIR__ . '/../../includes/header.php';
             </div>
             <div class="form-text">
                 Tamanho máximo 10 MB. Formatos aceitos: <?= e(implode(', ', extensoesAnexoPermitidas())) ?>.
+                <span class="d-md-none">No celular, use <i class="bi bi-camera"></i> para tirar uma foto na hora.</span>
             </div>
         </form>
 

@@ -59,4 +59,18 @@ document.addEventListener('DOMContentLoaded', function () {
         tipoSelect.addEventListener('change', toggleTypeFields);
         toggleTypeFields();
     }
+
+    // Botão "Tirar foto" (só aparece no celular): copia a foto capturada
+    // pela câmera para o campo de arquivo do formulário de anexos.
+    const anexoCamera = document.getElementById('anexoCamera');
+    const anexoArquivo = document.getElementById('anexoArquivo');
+    if (anexoCamera && anexoArquivo) {
+        anexoCamera.addEventListener('change', function () {
+            if (anexoCamera.files.length > 0) {
+                const dt = new DataTransfer();
+                dt.items.add(anexoCamera.files[0]);
+                anexoArquivo.files = dt.files;
+            }
+        });
+    }
 });
