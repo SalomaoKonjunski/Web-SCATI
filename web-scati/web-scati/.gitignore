@@ -1,0 +1,5 @@
+# Arquivos enviados pelos usuários (anexos da ficha de equipamentos).
+# A pasta e a proteção .htaccess ficam versionadas; o conteúdo, não.
+uploads/anexos/*
+!uploads/anexos/.htaccess
+!uploads/anexos/.gitkeep

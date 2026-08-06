@@ -61,6 +61,20 @@ function formatMoney($valor): string
 }
 
 /**
+ * Formata um tamanho em bytes para KB/MB legível.
+ */
+function formatBytes(int $bytes): string
+{
+    if ($bytes >= 1024 * 1024) {
+        return number_format($bytes / (1024 * 1024), 1, ',', '.') . ' MB';
+    }
+    if ($bytes >= 1024) {
+        return number_format($bytes / 1024, 1, ',', '.') . ' KB';
+    }
+    return $bytes . ' bytes';
+}
+
+/**
  * Formata uma data (Y-m-d) para o padrão brasileiro (d/m/Y).
  */
 function formatDate(?string $data): string
@@ -196,6 +210,30 @@ function statusServidorBadgeClass(?string $status): string
 function tiposManutencao(): array
 {
     return ['Manutenção Preventiva', 'Limpeza', 'Troca de Componente', 'Outro'];
+}
+
+/**
+ * Lista fixa das extensões de arquivo aceitas como anexo de equipamento.
+ */
+function extensoesAnexoPermitidas(): array
+{
+    return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'csv', 'zip'];
+}
+
+/**
+ * Retorna o ícone Bootstrap Icons correspondente à extensão do anexo.
+ */
+function iconeAnexo(string $extensao): string
+{
+    return match (strtolower($extensao)) {
+        'jpg', 'jpeg', 'png', 'gif', 'webp' => 'bi-file-earmark-image',
+        'pdf' => 'bi-file-earmark-pdf',
+        'doc', 'docx' => 'bi-file-earmark-word',
+        'xls', 'xlsx', 'csv' => 'bi-file-earmark-excel',
+        'ppt', 'pptx' => 'bi-file-earmark-ppt',
+        'zip' => 'bi-file-earmark-zip',
+        default => 'bi-file-earmark',
+    };
 }
 
 /**

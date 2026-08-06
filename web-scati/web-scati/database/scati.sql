@@ -201,6 +201,27 @@ CREATE TABLE observacoes_equipamentos (
 ) ENGINE=InnoDB;
 
 -- ---------------------------------------------------------------------
+-- Tabela: anexos_equipamentos
+-- Arquivos (nota fiscal, foto, manual em PDF, etc.) anexados à ficha do
+-- equipamento. O arquivo em si fica salvo em uploads/anexos/ com um nome
+-- gerado aleatoriamente (nome_arquivo); nome_original é só para exibição
+-- e download.
+-- ---------------------------------------------------------------------
+CREATE TABLE anexos_equipamentos (
+    id              INT AUTO_INCREMENT PRIMARY KEY,
+    equipamento_id  INT NOT NULL,
+    nome_original   VARCHAR(255) NOT NULL,
+    nome_arquivo    VARCHAR(255) NOT NULL,
+    tipo_mime       VARCHAR(100) NULL,
+    tamanho         INT NOT NULL,
+    descricao       VARCHAR(255) NULL,
+    criado_em       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_anexo_equipamento
+        FOREIGN KEY (equipamento_id) REFERENCES equipamentos(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- ---------------------------------------------------------------------
 -- Tabela: compartilhamentos_servidor
 -- Pastas de rede compartilhadas por um equipamento do tipo Servidor.
 -- ---------------------------------------------------------------------
@@ -249,3 +270,4 @@ CREATE INDEX idx_itemvinc_estoque ON itens_vinculados(estoque_id);
 CREATE INDEX idx_itemvinc_equipamento ON itens_vinculados(equipamento_id);
 CREATE INDEX idx_historico_estoque_item ON historico_estoque(estoque_id);
 CREATE INDEX idx_historico_estoque_data ON historico_estoque(data_hora);
+CREATE INDEX idx_anexo_equipamento ON anexos_equipamentos(equipamento_id);

@@ -97,6 +97,11 @@ $observacoes = $pdo->prepare('SELECT * FROM observacoes_equipamentos WHERE equip
 $observacoes->execute(['id' => $id]);
 $observacoes = $observacoes->fetchAll();
 
+// Anexos (mais recente primeiro)
+$anexos = $pdo->prepare('SELECT * FROM anexos_equipamentos WHERE equipamento_id = :id ORDER BY criado_em DESC');
+$anexos->execute(['id' => $id]);
+$anexos = $anexos->fetchAll();
+
 // Itens de estoque vinculados a este equipamento (uma linha por unidade vinculada)
 $itensVinculados = $pdo->prepare(
     'SELECT iv.id AS vinculo_id, es.id AS estoque_id, es.nome, es.marca, es.modelo, c.nome AS categoria_nome
@@ -193,6 +198,11 @@ include __DIR__ . '/../../includes/header.php';
     <li class="nav-item" role="presentation">
         <button class="nav-link" data-bs-toggle="tab" data-bs-target="#observacoes" type="button">
             Observações <span class="badge bg-secondary"><?= count($observacoes) ?></span>
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#anexos" type="button">
+            Anexos <span class="badge bg-secondary"><?= count($anexos) ?></span>
         </button>
     </li>
     <?php if (ehServidor($eq['tipo'])): ?>
@@ -505,6 +515,58 @@ include __DIR__ . '/../../includes/header.php';
                     </li>
                 <?php endforeach; ?>
             </ul>
+        <?php endif; ?>
+    </div>
+
+    <!-- Anexos -->
+    <div class="tab-pane fade" id="anexos">
+        <form method="post" action="anexo_upload.php" enctype="multipart/form-data" class="mb-4">
+            <label class="form-label fw-semibold">+ Novo Anexo</label>
+            <input type="hidden" name="equipamento_id" value="<?= (int) $eq['id'] ?>">
+            <div class="row g-2">
+                <div class="col-md-5">
+                    <input type="file" name="arquivo" class="form-control" required>
+                </div>
+                <div class="col-md-5">
+                    <input type="text" name="descricao" class="form-control" placeholder="Descrição (opcional, ex: Nota fiscal)">
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary w-100"><i class="bi bi-upload"></i> Enviar</button>
+                </div>
+            </div>
+            <div class="form-text">
+                Tamanho máximo 10 MB. Formatos aceitos: <?= e(implode(', ', extensoesAnexoPermitidas())) ?>.
+            </div>
+        </form>
+
+        <?php if (empty($anexos)): ?>
+            <p class="text-muted">Nenhum anexo cadastrado para este equipamento.</p>
+        <?php else: ?>
+            <table class="table table-sm table-hover">
+                <thead class="table-light">
+                    <tr><th>Arquivo</th><th>Descrição</th><th>Tamanho</th><th>Enviado em</th><th class="text-end">Ações</th></tr>
+                </thead>
+                <tbody>
+                <?php foreach ($anexos as $anexo): ?>
+                    <?php $extensaoAnexo = pathinfo($anexo['nome_original'], PATHINFO_EXTENSION); ?>
+                    <tr>
+                        <td><i class="bi <?= iconeAnexo($extensaoAnexo) ?> me-1 text-muted"></i><?= e($anexo['nome_original']) ?></td>
+                        <td><?= e($anexo['descricao']) ?: '-' ?></td>
+                        <td><?= formatBytes((int) $anexo['tamanho']) ?></td>
+                        <td><?= formatDateTime($anexo['criado_em']) ?></td>
+                        <td class="text-end">
+                            <a href="anexo_download.php?id=<?= (int) $anexo['id'] ?>" class="btn btn-sm btn-outline-primary" title="Baixar">
+                                <i class="bi bi-download"></i>
+                            </a>
+                            <a href="anexo_excluir.php?id=<?= (int) $anexo['id'] ?>" class="btn btn-sm btn-outline-danger js-confirm-delete"
+                               data-confirm-msg="Excluir o anexo &quot;<?= e($anexo['nome_original']) ?>&quot;? Esta ação não pode ser desfeita." title="Excluir">
+                                <i class="bi bi-trash"></i>
+                            </a>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+                </tbody>
+            </table>
         <?php endif; ?>
     </div>
 
