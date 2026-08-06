@@ -119,7 +119,10 @@ web-scati/
 ## Funcionalidades implementadas
 
 - **Dashboard** com indicadores de equipamentos, estoque, licenças e (se
-  preenchido) valor total do patrimônio.
+  preenchido) valor total do patrimônio, além de uma **Central de Alertas**
+  no topo da página reunindo licenças vencidas ou vencendo nos próximos 30
+  dias, itens de estoque abaixo do mínimo e impressoras sem toner
+  vinculado — cada alerta linka direto para a tela correspondente.
 - **Equipamentos**: CRUD completo, pesquisa e filtros (tipo, status, rede),
   ficha individual com abas de Dados Gerais, Hardware, Licenciamento,
   Financeiro, Histórico e Observações.

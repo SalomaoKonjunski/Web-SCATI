@@ -39,11 +39,88 @@ $ultimosEquipamentos = $pdo->query(
      FROM equipamentos ORDER BY criado_em DESC LIMIT 5"
 )->fetchAll();
 
+// --- Central de Alertas --------------------------------------------------
+// Licenças já vencidas ou vencendo nos próximos 30 dias.
+$licencasVencendo = $pdo->query(
+    "SELECT l.id, l.software, l.data_validade, e.patrimonio
+     FROM licencas l LEFT JOIN equipamentos e ON e.id = l.equipamento_id
+     WHERE l.data_validade IS NOT NULL AND l.data_validade <= DATE_ADD(CURDATE(), INTERVAL 30 DAY)
+     ORDER BY l.data_validade ASC"
+)->fetchAll();
+
+// Itens de estoque abaixo da quantidade mínima.
+$itensEstoqueBaixo = $pdo->query(
+    "SELECT id, nome, quantidade, quantidade_minima
+     FROM estoque WHERE quantidade < quantidade_minima ORDER BY nome"
+)->fetchAll();
+
+// Impressoras sem nenhum toner vinculado no momento.
+$impressorasSemToner = $pdo->query(
+    "SELECT e.id, e.patrimonio, e.marca, e.modelo
+     FROM equipamentos e
+     WHERE e.tipo = 'Impressora'
+       AND NOT EXISTS (
+           SELECT 1 FROM itens_vinculados iv
+           JOIN estoque es ON es.id = iv.estoque_id
+           JOIN categorias_estoque c ON c.id = es.categoria_id
+           WHERE iv.equipamento_id = e.id AND c.nome = 'Toner'
+       )
+     ORDER BY e.patrimonio"
+)->fetchAll();
+
+$totalAlertas = count($licencasVencendo) + count($itensEstoqueBaixo) + count($impressorasSemToner);
+
 include __DIR__ . '/includes/header.php';
 ?>
 
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h1 class="h3 mb-0"><i class="bi bi-speedometer2 me-2"></i>Dashboard</h1>
+</div>
+
+<!-- Central de Alertas -->
+<div class="card mb-4 <?= $totalAlertas > 0 ? 'border-warning' : '' ?>">
+    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <strong><i class="bi bi-bell me-1"></i> Central de Alertas</strong>
+        <?php if ($totalAlertas > 0): ?>
+            <span class="badge bg-danger"><?= $totalAlertas ?> alerta(s)</span>
+        <?php endif; ?>
+    </div>
+    <div class="card-body">
+        <?php if ($totalAlertas === 0): ?>
+            <p class="text-success mb-0"><i class="bi bi-check-circle me-1"></i> Tudo em dia! Nenhum alerta no momento.</p>
+        <?php else: ?>
+            <div class="list-group list-group-flush">
+                <?php foreach ($licencasVencendo as $lic): ?>
+                    <?php
+                        $diasParaVencer = (int) floor((strtotime($lic['data_validade']) - strtotime('today')) / 86400);
+                        $vencida = $diasParaVencer < 0;
+                    ?>
+                    <a href="<?= BASE_URL ?>/modules/licencas/index.php" class="list-group-item list-group-item-action">
+                        <span class="badge <?= $vencida ? 'bg-danger' : 'bg-warning text-dark' ?> me-2">Licença</span>
+                        <?= e($lic['software']) ?><?= $lic['patrimonio'] ? ' — ' . e($lic['patrimonio']) : '' ?>
+                        <?= $vencida
+                            ? 'vencida em ' . formatDate($lic['data_validade'])
+                            : 'vence em ' . formatDate($lic['data_validade']) . ' (' . $diasParaVencer . ' dia(s))' ?>
+                    </a>
+                <?php endforeach; ?>
+
+                <?php foreach ($itensEstoqueBaixo as $item): ?>
+                    <a href="<?= BASE_URL ?>/modules/estoque/index.php" class="list-group-item list-group-item-action">
+                        <span class="badge bg-danger me-2">Estoque</span>
+                        <?= e($item['nome']) ?> — <?= (int) $item['quantidade'] ?> em estoque (mínimo <?= (int) $item['quantidade_minima'] ?>)
+                    </a>
+                <?php endforeach; ?>
+
+                <?php foreach ($impressorasSemToner as $imp): ?>
+                    <?php $marcaModeloImp = trim(($imp['marca'] ?? '') . ' ' . ($imp['modelo'] ?? '')); ?>
+                    <a href="<?= BASE_URL ?>/modules/equipamentos/view.php?id=<?= (int) $imp['id'] ?>#toner" class="list-group-item list-group-item-action">
+                        <span class="badge bg-warning text-dark me-2">Impressora</span>
+                        <?= e($imp['patrimonio']) ?><?= $marcaModeloImp ? ' — ' . e($marcaModeloImp) : '' ?> sem toner vinculado
+                    </a>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
+    </div>
 </div>
 
 <!-- KPIs de equipamentos por tipo -->
