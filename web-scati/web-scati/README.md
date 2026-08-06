@@ -56,6 +56,13 @@ Funcional (v1.0).
    mysql -u root -p scati < database/migration_ip_fixo.sql
    ```
 
+   Se o banco já existia antes do suporte a **Anexos** na ficha do
+   equipamento (antes da tabela `anexos_equipamentos`), rode também esta
+   migração incremental **uma única vez**:
+   ```bash
+   mysql -u root -p scati < database/migration_anexos.sql
+   ```
+
    > Importante: ao importar qualquer um dos arquivos `.sql` deste projeto,
    > garanta que o cliente MySQL use UTF-8 (ex.: `mysql --default-character-set=utf8mb4 -u root -p < arquivo.sql`),
    > caso contrário os valores acentuados dos campos `ENUM` (como "Disponível")
@@ -124,6 +131,12 @@ web-scati/
   no sistema.
 - **Computadores**: campo adicional de **IP Fixo**, exibido apenas quando
   o tipo do equipamento é Computador.
+- **Anexos**: aba na ficha de qualquer equipamento para anexar arquivos
+  (nota fiscal, foto, manual em PDF, etc.), com descrição opcional,
+  download e exclusão. O upload valida extensão (imagens, PDF, Office,
+  txt/csv, zip), tamanho máximo (10 MB) e MIME real do arquivo; os
+  arquivos ficam em `uploads/anexos/` com nome gerado aleatoriamente e a
+  pasta tem um `.htaccess` que bloqueia a execução de scripts.
 - **Histórico automático**: toda alteração de status, localização,
   responsável, rede, informações financeiras ou licenças gera um registro
   automático com data, hora, evento e descrição.
