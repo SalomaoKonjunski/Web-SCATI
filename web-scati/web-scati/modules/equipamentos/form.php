@@ -259,6 +259,10 @@ include __DIR__ . '/../../includes/header.php';
                 <label class="form-label">Sistema Operacional</label>
                 <input type="text" name="sistema_operacional" class="form-control" value="<?= e($equipamento['sistema_operacional']) ?>">
             </div>
+            <div class="col-md-3" id="placaMaeField">
+                <label class="form-label">Placa Mãe</label>
+                <input type="text" name="placa_mae" class="form-control" placeholder="Ex: ASUS PRIME B460M-A" value="<?= e($equipamento['placa_mae']) ?>">
+            </div>
         </div>
     </div>
 
@@ -283,15 +287,11 @@ include __DIR__ . '/../../includes/header.php';
 
     <!-- Campos específicos de computador -->
     <div class="card mb-3" id="computerFields">
-        <div class="card-header bg-white"><strong><i class="bi bi-pc-display-horizontal me-1"></i> Informações do Computador</strong></div>
+        <div class="card-header bg-white"><strong><i class="bi bi-ethernet me-1"></i> Rede do Computador</strong></div>
         <div class="card-body row g-3">
             <div class="col-md-4">
                 <label class="form-label">IP Fixo</label>
                 <input type="text" name="ip_fixo" class="form-control" placeholder="Ex: 192.168.1.10" value="<?= e($equipamento['ip_fixo']) ?>">
-            </div>
-            <div class="col-md-4">
-                <label class="form-label">Placa Mãe</label>
-                <input type="text" name="placa_mae" class="form-control" placeholder="Ex: ASUS PRIME B460M-A" value="<?= e($equipamento['placa_mae']) ?>">
             </div>
         </div>
     </div>

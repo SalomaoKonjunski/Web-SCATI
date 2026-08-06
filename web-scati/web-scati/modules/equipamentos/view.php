@@ -239,6 +239,9 @@ include __DIR__ . '/../../includes/header.php';
                     <tr><th>Memória RAM</th><td><?= e($eq['memoria_ram']) ?: '-' ?></td></tr>
                     <tr><th>Armazenamento</th><td><?= e($eq['armazenamento']) ?: '-' ?></td></tr>
                     <tr><th>Sistema Operacional</th><td><?= e($eq['sistema_operacional']) ?: '-' ?></td></tr>
+                    <?php if (ehComputador($eq['tipo'])): ?>
+                    <tr><th>Placa Mãe</th><td><?= e($eq['placa_mae']) ?: '-' ?></td></tr>
+                    <?php endif; ?>
                 </table>
 
                 <?php if (ehImpressora($eq['tipo'])): ?>
@@ -251,10 +254,9 @@ include __DIR__ . '/../../includes/header.php';
                 <?php endif; ?>
 
                 <?php if (ehComputador($eq['tipo'])): ?>
-                <h6 class="text-muted text-uppercase small mb-3 mt-4">Informações do Computador</h6>
+                <h6 class="text-muted text-uppercase small mb-3 mt-4">Rede do Computador</h6>
                 <table class="table table-sm">
                     <tr><th style="width:40%">IP Fixo</th><td><?= e($eq['ip_fixo']) ?: '-' ?></td></tr>
-                    <tr><th>Placa Mãe</th><td><?= e($eq['placa_mae']) ?: '-' ?></td></tr>
                 </table>
                 <?php endif; ?>
 

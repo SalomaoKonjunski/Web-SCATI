@@ -43,6 +43,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const printerFields = document.getElementById('printerFields');
     const serverFields = document.getElementById('serverFields');
     const computerFields = document.getElementById('computerFields');
+    const placaMaeField = document.getElementById('placaMaeField');
     function toggleTypeFields() {
         if (!tipoSelect) return;
         if (printerFields) {
@@ -53,6 +54,9 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         if (computerFields) {
             computerFields.style.display = tipoSelect.value === 'Computador' ? '' : 'none';
+        }
+        if (placaMaeField) {
+            placaMaeField.style.display = tipoSelect.value === 'Computador' ? '' : 'none';
         }
     }
     if (tipoSelect) {

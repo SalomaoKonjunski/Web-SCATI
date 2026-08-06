@@ -93,6 +93,9 @@ if (!$eq) {
                 <div class="ficha-campo"><strong>Memória RAM:</strong> <?= e($eq['memoria_ram']) ?: '-' ?></div>
                 <div class="ficha-campo"><strong>Armazenamento:</strong> <?= e($eq['armazenamento']) ?: '-' ?></div>
                 <div class="ficha-campo"><strong>Sistema Operacional:</strong> <?= e($eq['sistema_operacional']) ?: '-' ?></div>
+                <?php if (ehComputador($eq['tipo'])): ?>
+                    <div class="ficha-campo"><strong>Placa Mãe:</strong> <?= e($eq['placa_mae']) ?: '-' ?></div>
+                <?php endif; ?>
 
                 <?php if (ehImpressora($eq['tipo'])): ?>
                     <h6 class="text-uppercase small mt-4">Dados da Impressora</h6>
@@ -101,9 +104,8 @@ if (!$eq) {
                 <?php endif; ?>
 
                 <?php if (ehComputador($eq['tipo'])): ?>
-                    <h6 class="text-uppercase small mt-4">Informações do Computador</h6>
+                    <h6 class="text-uppercase small mt-4">Rede do Computador</h6>
                     <div class="ficha-campo"><strong>IP Fixo:</strong> <?= e($eq['ip_fixo']) ?: '-' ?></div>
-                    <div class="ficha-campo"><strong>Placa Mãe:</strong> <?= e($eq['placa_mae']) ?: '-' ?></div>
                 <?php endif; ?>
 
                 <?php if (ehServidor($eq['tipo'])): ?>
