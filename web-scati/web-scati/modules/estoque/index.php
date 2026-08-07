@@ -102,7 +102,19 @@ include __DIR__ . '/../../includes/header.php';
                         <td><?= e($item['nome']) ?></td>
                         <td><?= e($item['categoria_nome']) ?></td>
                         <td><?= e(trim(($item['marca'] ?? '') . ' ' . ($item['modelo'] ?? ''))) ?: '-' ?></td>
-                        <td class="text-center fw-semibold"><?= (int) $item['quantidade'] ?></td>
+                        <td class="text-center">
+                            <form method="post" action="ajustar_quantidade.php" class="d-inline-flex align-items-center gap-1">
+                                <input type="hidden" name="id" value="<?= (int) $item['id'] ?>">
+                                <button type="submit" name="acao" value="diminuir" class="btn btn-sm btn-outline-secondary px-2" title="Diminuir quantidade" <?= (int) $item['quantidade'] <= 0 ? 'disabled' : '' ?>>
+                                    <i class="bi bi-dash-lg"></i>
+                                </button>
+                                <span class="fw-semibold mx-1" style="min-width: 1.6em; display: inline-block;"><?= (int) $item['quantidade'] ?></span>
+                                <input type="number" name="valor" value="1" min="1" class="form-control form-control-sm text-center" style="width: 4.2em;" title="Quantidade a ajustar">
+                                <button type="submit" name="acao" value="aumentar" class="btn btn-sm btn-outline-secondary px-2" title="Aumentar quantidade">
+                                    <i class="bi bi-plus-lg"></i>
+                                </button>
+                            </form>
+                        </td>
                         <td class="text-center text-muted"><?= (int) $item['quantidade_minima'] ?></td>
                         <td><?= e($item['localizacao']) ?: '-' ?></td>
                         <td>
