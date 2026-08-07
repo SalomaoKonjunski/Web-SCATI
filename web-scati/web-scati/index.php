@@ -95,23 +95,38 @@ if (count($itensPorCategoriaRaw) > 5) {
 
 $coresCategoriaChart = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#898781'];
 $raioDonut = 80;
-$circunferenciaDonut = 2 * M_PI * $raioDonut;
-$gapDonutPx = 3;
-$anguloAcumuladoDonut = 0;
+$centroDonut = 100;
+// Gap visual de ~3px entre fatias, convertido de comprimento de arco para graus.
+$gapGrausDonut = (3 / (2 * M_PI * $raioDonut)) * 360;
+
+function scatiPontoNoCirculo(float $cx, float $cy, float $r, float $anguloGraus): array
+{
+    $rad = deg2rad($anguloGraus);
+    return [$cx + $r * cos($rad), $cy + $r * sin($rad)];
+}
+
+// Ângulo 0° fica às 3h; começamos em -90° (12h) e avançamos no sentido horário.
+$anguloAcumuladoDonut = -90.0;
 $segmentosDonut = [];
 foreach ($itensPorCategoriaChart as $i => $cat) {
     $fracao = $totalGeralEstoque > 0 ? ((int) $cat['total']) / $totalGeralEstoque : 0;
-    $comprimentoTotal = $fracao * $circunferenciaDonut;
-    $comprimentoDesenhado = max($comprimentoTotal - $gapDonutPx, 0);
+    $anguloTotal = $fracao * 360;
+    $anguloInicio = $anguloAcumuladoDonut + $gapGrausDonut / 2;
+    $anguloFim = $anguloAcumuladoDonut + $anguloTotal - $gapGrausDonut / 2;
+    if ($anguloFim < $anguloInicio) {
+        $anguloFim = $anguloInicio;
+    }
+    $arcoGrande = ($anguloFim - $anguloInicio) > 180 ? 1 : 0;
+    [$x1, $y1] = scatiPontoNoCirculo($centroDonut, $centroDonut, $raioDonut, $anguloInicio);
+    [$x2, $y2] = scatiPontoNoCirculo($centroDonut, $centroDonut, $raioDonut, $anguloFim);
     $segmentosDonut[] = [
-        'categoria'    => $cat['categoria'],
-        'total'        => (int) $cat['total'],
-        'percentual'   => $totalGeralEstoque > 0 ? round($fracao * 100, 1) : 0,
-        'dasharray'    => $comprimentoDesenhado . ' ' . ($circunferenciaDonut - $comprimentoDesenhado),
-        'dashoffset'   => -$anguloAcumuladoDonut,
-        'cor'          => $coresCategoriaChart[$i] ?? '#898781',
+        'categoria'  => $cat['categoria'],
+        'total'      => (int) $cat['total'],
+        'percentual' => $totalGeralEstoque > 0 ? round($fracao * 100, 1) : 0,
+        'path'       => sprintf('M %.3F %.3F A %d %d 0 %d 1 %.3F %.3F', $x1, $y1, $raioDonut, $raioDonut, $arcoGrande, $x2, $y2),
+        'cor'        => $coresCategoriaChart[$i] ?? '#898781',
     ];
-    $anguloAcumuladoDonut += $comprimentoTotal;
+    $anguloAcumuladoDonut += $anguloTotal;
 }
 
 include __DIR__ . '/includes/header.php';
@@ -306,20 +321,16 @@ include __DIR__ . '/includes/header.php';
                 <div class="scati-donut-figure">
                     <svg viewBox="0 0 200 200" width="200" height="200" class="scati-donut-svg" role="img"
                          aria-label="Distribuição de <?= $totalGeralEstoque ?> itens de estoque entre <?= count($segmentosDonut) ?> categorias">
-                        <g transform="rotate(-90 100 100)">
-                            <?php foreach ($segmentosDonut as $seg): ?>
-                                <circle
-                                    cx="100" cy="100" r="<?= $raioDonut ?>" fill="none"
-                                    stroke="<?= e($seg['cor']) ?>" stroke-width="28"
-                                    stroke-dasharray="<?= $seg['dasharray'] ?>"
-                                    stroke-dashoffset="<?= $seg['dashoffset'] ?>"
-                                    class="scati-donut-seg" tabindex="0"
-                                    data-categoria="<?= e($seg['categoria']) ?>"
-                                    data-total="<?= $seg['total'] ?>"
-                                    data-percentual="<?= $seg['percentual'] ?>"
-                                ><title><?= e($seg['categoria']) ?>: <?= $seg['total'] ?> item(ns) (<?= $seg['percentual'] ?>%)</title></circle>
-                            <?php endforeach; ?>
-                        </g>
+                        <?php foreach ($segmentosDonut as $seg): ?>
+                            <path
+                                d="<?= $seg['path'] ?>" fill="none"
+                                stroke="<?= e($seg['cor']) ?>" stroke-width="28" stroke-linecap="butt"
+                                class="scati-donut-seg" tabindex="0"
+                                data-categoria="<?= e($seg['categoria']) ?>"
+                                data-total="<?= $seg['total'] ?>"
+                                data-percentual="<?= $seg['percentual'] ?>"
+                            ><title><?= e($seg['categoria']) ?>: <?= $seg['total'] ?> item(ns) (<?= $seg['percentual'] ?>%)</title></path>
+                        <?php endforeach; ?>
                     </svg>
                     <div class="scati-donut-center">
                         <div class="scati-donut-total"><?= $totalGeralEstoque ?></div>
