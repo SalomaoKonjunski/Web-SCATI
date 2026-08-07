@@ -176,16 +176,20 @@ web-scati/
   tempo — vincular uma unidade não trava as demais. Ao desvincular (ou ao
   excluir o equipamento), a unidade volta automaticamente para a
   quantidade disponível do item. Se o item ainda não existir no Estoque,
-  não é preciso sair da ficha do equipamento: o botão "Não encontrou o
-  item? Cadastrar novo item no estoque" abre um formulário retrátil que
-  cadastra o item e já vincula 1 unidade dele a este equipamento em uma
-  única ação.
+  não é preciso sair da ficha do equipamento: o botão "Cadastrar e
+  Vincular" abre o formulário de cadastro completo (com todos os campos
+  do cadastro padrão de Estoque, inclusive Observações) direto na aba, e
+  ao confirmar o item já é criado e vinculado a este equipamento em uma
+  única ação. Se já existir um item com o mesmo nome, categoria, marca e
+  modelo, nenhum cadastro duplicado é criado — a quantidade informada é
+  somada ao item já existente, mantendo um único registro consolidado no
+  Estoque, e 1 unidade desse registro é vinculada ao equipamento.
 - **Toner de impressoras**: aba própria "Toner" na ficha de equipamentos do
   tipo Impressora (reaproveita o mecanismo de Itens Vinculados acima,
   restrito à categoria de estoque "Toner"). Permite vincular, desvincular e
   também excluir o toner diretamente da tela da impressora, além do mesmo
-  atalho "Cadastrar novo toner no estoque" para registrar e vincular sem
-  sair da página.
+  atalho "Cadastrar e Vincular" (com a mesma lógica de evitar duplicidade)
+  para registrar e vincular um toner sem sair da página.
 - **Cadastro e exclusão de itens de estoque com histórico**: toda vez que
   um item é cadastrado no Estoque, um evento "Cadastro" é gravado
   automaticamente na tabela `historico_estoque`. A exclusão de qualquer
