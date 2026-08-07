@@ -68,6 +68,7 @@ CREATE TABLE equipamentos (
     -- Campos específicos de computadores
     ip_fixo                  VARCHAR(45)  NULL,
     placa_mae                VARCHAR(120) NULL,
+    placa_video              VARCHAR(120) NULL,
 
     -- Campos específicos de servidores
     funcao_servidor          VARCHAR(100) NULL,

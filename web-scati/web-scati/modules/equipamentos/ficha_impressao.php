@@ -95,6 +95,7 @@ if (!$eq) {
                 <div class="ficha-campo"><strong>Sistema Operacional:</strong> <?= e($eq['sistema_operacional']) ?: '-' ?></div>
                 <?php if (ehComputador($eq['tipo'])): ?>
                     <div class="ficha-campo"><strong>Placa Mãe:</strong> <?= e($eq['placa_mae']) ?: '-' ?></div>
+                    <div class="ficha-campo"><strong>Placa de Vídeo:</strong> <?= e($eq['placa_video']) ?: '-' ?></div>
                 <?php endif; ?>
 
                 <?php if (ehImpressora($eq['tipo'])): ?>

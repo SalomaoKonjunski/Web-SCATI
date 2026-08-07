@@ -342,6 +342,7 @@ include __DIR__ . '/../../includes/header.php';
                     <tr><th>Sistema Operacional</th><td><?= e($eq['sistema_operacional']) ?: '-' ?></td></tr>
                     <?php if (ehComputador($eq['tipo'])): ?>
                     <tr><th>Placa Mãe</th><td><?= e($eq['placa_mae']) ?: '-' ?></td></tr>
+                    <tr><th>Placa de Vídeo</th><td><?= e($eq['placa_video']) ?: '-' ?></td></tr>
                     <?php endif; ?>
                 </table>
 
