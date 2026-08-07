@@ -82,6 +82,57 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['vincular_item'])) {
     redirect('/modules/equipamentos/view.php?id=' . $id . '#itens');
 }
 
+// Trata o cadastro de um novo item de estoque direto nesta página, já vinculando-o
+// automaticamente a este equipamento (POST nesta mesma página)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cadastrar_item_estoque'])) {
+    $destinoAba = in_array($_POST['destino_aba'] ?? '', ['itens', 'toner'], true) ? $_POST['destino_aba'] : 'itens';
+
+    $novoNome = trim($_POST['novo_item_nome'] ?? '');
+    $novaCategoriaId = (int) ($_POST['novo_item_categoria_id'] ?? 0);
+    $novaMarca = trim($_POST['novo_item_marca'] ?? '');
+    $novoModelo = trim($_POST['novo_item_modelo'] ?? '');
+    $novaQuantidade = (int) ($_POST['novo_item_quantidade'] ?? 0);
+    $novaQuantidadeMinima = (int) ($_POST['novo_item_quantidade_minima'] ?? 0);
+    $novaLocalizacao = trim($_POST['novo_item_localizacao'] ?? '');
+
+    if ($novoNome === '' || $novaCategoriaId <= 0 || $novaQuantidade < 1) {
+        flash('danger', 'Preencha nome, categoria e uma quantidade de pelo menos 1 unidade para cadastrar e vincular o item.');
+    } else {
+        $pdo->prepare(
+            'INSERT INTO estoque (nome, categoria_id, marca, modelo, quantidade, quantidade_minima, localizacao)
+             VALUES (:nome, :categoria_id, :marca, :modelo, :quantidade, :quantidade_minima, :localizacao)'
+        )->execute([
+            'nome' => $novoNome,
+            'categoria_id' => $novaCategoriaId,
+            'marca' => $novaMarca ?: null,
+            'modelo' => $novoModelo ?: null,
+            'quantidade' => $novaQuantidade,
+            'quantidade_minima' => $novaQuantidadeMinima,
+            'localizacao' => $novaLocalizacao ?: null,
+        ]);
+        $novoItemId = (int) $pdo->lastInsertId();
+
+        $stmtCat = $pdo->prepare('SELECT nome FROM categorias_estoque WHERE id = :id');
+        $stmtCat->execute(['id' => $novaCategoriaId]);
+        $categoriaNome = $stmtCat->fetchColumn() ?: null;
+        registrarHistoricoEstoque($novoItemId, $novoNome, $categoriaNome, 'Cadastro', 'Item cadastrado no estoque');
+
+        // Vincula automaticamente 1 unidade recém-cadastrada a este equipamento
+        $stmtDecr = $pdo->prepare('UPDATE estoque SET quantidade = quantidade - 1 WHERE id = :id AND quantidade > 0');
+        $stmtDecr->execute(['id' => $novoItemId]);
+
+        if ($stmtDecr->rowCount() > 0) {
+            $pdo->prepare('INSERT INTO itens_vinculados (estoque_id, equipamento_id) VALUES (:estoque_id, :equipamento_id)')
+                ->execute(['estoque_id' => $novoItemId, 'equipamento_id' => $id]);
+            registrarHistorico($id, 'Item', 'Item "' . $novoNome . '" cadastrado no estoque e vinculado a este equipamento');
+            flash('success', 'Item cadastrado no estoque e vinculado com sucesso.');
+        } else {
+            flash('success', 'Item cadastrado no estoque, mas não foi possível vinculá-lo automaticamente.');
+        }
+    }
+    redirect('/modules/equipamentos/view.php?id=' . $id . '#' . $destinoAba);
+}
+
 // Licenças vinculadas a este equipamento
 $licencas = $pdo->prepare('SELECT * FROM licencas WHERE equipamento_id = :id ORDER BY software');
 $licencas->execute(['id' => $id]);
@@ -124,6 +175,16 @@ $itensDisponiveis = $pdo->query(
 // Toners vinculados/disponíveis (subconjunto dos itens acima, restrito à categoria "Toner")
 $tonersVinculados = array_values(array_filter($itensVinculados, fn($iv) => $iv['categoria_nome'] === 'Toner'));
 $tonersDisponiveis = array_values(array_filter($itensDisponiveis, fn($disp) => $disp['categoria_nome'] === 'Toner'));
+
+// Categorias de estoque, usadas no formulário de cadastro rápido de item (abaixo)
+$categoriasEstoque = $pdo->query('SELECT id, nome FROM categorias_estoque ORDER BY nome')->fetchAll();
+$categoriaTonerId = 0;
+foreach ($categoriasEstoque as $catEst) {
+    if ($catEst['nome'] === 'Toner') {
+        $categoriaTonerId = (int) $catEst['id'];
+        break;
+    }
+}
 
 // Compartilhamentos de rede (apenas para equipamentos do tipo Servidor)
 $compartilhamentos = $pdo->prepare('SELECT * FROM compartilhamentos_servidor WHERE equipamento_id = :id ORDER BY nome');
@@ -381,6 +442,58 @@ include __DIR__ . '/../../includes/header.php';
                 </button>
             </div>
         </form>
+
+        <div class="mt-3">
+            <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#novoItemEstoqueCollapse">
+                <i class="bi bi-plus-circle"></i> Não encontrou o item? Cadastrar novo item no estoque
+            </button>
+            <div class="collapse mt-3" id="novoItemEstoqueCollapse">
+                <div class="card card-body bg-light">
+                    <p class="text-muted small mb-3">Cadastra um novo item no Estoque e já vincula 1 unidade a este equipamento, sem sair desta página.</p>
+                    <form method="post" class="row g-2">
+                        <input type="hidden" name="destino_aba" value="itens">
+                        <div class="col-md-4">
+                            <label class="form-label small">Nome *</label>
+                            <input type="text" name="novo_item_nome" class="form-control form-control-sm" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small">Categoria *</label>
+                            <select name="novo_item_categoria_id" class="form-select form-select-sm" required>
+                                <option value="">Selecione...</option>
+                                <?php foreach ($categoriasEstoque as $catOpt): ?>
+                                    <option value="<?= (int) $catOpt['id'] ?>"><?= e($catOpt['nome']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small">Quantidade cadastrada *</label>
+                            <input type="number" min="1" name="novo_item_quantidade" class="form-control form-control-sm" value="1" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small">Marca</label>
+                            <input type="text" name="novo_item_marca" class="form-control form-control-sm">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small">Modelo</label>
+                            <input type="text" name="novo_item_modelo" class="form-control form-control-sm">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small">Quantidade mínima</label>
+                            <input type="number" min="0" name="novo_item_quantidade_minima" class="form-control form-control-sm" value="0">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small">Localização</label>
+                            <input type="text" name="novo_item_localizacao" class="form-control form-control-sm">
+                        </div>
+                        <div class="col-12 mt-2">
+                            <button type="submit" name="cadastrar_item_estoque" value="1" class="btn btn-sm btn-primary">
+                                <i class="bi bi-check-lg"></i> Cadastrar e vincular a este equipamento
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
     </div>
 
     <?php if (ehImpressora($eq['tipo'])): ?>
@@ -438,6 +551,52 @@ include __DIR__ . '/../../includes/header.php';
                 </button>
             </div>
         </form>
+
+        <?php if ($categoriaTonerId > 0): ?>
+        <div class="mt-3">
+            <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#novoTonerEstoqueCollapse">
+                <i class="bi bi-plus-circle"></i> Não encontrou o toner? Cadastrar novo toner no estoque
+            </button>
+            <div class="collapse mt-3" id="novoTonerEstoqueCollapse">
+                <div class="card card-body bg-light">
+                    <p class="text-muted small mb-3">Cadastra um novo toner no Estoque (categoria "Toner") e já vincula a esta impressora, sem sair desta página.</p>
+                    <form method="post" class="row g-2">
+                        <input type="hidden" name="destino_aba" value="toner">
+                        <input type="hidden" name="novo_item_categoria_id" value="<?= (int) $categoriaTonerId ?>">
+                        <div class="col-md-4">
+                            <label class="form-label small">Nome *</label>
+                            <input type="text" name="novo_item_nome" class="form-control form-control-sm" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small">Marca</label>
+                            <input type="text" name="novo_item_marca" class="form-control form-control-sm">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small">Modelo</label>
+                            <input type="text" name="novo_item_modelo" class="form-control form-control-sm">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small">Quantidade cadastrada *</label>
+                            <input type="number" min="1" name="novo_item_quantidade" class="form-control form-control-sm" value="1" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small">Quantidade mínima</label>
+                            <input type="number" min="0" name="novo_item_quantidade_minima" class="form-control form-control-sm" value="0">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small">Localização</label>
+                            <input type="text" name="novo_item_localizacao" class="form-control form-control-sm">
+                        </div>
+                        <div class="col-12 mt-2">
+                            <button type="submit" name="cadastrar_item_estoque" value="1" class="btn btn-sm btn-primary">
+                                <i class="bi bi-check-lg"></i> Cadastrar e vincular a esta impressora
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <?php endif; ?>
     </div>
     <?php endif; ?>
 
