@@ -82,8 +82,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['vincular_item'])) {
     redirect('/modules/equipamentos/view.php?id=' . $id . '#itens');
 }
 
-// Trata o cadastro de um novo item de estoque direto nesta página, já vinculando-o
-// automaticamente a este equipamento (POST nesta mesma página)
+// Trata o cadastro (ou reaproveitamento) de um item de estoque direto nesta
+// página, já vinculando-o automaticamente a este equipamento (POST nesta mesma página)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cadastrar_item_estoque'])) {
     $destinoAba = in_array($_POST['destino_aba'] ?? '', ['itens', 'toner'], true) ? $_POST['destino_aba'] : 'itens';
 
@@ -94,13 +94,53 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cadastrar_item_estoqu
     $novaQuantidade = (int) ($_POST['novo_item_quantidade'] ?? 0);
     $novaQuantidadeMinima = (int) ($_POST['novo_item_quantidade_minima'] ?? 0);
     $novaLocalizacao = trim($_POST['novo_item_localizacao'] ?? '');
+    $novasObservacoes = trim($_POST['novo_item_observacoes'] ?? '');
 
     if ($novoNome === '' || $novaCategoriaId <= 0 || $novaQuantidade < 1) {
         flash('danger', 'Preencha nome, categoria e uma quantidade de pelo menos 1 unidade para cadastrar e vincular o item.');
+        redirect('/modules/equipamentos/view.php?id=' . $id . '#' . $destinoAba);
+    }
+
+    $stmtCat = $pdo->prepare('SELECT nome FROM categorias_estoque WHERE id = :id');
+    $stmtCat->execute(['id' => $novaCategoriaId]);
+    $categoriaNome = $stmtCat->fetchColumn() ?: null;
+
+    // Procura um item já cadastrado com o mesmo nome, categoria, marca e modelo
+    // (comparação sem diferenciar maiúsculas/minúsculas ou espaços nas pontas)
+    // para não duplicar o cadastro — só soma a quantidade ao registro existente.
+    $stmtExistente = $pdo->prepare(
+        "SELECT id, quantidade FROM estoque
+         WHERE categoria_id = :categoria_id
+           AND LOWER(TRIM(nome)) = LOWER(TRIM(:nome))
+           AND LOWER(TRIM(COALESCE(marca, ''))) = LOWER(TRIM(:marca))
+           AND LOWER(TRIM(COALESCE(modelo, ''))) = LOWER(TRIM(:modelo))
+         LIMIT 1"
+    );
+    $stmtExistente->execute([
+        'categoria_id' => $novaCategoriaId,
+        'nome' => $novoNome,
+        'marca' => $novaMarca,
+        'modelo' => $novoModelo,
+    ]);
+    $itemExistente = $stmtExistente->fetch();
+
+    if ($itemExistente) {
+        $itemId = (int) $itemExistente['id'];
+        $pdo->prepare('UPDATE estoque SET quantidade = quantidade + :quantidade WHERE id = :id')
+            ->execute(['quantidade' => $novaQuantidade, 'id' => $itemId]);
+
+        registrarHistoricoEstoque(
+            $itemId,
+            $novoNome,
+            $categoriaNome,
+            'Alteração',
+            'Quantidade alterada de ' . (int) $itemExistente['quantidade'] . ' para ' . ((int) $itemExistente['quantidade'] + $novaQuantidade) . ' (+' . $novaQuantidade . ', via aba de vinculação)'
+        );
+        $mensagemCadastro = 'Item já existia no estoque — quantidade somada e ';
     } else {
         $pdo->prepare(
-            'INSERT INTO estoque (nome, categoria_id, marca, modelo, quantidade, quantidade_minima, localizacao)
-             VALUES (:nome, :categoria_id, :marca, :modelo, :quantidade, :quantidade_minima, :localizacao)'
+            'INSERT INTO estoque (nome, categoria_id, marca, modelo, quantidade, quantidade_minima, localizacao, observacoes)
+             VALUES (:nome, :categoria_id, :marca, :modelo, :quantidade, :quantidade_minima, :localizacao, :observacoes)'
         )->execute([
             'nome' => $novoNome,
             'categoria_id' => $novaCategoriaId,
@@ -109,27 +149,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cadastrar_item_estoqu
             'quantidade' => $novaQuantidade,
             'quantidade_minima' => $novaQuantidadeMinima,
             'localizacao' => $novaLocalizacao ?: null,
+            'observacoes' => $novasObservacoes ?: null,
         ]);
-        $novoItemId = (int) $pdo->lastInsertId();
+        $itemId = (int) $pdo->lastInsertId();
 
-        $stmtCat = $pdo->prepare('SELECT nome FROM categorias_estoque WHERE id = :id');
-        $stmtCat->execute(['id' => $novaCategoriaId]);
-        $categoriaNome = $stmtCat->fetchColumn() ?: null;
-        registrarHistoricoEstoque($novoItemId, $novoNome, $categoriaNome, 'Cadastro', 'Item cadastrado no estoque');
-
-        // Vincula automaticamente 1 unidade recém-cadastrada a este equipamento
-        $stmtDecr = $pdo->prepare('UPDATE estoque SET quantidade = quantidade - 1 WHERE id = :id AND quantidade > 0');
-        $stmtDecr->execute(['id' => $novoItemId]);
-
-        if ($stmtDecr->rowCount() > 0) {
-            $pdo->prepare('INSERT INTO itens_vinculados (estoque_id, equipamento_id) VALUES (:estoque_id, :equipamento_id)')
-                ->execute(['estoque_id' => $novoItemId, 'equipamento_id' => $id]);
-            registrarHistorico($id, 'Item', 'Item "' . $novoNome . '" cadastrado no estoque e vinculado a este equipamento');
-            flash('success', 'Item cadastrado no estoque e vinculado com sucesso.');
-        } else {
-            flash('success', 'Item cadastrado no estoque, mas não foi possível vinculá-lo automaticamente.');
-        }
+        registrarHistoricoEstoque($itemId, $novoNome, $categoriaNome, 'Cadastro', 'Item cadastrado no estoque');
+        $mensagemCadastro = 'Item cadastrado no estoque e ';
     }
+
+    // Vincula automaticamente 1 unidade a este equipamento
+    $stmtDecr = $pdo->prepare('UPDATE estoque SET quantidade = quantidade - 1 WHERE id = :id AND quantidade > 0');
+    $stmtDecr->execute(['id' => $itemId]);
+
+    if ($stmtDecr->rowCount() > 0) {
+        $pdo->prepare('INSERT INTO itens_vinculados (estoque_id, equipamento_id) VALUES (:estoque_id, :equipamento_id)')
+            ->execute(['estoque_id' => $itemId, 'equipamento_id' => $id]);
+        registrarHistorico($id, 'Item', 'Item "' . $novoNome . '" ' . ($itemExistente ? 'reaproveitado do estoque' : 'cadastrado no estoque') . ' e vinculado a este equipamento');
+        flash('success', $mensagemCadastro . 'vinculado com sucesso.');
+    } else {
+        flash('success', $mensagemCadastro . 'atualizado, mas não foi possível vinculá-lo automaticamente.');
+    }
+
     redirect('/modules/equipamentos/view.php?id=' . $id . '#' . $destinoAba);
 }
 
@@ -445,11 +485,15 @@ include __DIR__ . '/../../includes/header.php';
 
         <div class="mt-3">
             <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#novoItemEstoqueCollapse">
-                <i class="bi bi-plus-circle"></i> Não encontrou o item? Cadastrar novo item no estoque
+                <i class="bi bi-plus-circle"></i> Cadastrar e Vincular
             </button>
             <div class="collapse mt-3" id="novoItemEstoqueCollapse">
                 <div class="card card-body bg-light">
-                    <p class="text-muted small mb-3">Cadastra um novo item no Estoque e já vincula 1 unidade a este equipamento, sem sair desta página.</p>
+                    <p class="text-muted small mb-3">
+                        Cadastra um item de qualquer categoria do Estoque e já vincula 1 unidade a este equipamento,
+                        sem sair desta página. Se já existir um item com o mesmo nome, categoria, marca e modelo, a
+                        quantidade informada é somada ao item existente em vez de criar um cadastro duplicado.
+                    </p>
                     <form method="post" class="row g-2">
                         <input type="hidden" name="destino_aba" value="itens">
                         <div class="col-md-4">
@@ -484,6 +528,10 @@ include __DIR__ . '/../../includes/header.php';
                         <div class="col-md-3">
                             <label class="form-label small">Localização</label>
                             <input type="text" name="novo_item_localizacao" class="form-control form-control-sm">
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label small">Observações</label>
+                            <input type="text" name="novo_item_observacoes" class="form-control form-control-sm">
                         </div>
                         <div class="col-12 mt-2">
                             <button type="submit" name="cadastrar_item_estoque" value="1" class="btn btn-sm btn-primary">
@@ -555,11 +603,15 @@ include __DIR__ . '/../../includes/header.php';
         <?php if ($categoriaTonerId > 0): ?>
         <div class="mt-3">
             <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#novoTonerEstoqueCollapse">
-                <i class="bi bi-plus-circle"></i> Não encontrou o toner? Cadastrar novo toner no estoque
+                <i class="bi bi-plus-circle"></i> Cadastrar e Vincular
             </button>
             <div class="collapse mt-3" id="novoTonerEstoqueCollapse">
                 <div class="card card-body bg-light">
-                    <p class="text-muted small mb-3">Cadastra um novo toner no Estoque (categoria "Toner") e já vincula a esta impressora, sem sair desta página.</p>
+                    <p class="text-muted small mb-3">
+                        Cadastra um toner no Estoque (categoria "Toner") e já vincula a esta impressora, sem sair
+                        desta página. Se já existir um toner com o mesmo nome, marca e modelo, a quantidade
+                        informada é somada ao item existente em vez de criar um cadastro duplicado.
+                    </p>
                     <form method="post" class="row g-2">
                         <input type="hidden" name="destino_aba" value="toner">
                         <input type="hidden" name="novo_item_categoria_id" value="<?= (int) $categoriaTonerId ?>">
@@ -586,6 +638,10 @@ include __DIR__ . '/../../includes/header.php';
                         <div class="col-md-4">
                             <label class="form-label small">Localização</label>
                             <input type="text" name="novo_item_localizacao" class="form-control form-control-sm">
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label small">Observações</label>
+                            <input type="text" name="novo_item_observacoes" class="form-control form-control-sm">
                         </div>
                         <div class="col-12 mt-2">
                             <button type="submit" name="cadastrar_item_estoque" value="1" class="btn btn-sm btn-primary">
