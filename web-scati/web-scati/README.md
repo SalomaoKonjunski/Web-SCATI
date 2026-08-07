@@ -174,7 +174,11 @@ web-scati/
   hora automáticas.
 - **Estoque**: CRUD com controle de quantidade mínima, destaque visual para
   itens abaixo do mínimo e regra de quantidade nunca negativa (validada na
-  aplicação e reforçada por `CHECK` no banco). Ao cadastrar um item novo
+  aplicação e reforçada por `CHECK` no banco). Na listagem, cada item tem
+  botões "+"/"-" (com um campo para escolher quanto ajustar de uma vez) que
+  aumentam ou diminuem a quantidade diretamente, sem precisar abrir o
+  formulário de edição; a redução nunca deixa a quantidade negativa e cada
+  ajuste fica registrado no histórico do item. Ao cadastrar um item novo
   (tanto pela tela "Novo Item" do Estoque quanto pelo atalho "Cadastrar e
   Vincular" na ficha do equipamento), o sistema verifica se já existe um
   item com o mesmo nome (sem diferenciar maiúsculas/minúsculas ou espaços);
