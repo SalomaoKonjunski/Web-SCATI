@@ -174,7 +174,12 @@ web-scati/
   hora automáticas.
 - **Estoque**: CRUD com controle de quantidade mínima, destaque visual para
   itens abaixo do mínimo e regra de quantidade nunca negativa (validada na
-  aplicação e reforçada por `CHECK` no banco).
+  aplicação e reforçada por `CHECK` no banco). Ao cadastrar um item novo
+  (tanto pela tela "Novo Item" do Estoque quanto pelo atalho "Cadastrar e
+  Vincular" na ficha do equipamento), o sistema verifica se já existe um
+  item com o mesmo nome (sem diferenciar maiúsculas/minúsculas ou espaços);
+  se existir, não cria um cadastro duplicado — soma a quantidade informada
+  à quantidade já existente, mantendo um único registro por nome de item.
 - **Itens Vinculados**: aba na ficha do equipamento para vincular itens já
   cadastrados no Estoque (periféricos, cabos, etc.) diretamente a ele, sem
   duplicar o cadastro. Cada vínculo consome 1 unidade da quantidade
@@ -188,10 +193,11 @@ web-scati/
   Vincular" abre o formulário de cadastro completo (com todos os campos
   do cadastro padrão de Estoque, inclusive Observações) direto na aba, e
   ao confirmar o item já é criado e vinculado a este equipamento em uma
-  única ação. Se já existir um item com o mesmo nome, categoria, marca e
-  modelo, nenhum cadastro duplicado é criado — a quantidade informada é
-  somada ao item já existente, mantendo um único registro consolidado no
-  Estoque, e 1 unidade desse registro é vinculada ao equipamento.
+  única ação. Se já existir um item com o mesmo nome (mesmo que
+  categoria, marca ou modelo sejam diferentes), nenhum cadastro
+  duplicado é criado — a quantidade informada é somada ao item já
+  existente, mantendo um único registro consolidado no Estoque, e 1
+  unidade desse registro é vinculada ao equipamento.
 - **Toner de impressoras**: aba própria "Toner" na ficha de equipamentos do
   tipo Impressora (reaproveita o mecanismo de Itens Vinculados acima,
   restrito à categoria de estoque "Toner"). Permite vincular, desvincular e
