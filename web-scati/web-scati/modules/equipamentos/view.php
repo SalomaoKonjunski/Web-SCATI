@@ -105,23 +105,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cadastrar_item_estoqu
     $stmtCat->execute(['id' => $novaCategoriaId]);
     $categoriaNome = $stmtCat->fetchColumn() ?: null;
 
-    // Procura um item já cadastrado com o mesmo nome, categoria, marca e modelo
-    // (comparação sem diferenciar maiúsculas/minúsculas ou espaços nas pontas)
-    // para não duplicar o cadastro — só soma a quantidade ao registro existente.
+    // Procura um item já cadastrado com o mesmo nome (comparação sem diferenciar
+    // maiúsculas/minúsculas ou espaços nas pontas) para não duplicar o cadastro —
+    // só soma a quantidade ao registro existente. A verificação considera apenas
+    // o nome, ignorando categoria, marca e modelo.
     $stmtExistente = $pdo->prepare(
-        "SELECT id, quantidade FROM estoque
-         WHERE categoria_id = :categoria_id
-           AND LOWER(TRIM(nome)) = LOWER(TRIM(:nome))
-           AND LOWER(TRIM(COALESCE(marca, ''))) = LOWER(TRIM(:marca))
-           AND LOWER(TRIM(COALESCE(modelo, ''))) = LOWER(TRIM(:modelo))
-         LIMIT 1"
+        "SELECT id, quantidade FROM estoque WHERE LOWER(TRIM(nome)) = LOWER(TRIM(:nome)) LIMIT 1"
     );
-    $stmtExistente->execute([
-        'categoria_id' => $novaCategoriaId,
-        'nome' => $novoNome,
-        'marca' => $novaMarca,
-        'modelo' => $novoModelo,
-    ]);
+    $stmtExistente->execute(['nome' => $novoNome]);
     $itemExistente = $stmtExistente->fetch();
 
     if ($itemExistente) {
@@ -492,8 +483,9 @@ include __DIR__ . '/../../includes/header.php';
                 <div class="card card-body bg-light">
                     <p class="text-muted small mb-3">
                         Cadastra um item de qualquer categoria do Estoque e já vincula 1 unidade a este equipamento,
-                        sem sair desta página. Se já existir um item com o mesmo nome, categoria, marca e modelo, a
-                        quantidade informada é somada ao item existente em vez de criar um cadastro duplicado.
+                        sem sair desta página. Se já existir um item com o mesmo nome (mesmo que categoria, marca ou
+                        modelo sejam diferentes), a quantidade informada é somada ao item existente em vez de criar
+                        um cadastro duplicado.
                     </p>
                     <form method="post" class="row g-2">
                         <input type="hidden" name="destino_aba" value="itens">
@@ -610,8 +602,8 @@ include __DIR__ . '/../../includes/header.php';
                 <div class="card card-body bg-light">
                     <p class="text-muted small mb-3">
                         Cadastra um toner no Estoque (categoria "Toner") e já vincula a esta impressora, sem sair
-                        desta página. Se já existir um toner com o mesmo nome, marca e modelo, a quantidade
-                        informada é somada ao item existente em vez de criar um cadastro duplicado.
+                        desta página. Se já existir um item com o mesmo nome (mesmo que marca ou modelo sejam
+                        diferentes), a quantidade informada é somada a ele em vez de criar um cadastro duplicado.
                     </p>
                     <form method="post" class="row g-2">
                         <input type="hidden" name="destino_aba" value="toner">

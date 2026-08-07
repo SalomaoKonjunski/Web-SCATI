@@ -84,19 +84,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             flash('success', 'Item de estoque atualizado com sucesso.');
         } else {
-            $pdo->prepare(
-                'INSERT INTO estoque (nome, categoria_id, marca, modelo, quantidade, quantidade_minima, localizacao, observacoes)
-                 VALUES (:nome, :categoria_id, :marca, :modelo, :quantidade, :quantidade_minima, :localizacao, :observacoes)'
-            )->execute($dados);
-            $novoId = (int) $pdo->lastInsertId();
+            // Verifica se já existe um item com o mesmo nome (ignorando maiúsculas/minúsculas
+            // e espaços nas pontas) — nesse caso, soma a quantidade ao item existente em vez
+            // de criar um cadastro duplicado.
+            $stmtExistente = $pdo->prepare(
+                'SELECT id, nome, categoria_id, quantidade FROM estoque WHERE LOWER(TRIM(nome)) = LOWER(TRIM(:nome)) LIMIT 1'
+            );
+            $stmtExistente->execute(['nome' => $dados['nome']]);
+            $itemExistente = $stmtExistente->fetch();
 
-            $stmtCat = $pdo->prepare('SELECT nome FROM categorias_estoque WHERE id = :id');
-            $stmtCat->execute(['id' => $dados['categoria_id']]);
-            $categoriaNome = $stmtCat->fetchColumn() ?: null;
+            if ($itemExistente) {
+                $pdo->prepare('UPDATE estoque SET quantidade = quantidade + :quantidade WHERE id = :id')
+                    ->execute(['quantidade' => $dados['quantidade'], 'id' => $itemExistente['id']]);
 
-            registrarHistoricoEstoque($novoId, $dados['nome'], $categoriaNome, 'Cadastro', 'Item cadastrado no estoque');
+                $stmtCat = $pdo->prepare('SELECT nome FROM categorias_estoque WHERE id = :id');
+                $stmtCat->execute(['id' => $itemExistente['categoria_id']]);
+                $categoriaNome = $stmtCat->fetchColumn() ?: null;
 
-            flash('success', 'Item de estoque cadastrado com sucesso.');
+                registrarHistoricoEstoque(
+                    (int) $itemExistente['id'],
+                    $itemExistente['nome'],
+                    $categoriaNome,
+                    'Alteração',
+                    'Quantidade alterada de ' . (int) $itemExistente['quantidade'] . ' para '
+                        . ((int) $itemExistente['quantidade'] + $dados['quantidade']) . ' (+' . $dados['quantidade'] . ', item já existente)'
+                );
+
+                flash('success', 'Já existia um item de estoque chamado "' . $itemExistente['nome'] . '" — a quantidade informada foi somada a ele em vez de criar um cadastro duplicado.');
+            } else {
+                $pdo->prepare(
+                    'INSERT INTO estoque (nome, categoria_id, marca, modelo, quantidade, quantidade_minima, localizacao, observacoes)
+                     VALUES (:nome, :categoria_id, :marca, :modelo, :quantidade, :quantidade_minima, :localizacao, :observacoes)'
+                )->execute($dados);
+                $novoId = (int) $pdo->lastInsertId();
+
+                $stmtCat = $pdo->prepare('SELECT nome FROM categorias_estoque WHERE id = :id');
+                $stmtCat->execute(['id' => $dados['categoria_id']]);
+                $categoriaNome = $stmtCat->fetchColumn() ?: null;
+
+                registrarHistoricoEstoque($novoId, $dados['nome'], $categoriaNome, 'Cadastro', 'Item cadastrado no estoque');
+
+                flash('success', 'Item de estoque cadastrado com sucesso.');
+            }
         }
         redirect('/modules/estoque/index.php');
     }
