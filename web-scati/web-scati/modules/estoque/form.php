@@ -84,13 +84,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             flash('success', 'Item de estoque atualizado com sucesso.');
         } else {
-            // Verifica se já existe um item com o mesmo nome (ignorando maiúsculas/minúsculas
-            // e espaços nas pontas) — nesse caso, soma a quantidade ao item existente em vez
-            // de criar um cadastro duplicado.
+            // Verifica se já existe um item com o mesmo nome, marca e modelo (ignorando
+            // maiúsculas/minúsculas e espaços nas pontas) — nesse caso, soma a quantidade
+            // ao item existente em vez de criar um cadastro duplicado. Marca/modelo
+            // diferentes geram registros separados, para manter cada modelo rastreável
+            // individualmente (ex.: qual computador está com qual monitor).
             $stmtExistente = $pdo->prepare(
-                'SELECT id, nome, categoria_id, quantidade FROM estoque WHERE LOWER(TRIM(nome)) = LOWER(TRIM(:nome)) LIMIT 1'
+                "SELECT id, nome, categoria_id, quantidade FROM estoque
+                 WHERE LOWER(TRIM(nome)) = LOWER(TRIM(:nome))
+                   AND LOWER(TRIM(COALESCE(marca, ''))) = LOWER(TRIM(:marca))
+                   AND LOWER(TRIM(COALESCE(modelo, ''))) = LOWER(TRIM(:modelo))
+                 LIMIT 1"
             );
-            $stmtExistente->execute(['nome' => $dados['nome']]);
+            $stmtExistente->execute(['nome' => $dados['nome'], 'marca' => $dados['marca'] ?? '', 'modelo' => $dados['modelo'] ?? '']);
             $itemExistente = $stmtExistente->fetch();
 
             if ($itemExistente) {
