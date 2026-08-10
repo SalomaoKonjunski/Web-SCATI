@@ -214,9 +214,11 @@ web-scati/
   seja a mesma marca/modelo (ex.: 2 cabos de rede) ou marcas/modelos
   diferentes cadastrados separadamente no Estoque (ex.: um monitor
   Asus e outro LG), aparece uma única linha somando a quantidade na
-  coluna "Qtd. Itens" e listando as marcas/modelos presentes na coluna
-  Marca/Modelo (ex.: "Asus VG245, LG 24ML600"). "Desvincular" sempre
-  remove 1 unidade por vez. Ao desvincular (ou ao
+  coluna "Qtd. Itens" e listando, cada uma em sua própria linha dentro
+  da coluna Marca/Modelo, as marcas/modelos presentes (ex.: "Asus
+  VG245" e "LG 24ML600" em linhas separadas, não concatenadas numa
+  única string). "Desvincular" sempre remove 1 unidade por vez. Ao
+  desvincular (ou ao
   excluir o equipamento), a unidade volta automaticamente para a
   quantidade disponível do item. Se o item ainda não existir no Estoque,
   não é preciso sair da ficha do equipamento: o botão "Cadastrar e
