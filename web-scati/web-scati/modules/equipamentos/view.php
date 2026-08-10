@@ -185,18 +185,21 @@ $anexos->execute(['id' => $id]);
 $anexos = $anexos->fetchAll();
 
 // Itens de estoque vinculados a este equipamento (uma linha por unidade vinculada)
-// Agrupado por item: quando o mesmo item tem mais de uma unidade vinculada a
-// este equipamento (ex.: 2 cabos de rede), aparece uma única linha com a
-// quantidade vinculada, em vez de uma linha repetida por unidade.
+// Agrupado por nome do item (não por registro exato do Estoque): quando o
+// mesmo nome de item tem mais de um registro vinculado a este equipamento —
+// seja a mesma marca/modelo (ex.: 2 cabos de rede) ou marcas/modelos
+// diferentes (ex.: um monitor Asus e outro LG) — aparece uma única linha
+// somando a quantidade e listando as marcas/modelos presentes.
 $itensVinculados = $pdo->prepare(
-    'SELECT MIN(iv.id) AS vinculo_id, es.id AS estoque_id, es.nome, es.marca, es.modelo,
+    "SELECT MIN(iv.id) AS vinculo_id, MIN(es.id) AS estoque_id, es.nome,
+            GROUP_CONCAT(DISTINCT NULLIF(TRIM(CONCAT(COALESCE(es.marca, ''), ' ', COALESCE(es.modelo, ''))), '') ORDER BY es.marca, es.modelo SEPARATOR ', ') AS marcas_modelos,
             COUNT(iv.id) AS qtd_vinculada, c.nome AS categoria_nome
      FROM itens_vinculados iv
      JOIN estoque es ON es.id = iv.estoque_id
      JOIN categorias_estoque c ON c.id = es.categoria_id
      WHERE iv.equipamento_id = :id
-     GROUP BY es.id, es.nome, es.marca, es.modelo, c.nome
-     ORDER BY es.nome'
+     GROUP BY es.nome, c.nome
+     ORDER BY es.nome"
 );
 $itensVinculados->execute(['id' => $id]);
 $itensVinculados = $itensVinculados->fetchAll();
@@ -453,7 +456,7 @@ include __DIR__ . '/../../includes/header.php';
                     <tr>
                         <td><?= e($iv['nome']) ?></td>
                         <td><?= e($iv['categoria_nome']) ?></td>
-                        <td><?= e(trim(($iv['marca'] ?? '') . ' ' . ($iv['modelo'] ?? ''))) ?: '-' ?></td>
+                        <td><?= $iv['marcas_modelos'] ? e($iv['marcas_modelos']) : '-' ?></td>
                         <td class="text-center" title="Quantidade deste item vinculada a este equipamento"><?= (int) $iv['qtd_vinculada'] ?></td>
                         <td class="text-end">
                             <a href="../estoque/desvincular.php?id=<?= (int) $iv['vinculo_id'] ?>" class="btn btn-sm btn-outline-danger js-confirm-delete"
@@ -568,7 +571,7 @@ include __DIR__ . '/../../includes/header.php';
                 <?php foreach ($tonersVinculados as $tv): ?>
                     <tr>
                         <td><?= e($tv['nome']) ?></td>
-                        <td><?= e(trim(($tv['marca'] ?? '') . ' ' . ($tv['modelo'] ?? ''))) ?: '-' ?></td>
+                        <td><?= $tv['marcas_modelos'] ? e($tv['marcas_modelos']) : '-' ?></td>
                         <td class="text-center" title="Quantidade deste item vinculada a esta impressora"><?= (int) $tv['qtd_vinculada'] ?></td>
                         <td class="text-end">
                             <a href="../estoque/desvincular.php?id=<?= (int) $tv['vinculo_id'] ?>" class="btn btn-sm btn-outline-secondary js-confirm-delete"
