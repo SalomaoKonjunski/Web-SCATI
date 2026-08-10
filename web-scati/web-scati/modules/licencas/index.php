@@ -15,8 +15,10 @@ $sql = "SELECT l.*, e.patrimonio, e.hostname
 $params = [];
 
 if ($busca !== '') {
-    $sql .= " AND (l.software LIKE :busca OR l.fabricante LIKE :busca OR e.patrimonio LIKE :busca)";
-    $params['busca'] = '%' . $busca . '%';
+    $sql .= " AND (l.software LIKE :busca_software OR l.fabricante LIKE :busca_fabricante OR e.patrimonio LIKE :busca_patrimonio)";
+    $params['busca_software'] = '%' . $busca . '%';
+    $params['busca_fabricante'] = '%' . $busca . '%';
+    $params['busca_patrimonio'] = '%' . $busca . '%';
 }
 if ($filtroVinculo === 'vinculada') {
     $sql .= " AND l.equipamento_id IS NOT NULL";

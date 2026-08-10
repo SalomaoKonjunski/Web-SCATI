@@ -20,10 +20,16 @@ $params = [];
 
 if ($busca !== '') {
     // Pesquisa por patrimônio, hostname, número de série, marca, modelo ou responsável (seção 13)
-    $sql .= " AND (e.patrimonio LIKE :busca OR e.hostname LIKE :busca
-              OR e.numero_serie LIKE :busca OR e.marca LIKE :busca
-              OR e.modelo LIKE :busca OR e.usuario_responsavel LIKE :busca)";
-    $params['busca'] = '%' . $busca . '%';
+    $sql .= " AND (e.patrimonio LIKE :busca1 OR e.hostname LIKE :busca2
+              OR e.numero_serie LIKE :busca3 OR e.marca LIKE :busca4
+              OR e.modelo LIKE :busca5 OR e.usuario_responsavel LIKE :busca6)";
+    $curingaBusca = '%' . $busca . '%';
+    $params['busca1'] = $curingaBusca;
+    $params['busca2'] = $curingaBusca;
+    $params['busca3'] = $curingaBusca;
+    $params['busca4'] = $curingaBusca;
+    $params['busca5'] = $curingaBusca;
+    $params['busca6'] = $curingaBusca;
 }
 if ($filtroTipo !== '') {
     $sql .= " AND e.tipo = :tipo";

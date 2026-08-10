@@ -13,8 +13,9 @@ $sql = "SELECT r.*,
         FROM redes r WHERE 1=1";
 $params = [];
 if ($busca !== '') {
-    $sql .= " AND (r.nome LIKE :busca OR r.faixa_ip LIKE :busca)";
-    $params['busca'] = '%' . $busca . '%';
+    $sql .= " AND (r.nome LIKE :busca_nome OR r.faixa_ip LIKE :busca_faixa)";
+    $params['busca_nome'] = '%' . $busca . '%';
+    $params['busca_faixa'] = '%' . $busca . '%';
 }
 $sql .= " ORDER BY r.nome ASC";
 

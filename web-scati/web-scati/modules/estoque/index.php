@@ -21,8 +21,10 @@ $sql = "SELECT es.*, c.nome AS categoria_nome,
 $params = [];
 
 if ($busca !== '') {
-    $sql .= " AND (es.nome LIKE :busca OR es.marca LIKE :busca OR es.modelo LIKE :busca)";
-    $params['busca'] = '%' . $busca . '%';
+    $sql .= " AND (es.nome LIKE :busca_nome OR es.marca LIKE :busca_marca OR es.modelo LIKE :busca_modelo)";
+    $params['busca_nome'] = '%' . $busca . '%';
+    $params['busca_marca'] = '%' . $busca . '%';
+    $params['busca_modelo'] = '%' . $busca . '%';
 }
 if ($filtroCategoria !== '') {
     $sql .= " AND es.categoria_id = :categoria_id";
