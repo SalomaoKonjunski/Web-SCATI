@@ -186,7 +186,7 @@ $anexos = $anexos->fetchAll();
 
 // Itens de estoque vinculados a este equipamento (uma linha por unidade vinculada)
 $itensVinculados = $pdo->prepare(
-    'SELECT iv.id AS vinculo_id, es.id AS estoque_id, es.nome, es.marca, es.modelo, c.nome AS categoria_nome
+    'SELECT iv.id AS vinculo_id, es.id AS estoque_id, es.nome, es.marca, es.modelo, es.quantidade AS quantidade_estoque, c.nome AS categoria_nome
      FROM itens_vinculados iv
      JOIN estoque es ON es.id = iv.estoque_id
      JOIN categorias_estoque c ON c.id = es.categoria_id
@@ -431,7 +431,7 @@ include __DIR__ . '/../../includes/header.php';
         <?php else: ?>
             <table class="table table-sm table-hover mb-4">
                 <thead class="table-light">
-                    <tr><th>Nome</th><th>Categoria</th><th>Marca/Modelo</th><th class="text-end">Ações</th></tr>
+                    <tr><th>Nome</th><th>Categoria</th><th>Marca/Modelo</th><th class="text-center">Qtd. em Estoque</th><th class="text-end">Ações</th></tr>
                 </thead>
                 <tbody>
                 <?php foreach ($itensVinculados as $iv): ?>
@@ -439,6 +439,7 @@ include __DIR__ . '/../../includes/header.php';
                         <td><?= e($iv['nome']) ?></td>
                         <td><?= e($iv['categoria_nome']) ?></td>
                         <td><?= e(trim(($iv['marca'] ?? '') . ' ' . ($iv['modelo'] ?? ''))) ?: '-' ?></td>
+                        <td class="text-center" title="Quantidade ainda disponível deste item no Estoque (sem contar a unidade vinculada aqui)"><?= (int) $iv['quantidade_estoque'] ?></td>
                         <td class="text-end">
                             <a href="../estoque/desvincular.php?id=<?= (int) $iv['vinculo_id'] ?>" class="btn btn-sm btn-outline-danger js-confirm-delete"
                                data-confirm-msg="Desvincular o item &quot;<?= e($iv['nome']) ?>&quot; deste equipamento? Ele voltará a ficar disponível no estoque.">
@@ -546,13 +547,14 @@ include __DIR__ . '/../../includes/header.php';
         <?php else: ?>
             <table class="table table-sm table-hover mb-4">
                 <thead class="table-light">
-                    <tr><th>Nome</th><th>Marca/Modelo</th><th class="text-end">Ações</th></tr>
+                    <tr><th>Nome</th><th>Marca/Modelo</th><th class="text-center">Qtd. em Estoque</th><th class="text-end">Ações</th></tr>
                 </thead>
                 <tbody>
                 <?php foreach ($tonersVinculados as $tv): ?>
                     <tr>
                         <td><?= e($tv['nome']) ?></td>
                         <td><?= e(trim(($tv['marca'] ?? '') . ' ' . ($tv['modelo'] ?? ''))) ?: '-' ?></td>
+                        <td class="text-center" title="Quantidade ainda disponível deste item no Estoque (sem contar a unidade vinculada aqui)"><?= (int) $tv['quantidade_estoque'] ?></td>
                         <td class="text-end">
                             <a href="../estoque/desvincular.php?id=<?= (int) $tv['vinculo_id'] ?>" class="btn btn-sm btn-outline-secondary js-confirm-delete"
                                data-confirm-msg="Desvincular o toner &quot;<?= e($tv['nome']) ?>&quot; desta impressora? Ele voltará a ficar disponível no estoque.">
