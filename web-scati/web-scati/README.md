@@ -208,10 +208,12 @@ web-scati/
   disponível do item (tabela `itens_vinculados`), permitindo que um mesmo
   item com várias unidades em estoque (ex.: "Adaptador de Vídeo",
   quantidade = 4) seja distribuído entre vários equipamentos ao mesmo
-  tempo — vincular uma unidade não trava as demais. A tabela de itens
-  vinculados (e a de Toner) mostra também a coluna "Qtd. em Estoque" com
-  a quantidade ainda disponível daquele item no Estoque. Ao desvincular
-  (ou ao excluir o equipamento), a unidade volta automaticamente para a
+  tempo — vincular uma unidade não trava as demais. Quando o mesmo item
+  tem mais de uma unidade vinculada ao equipamento, a tabela de itens
+  vinculados (e a de Toner) mostra uma única linha para ele, com a
+  coluna "Qtd. Itens" indicando quantas unidades estão vinculadas ali;
+  "Desvincular" sempre remove 1 unidade por vez. Ao desvincular (ou ao
+  excluir o equipamento), a unidade volta automaticamente para a
   quantidade disponível do item. Se o item ainda não existir no Estoque,
   não é preciso sair da ficha do equipamento: o botão "Cadastrar e
   Vincular" abre o formulário de cadastro completo (com todos os campos
