@@ -199,9 +199,14 @@ web-scati/
   ajuste fica registrado no histórico do item. Ao cadastrar um item novo
   (tanto pela tela "Novo Item" do Estoque quanto pelo atalho "Cadastrar e
   Vincular" na ficha do equipamento), o sistema verifica se já existe um
-  item com o mesmo nome (sem diferenciar maiúsculas/minúsculas ou espaços);
-  se existir, não cria um cadastro duplicado — soma a quantidade informada
-  à quantidade já existente, mantendo um único registro por nome de item.
+  item com o mesmo **nome, marca e modelo** (sem diferenciar maiúsculas/
+  minúsculas ou espaços); se existir, não cria um cadastro duplicado —
+  soma a quantidade informada à quantidade já existente. Marca ou modelo
+  diferentes (ex.: "Monitor" Asus e "Monitor" Acer) geram registros
+  separados, mantendo cada modelo com sua própria quantidade e
+  rastreável individualmente — inclusive a qual equipamento cada um
+  está vinculado, visível na coluna "Vinculado a" da listagem de
+  Estoque.
 - **Itens Vinculados**: aba na ficha do equipamento para vincular itens já
   cadastrados no Estoque (periféricos, cabos, etc.) diretamente a ele, sem
   duplicar o cadastro. Cada vínculo consome 1 unidade da quantidade
