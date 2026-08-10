@@ -185,13 +185,18 @@ $anexos->execute(['id' => $id]);
 $anexos = $anexos->fetchAll();
 
 // Itens de estoque vinculados a este equipamento (uma linha por unidade vinculada)
+// Agrupado por item: quando o mesmo item tem mais de uma unidade vinculada a
+// este equipamento (ex.: 2 cabos de rede), aparece uma única linha com a
+// quantidade vinculada, em vez de uma linha repetida por unidade.
 $itensVinculados = $pdo->prepare(
-    'SELECT iv.id AS vinculo_id, es.id AS estoque_id, es.nome, es.marca, es.modelo, es.quantidade AS quantidade_estoque, c.nome AS categoria_nome
+    'SELECT MIN(iv.id) AS vinculo_id, es.id AS estoque_id, es.nome, es.marca, es.modelo,
+            COUNT(iv.id) AS qtd_vinculada, c.nome AS categoria_nome
      FROM itens_vinculados iv
      JOIN estoque es ON es.id = iv.estoque_id
      JOIN categorias_estoque c ON c.id = es.categoria_id
      WHERE iv.equipamento_id = :id
-     ORDER BY es.nome, iv.id'
+     GROUP BY es.id, es.nome, es.marca, es.modelo, c.nome
+     ORDER BY es.nome'
 );
 $itensVinculados->execute(['id' => $id]);
 $itensVinculados = $itensVinculados->fetchAll();
@@ -441,7 +446,7 @@ include __DIR__ . '/../../includes/header.php';
         <?php else: ?>
             <table class="table table-sm table-hover mb-4">
                 <thead class="table-light">
-                    <tr><th>Nome</th><th>Categoria</th><th>Marca/Modelo</th><th class="text-center">Qtd. em Estoque</th><th class="text-end">Ações</th></tr>
+                    <tr><th>Nome</th><th>Categoria</th><th>Marca/Modelo</th><th class="text-center">Qtd. Itens</th><th class="text-end">Ações</th></tr>
                 </thead>
                 <tbody>
                 <?php foreach ($itensVinculados as $iv): ?>
@@ -449,10 +454,10 @@ include __DIR__ . '/../../includes/header.php';
                         <td><?= e($iv['nome']) ?></td>
                         <td><?= e($iv['categoria_nome']) ?></td>
                         <td><?= e(trim(($iv['marca'] ?? '') . ' ' . ($iv['modelo'] ?? ''))) ?: '-' ?></td>
-                        <td class="text-center" title="Quantidade ainda disponível deste item no Estoque (sem contar a unidade vinculada aqui)"><?= (int) $iv['quantidade_estoque'] ?></td>
+                        <td class="text-center" title="Quantidade deste item vinculada a este equipamento"><?= (int) $iv['qtd_vinculada'] ?></td>
                         <td class="text-end">
                             <a href="../estoque/desvincular.php?id=<?= (int) $iv['vinculo_id'] ?>" class="btn btn-sm btn-outline-danger js-confirm-delete"
-                               data-confirm-msg="Desvincular o item &quot;<?= e($iv['nome']) ?>&quot; deste equipamento? Ele voltará a ficar disponível no estoque.">
+                               data-confirm-msg="Desvincular 1 unidade de &quot;<?= e($iv['nome']) ?>&quot; deste equipamento?<?= (int) $iv['qtd_vinculada'] > 1 ? ' Ainda restarão ' . ((int) $iv['qtd_vinculada'] - 1) . ' unidade(s) vinculada(s).' : '' ?> Ela voltará a ficar disponível no estoque.">
                                 <i class="bi bi-x-lg"></i> Desvincular
                             </a>
                         </td>
@@ -557,17 +562,17 @@ include __DIR__ . '/../../includes/header.php';
         <?php else: ?>
             <table class="table table-sm table-hover mb-4">
                 <thead class="table-light">
-                    <tr><th>Nome</th><th>Marca/Modelo</th><th class="text-center">Qtd. em Estoque</th><th class="text-end">Ações</th></tr>
+                    <tr><th>Nome</th><th>Marca/Modelo</th><th class="text-center">Qtd. Itens</th><th class="text-end">Ações</th></tr>
                 </thead>
                 <tbody>
                 <?php foreach ($tonersVinculados as $tv): ?>
                     <tr>
                         <td><?= e($tv['nome']) ?></td>
                         <td><?= e(trim(($tv['marca'] ?? '') . ' ' . ($tv['modelo'] ?? ''))) ?: '-' ?></td>
-                        <td class="text-center" title="Quantidade ainda disponível deste item no Estoque (sem contar a unidade vinculada aqui)"><?= (int) $tv['quantidade_estoque'] ?></td>
+                        <td class="text-center" title="Quantidade deste item vinculada a esta impressora"><?= (int) $tv['qtd_vinculada'] ?></td>
                         <td class="text-end">
                             <a href="../estoque/desvincular.php?id=<?= (int) $tv['vinculo_id'] ?>" class="btn btn-sm btn-outline-secondary js-confirm-delete"
-                               data-confirm-msg="Desvincular o toner &quot;<?= e($tv['nome']) ?>&quot; desta impressora? Ele voltará a ficar disponível no estoque.">
+                               data-confirm-msg="Desvincular 1 unidade de &quot;<?= e($tv['nome']) ?>&quot; desta impressora?<?= (int) $tv['qtd_vinculada'] > 1 ? ' Ainda restarão ' . ((int) $tv['qtd_vinculada'] - 1) . ' unidade(s) vinculada(s).' : '' ?> Ela voltará a ficar disponível no estoque.">
                                 <i class="bi bi-x-lg"></i> Desvincular
                             </a>
                             <a href="../estoque/delete.php?id=<?= (int) $tv['estoque_id'] ?>&equipamento_id=<?= (int) $eq['id'] ?>" class="btn btn-sm btn-outline-danger">
