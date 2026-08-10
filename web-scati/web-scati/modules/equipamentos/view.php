@@ -185,24 +185,43 @@ $anexos->execute(['id' => $id]);
 $anexos = $anexos->fetchAll();
 
 // Itens de estoque vinculados a este equipamento (uma linha por unidade vinculada)
-// Agrupado por nome do item (não por registro exato do Estoque): quando o
-// mesmo nome de item tem mais de um registro vinculado a este equipamento —
-// seja a mesma marca/modelo (ex.: 2 cabos de rede) ou marcas/modelos
-// diferentes (ex.: um monitor Asus e outro LG) — aparece uma única linha
-// somando a quantidade e listando as marcas/modelos presentes.
-$itensVinculados = $pdo->prepare(
-    "SELECT MIN(iv.id) AS vinculo_id, MIN(es.id) AS estoque_id, es.nome,
-            GROUP_CONCAT(DISTINCT NULLIF(TRIM(CONCAT(COALESCE(es.marca, ''), ' ', COALESCE(es.modelo, ''))), '') ORDER BY es.marca, es.modelo SEPARATOR '||') AS marcas_modelos,
-            COUNT(iv.id) AS qtd_vinculada, c.nome AS categoria_nome
+// Primeiro soma por registro exato do Estoque (mesmo nome, marca e modelo);
+// depois, em PHP, agrupa por nome do item, somando a quantidade total e
+// mantendo a quantidade de cada marca/modelo separada para exibição.
+$itensVinculadosPorRegistro = $pdo->prepare(
+    'SELECT MIN(iv.id) AS vinculo_id, es.id AS estoque_id, es.nome, es.marca, es.modelo,
+            COUNT(iv.id) AS qtd_registro, c.nome AS categoria_nome
      FROM itens_vinculados iv
      JOIN estoque es ON es.id = iv.estoque_id
      JOIN categorias_estoque c ON c.id = es.categoria_id
      WHERE iv.equipamento_id = :id
-     GROUP BY es.nome, c.nome
-     ORDER BY es.nome"
+     GROUP BY es.id, es.nome, es.marca, es.modelo, c.nome
+     ORDER BY es.nome, es.marca, es.modelo'
 );
-$itensVinculados->execute(['id' => $id]);
-$itensVinculados = $itensVinculados->fetchAll();
+$itensVinculadosPorRegistro->execute(['id' => $id]);
+$itensVinculadosPorRegistro = $itensVinculadosPorRegistro->fetchAll();
+
+$itensVinculadosAgrupados = [];
+foreach ($itensVinculadosPorRegistro as $registroItem) {
+    $chaveGrupo = $registroItem['nome'] . '|' . $registroItem['categoria_nome'];
+    if (!isset($itensVinculadosAgrupados[$chaveGrupo])) {
+        $itensVinculadosAgrupados[$chaveGrupo] = [
+            'vinculo_id' => $registroItem['vinculo_id'],
+            'estoque_id' => $registroItem['estoque_id'],
+            'nome' => $registroItem['nome'],
+            'categoria_nome' => $registroItem['categoria_nome'],
+            'qtd_vinculada' => 0,
+            'marcas' => [],
+        ];
+    }
+    $itensVinculadosAgrupados[$chaveGrupo]['qtd_vinculada'] += (int) $registroItem['qtd_registro'];
+    $itensVinculadosAgrupados[$chaveGrupo]['vinculo_id'] = min($itensVinculadosAgrupados[$chaveGrupo]['vinculo_id'], $registroItem['vinculo_id']);
+    $itensVinculadosAgrupados[$chaveGrupo]['marcas'][] = [
+        'texto' => trim(($registroItem['marca'] ?? '') . ' ' . ($registroItem['modelo'] ?? '')) ?: '-',
+        'qtd' => (int) $registroItem['qtd_registro'],
+    ];
+}
+$itensVinculados = array_values($itensVinculadosAgrupados);
 
 // Itens de estoque com unidades disponíveis para vincular a este equipamento
 $itensDisponiveis = $pdo->query(
@@ -457,13 +476,12 @@ include __DIR__ . '/../../includes/header.php';
                         <td><?= e($iv['nome']) ?></td>
                         <td><?= e($iv['categoria_nome']) ?></td>
                         <td>
-                            <?php if ($iv['marcas_modelos']): ?>
-                                <?php foreach (explode('||', $iv['marcas_modelos']) as $marcaModelo): ?>
-                                    <div><?= e($marcaModelo) ?></div>
-                                <?php endforeach; ?>
-                            <?php else: ?>
-                                -
-                            <?php endif; ?>
+                            <?php foreach ($iv['marcas'] as $marcaItem): ?>
+                                <div class="d-flex justify-content-between gap-3" style="max-width: 260px;">
+                                    <span><?= e($marcaItem['texto']) ?></span>
+                                    <span class="text-muted"><?= $marcaItem['qtd'] ?></span>
+                                </div>
+                            <?php endforeach; ?>
                         </td>
                         <td class="text-center" title="Quantidade deste item vinculada a este equipamento"><?= (int) $iv['qtd_vinculada'] ?></td>
                         <td class="text-end">
@@ -580,13 +598,12 @@ include __DIR__ . '/../../includes/header.php';
                     <tr>
                         <td><?= e($tv['nome']) ?></td>
                         <td>
-                            <?php if ($tv['marcas_modelos']): ?>
-                                <?php foreach (explode('||', $tv['marcas_modelos']) as $marcaModelo): ?>
-                                    <div><?= e($marcaModelo) ?></div>
-                                <?php endforeach; ?>
-                            <?php else: ?>
-                                -
-                            <?php endif; ?>
+                            <?php foreach ($tv['marcas'] as $marcaItem): ?>
+                                <div class="d-flex justify-content-between gap-3" style="max-width: 260px;">
+                                    <span><?= e($marcaItem['texto']) ?></span>
+                                    <span class="text-muted"><?= $marcaItem['qtd'] ?></span>
+                                </div>
+                            <?php endforeach; ?>
                         </td>
                         <td class="text-center" title="Quantidade deste item vinculada a esta impressora"><?= (int) $tv['qtd_vinculada'] ?></td>
                         <td class="text-end">
