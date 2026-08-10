@@ -192,7 +192,7 @@ $anexos = $anexos->fetchAll();
 // somando a quantidade e listando as marcas/modelos presentes.
 $itensVinculados = $pdo->prepare(
     "SELECT MIN(iv.id) AS vinculo_id, MIN(es.id) AS estoque_id, es.nome,
-            GROUP_CONCAT(DISTINCT NULLIF(TRIM(CONCAT(COALESCE(es.marca, ''), ' ', COALESCE(es.modelo, ''))), '') ORDER BY es.marca, es.modelo SEPARATOR ', ') AS marcas_modelos,
+            GROUP_CONCAT(DISTINCT NULLIF(TRIM(CONCAT(COALESCE(es.marca, ''), ' ', COALESCE(es.modelo, ''))), '') ORDER BY es.marca, es.modelo SEPARATOR '||') AS marcas_modelos,
             COUNT(iv.id) AS qtd_vinculada, c.nome AS categoria_nome
      FROM itens_vinculados iv
      JOIN estoque es ON es.id = iv.estoque_id
@@ -456,7 +456,15 @@ include __DIR__ . '/../../includes/header.php';
                     <tr>
                         <td><?= e($iv['nome']) ?></td>
                         <td><?= e($iv['categoria_nome']) ?></td>
-                        <td><?= $iv['marcas_modelos'] ? e($iv['marcas_modelos']) : '-' ?></td>
+                        <td>
+                            <?php if ($iv['marcas_modelos']): ?>
+                                <?php foreach (explode('||', $iv['marcas_modelos']) as $marcaModelo): ?>
+                                    <div><?= e($marcaModelo) ?></div>
+                                <?php endforeach; ?>
+                            <?php else: ?>
+                                -
+                            <?php endif; ?>
+                        </td>
                         <td class="text-center" title="Quantidade deste item vinculada a este equipamento"><?= (int) $iv['qtd_vinculada'] ?></td>
                         <td class="text-end">
                             <a href="../estoque/desvincular.php?id=<?= (int) $iv['vinculo_id'] ?>" class="btn btn-sm btn-outline-danger js-confirm-delete"
@@ -571,7 +579,15 @@ include __DIR__ . '/../../includes/header.php';
                 <?php foreach ($tonersVinculados as $tv): ?>
                     <tr>
                         <td><?= e($tv['nome']) ?></td>
-                        <td><?= $tv['marcas_modelos'] ? e($tv['marcas_modelos']) : '-' ?></td>
+                        <td>
+                            <?php if ($tv['marcas_modelos']): ?>
+                                <?php foreach (explode('||', $tv['marcas_modelos']) as $marcaModelo): ?>
+                                    <div><?= e($marcaModelo) ?></div>
+                                <?php endforeach; ?>
+                            <?php else: ?>
+                                -
+                            <?php endif; ?>
+                        </td>
                         <td class="text-center" title="Quantidade deste item vinculada a esta impressora"><?= (int) $tv['qtd_vinculada'] ?></td>
                         <td class="text-end">
                             <a href="../estoque/desvincular.php?id=<?= (int) $tv['vinculo_id'] ?>" class="btn btn-sm btn-outline-secondary js-confirm-delete"
