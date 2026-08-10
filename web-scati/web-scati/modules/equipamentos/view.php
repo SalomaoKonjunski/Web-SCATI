@@ -384,6 +384,16 @@ include __DIR__ . '/../../includes/header.php';
                             <?php else: ?>-<?php endif; ?>
                         </td>
                     </tr>
+                    <tr>
+                        <th>Acesso a Dispositivos USB</th>
+                        <td>
+                            <?php if ($eq['acesso_usb']): ?>
+                                <span class="badge bg-success"><i class="bi bi-usb-symbol"></i> Permitido</span>
+                            <?php else: ?>
+                                <span class="badge bg-secondary"><i class="bi bi-usb-symbol"></i> Bloqueado</span>
+                            <?php endif; ?>
+                        </td>
+                    </tr>
                 </table>
             </div>
         </div>

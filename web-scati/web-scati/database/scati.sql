@@ -59,6 +59,7 @@ CREATE TABLE equipamentos (
     localizacao              VARCHAR(120) NULL,
     usuario_responsavel      VARCHAR(120) NULL,
     rede_id                  INT NULL,
+    acesso_usb               TINYINT(1) NOT NULL DEFAULT 0,
 
     -- Campos específicos de impressoras
     ip                       VARCHAR(45)  NULL,

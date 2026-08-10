@@ -10,7 +10,7 @@ $edicao = $id !== null;
 $equipamento = [
     'patrimonio' => '', 'tipo' => 'Computador', 'marca' => '', 'modelo' => '', 'numero_serie' => '',
     'hostname' => '', 'processador' => '', 'memoria_ram' => '', 'armazenamento' => '', 'sistema_operacional' => '',
-    'status' => 'Disponível', 'localizacao' => '', 'usuario_responsavel' => '', 'rede_id' => '',
+    'status' => 'Disponível', 'localizacao' => '', 'usuario_responsavel' => '', 'rede_id' => '', 'acesso_usb' => '',
     'ip' => '', 'modelo_toner' => '', 'qtd_toners' => '',
     'ip_fixo' => '', 'placa_mae' => '', 'placa_video' => '',
     'funcao_servidor' => '', 'servidor_status' => 'Ativo', 'servidor_observacoes' => '',
@@ -85,6 +85,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'localizacao' => $equipamento['localizacao'] ?: null,
             'usuario_responsavel' => $equipamento['usuario_responsavel'] ?: null,
             'rede_id' => $redeId,
+            'acesso_usb' => $equipamento['acesso_usb'] !== '' ? 1 : 0,
             'ip' => $equipamento['ip'] ?: null,
             'modelo_toner' => $equipamento['modelo_toner'] ?: null,
             'qtd_toners' => $qtdToners,
@@ -123,6 +124,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if ((int) ($registro['rede_id'] ?? 0) !== (int) ($dadosParaSalvar['rede_id'] ?? 0)) {
                     $mudancas[] = ['Alteração', 'Rede do equipamento foi alterada'];
                 }
+                if ((int) ($registro['acesso_usb'] ?? 0) !== (int) $dadosParaSalvar['acesso_usb']) {
+                    $mudancas[] = ['Alteração', 'Acesso a dispositivos USB ' . ($dadosParaSalvar['acesso_usb'] ? 'permitido' : 'bloqueado')];
+                }
                 if (ehServidor($dadosParaSalvar['tipo']) && ($registro['servidor_status'] ?? null) !== $dadosParaSalvar['servidor_status']) {
                     $de = $registro['servidor_status'] ?: '(vazio)';
                     $para = $dadosParaSalvar['servidor_status'] ?: '(vazio)';
@@ -141,6 +145,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         numero_serie = :numero_serie, hostname = :hostname, processador = :processador,
                         memoria_ram = :memoria_ram, armazenamento = :armazenamento, sistema_operacional = :sistema_operacional,
                         status = :status, localizacao = :localizacao, usuario_responsavel = :usuario_responsavel, rede_id = :rede_id,
+                        acesso_usb = :acesso_usb,
                         ip = :ip, modelo_toner = :modelo_toner, qtd_toners = :qtd_toners, ip_fixo = :ip_fixo, placa_mae = :placa_mae,
                         placa_video = :placa_video,
                         funcao_servidor = :funcao_servidor, servidor_status = :servidor_status, servidor_observacoes = :servidor_observacoes,
@@ -160,13 +165,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } else {
                 $sql = 'INSERT INTO equipamentos
                         (patrimonio, tipo, marca, modelo, numero_serie, hostname, processador, memoria_ram,
-                         armazenamento, sistema_operacional, status, localizacao, usuario_responsavel, rede_id,
+                         armazenamento, sistema_operacional, status, localizacao, usuario_responsavel, rede_id, acesso_usb,
                          ip, modelo_toner, qtd_toners, ip_fixo, placa_mae, placa_video, funcao_servidor, servidor_status, servidor_observacoes,
                          valor_aquisicao, data_compra, fornecedor, numero_nota_fiscal,
                          garantia, valor_atual, observacoes_financeiras)
                         VALUES
                         (:patrimonio, :tipo, :marca, :modelo, :numero_serie, :hostname, :processador, :memoria_ram,
-                         :armazenamento, :sistema_operacional, :status, :localizacao, :usuario_responsavel, :rede_id,
+                         :armazenamento, :sistema_operacional, :status, :localizacao, :usuario_responsavel, :rede_id, :acesso_usb,
                          :ip, :modelo_toner, :qtd_toners, :ip_fixo, :placa_mae, :placa_video, :funcao_servidor, :servidor_status, :servidor_observacoes,
                          :valor_aquisicao, :data_compra, :fornecedor, :numero_nota_fiscal,
                          :garantia, :valor_atual, :observacoes_financeiras)';
@@ -358,6 +363,12 @@ include __DIR__ . '/../../includes/header.php';
                         <option value="<?= (int) $rede['id'] ?>" <?= (string) $equipamento['rede_id'] === (string) $rede['id'] ? 'selected' : '' ?>><?= e($rede['nome']) ?></option>
                     <?php endforeach; ?>
                 </select>
+            </div>
+            <div class="col-md-3 d-flex align-items-end">
+                <div class="form-check">
+                    <input type="checkbox" name="acesso_usb" id="acessoUsb" class="form-check-input" value="1" <?= !empty($equipamento['acesso_usb']) ? 'checked' : '' ?>>
+                    <label class="form-check-label" for="acessoUsb">Permitir acesso a dispositivos USB</label>
+                </div>
             </div>
         </div>
     </div>

@@ -125,6 +125,7 @@ if (!$eq) {
                 <div class="ficha-campo"><strong>Localização:</strong> <?= e($eq['localizacao']) ?: '-' ?></div>
                 <div class="ficha-campo"><strong>Responsável:</strong> <?= e($eq['usuario_responsavel']) ?: '-' ?></div>
                 <div class="ficha-campo"><strong>Rede:</strong> <?= e($eq['rede_nome']) ?: '-' ?></div>
+                <div class="ficha-campo"><strong>Acesso a Dispositivos USB:</strong> <?= $eq['acesso_usb'] ? 'Permitido' : 'Bloqueado' ?></div>
 
                 <h6 class="text-uppercase small mt-4">Garantia</h6>
                 <div class="ficha-campo"><strong>Garantia:</strong> <?= e($eq['garantia']) ?: '-' ?></div>
