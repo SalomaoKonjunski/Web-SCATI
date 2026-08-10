@@ -40,13 +40,17 @@ $ultimosEquipamentos = $pdo->query(
 )->fetchAll();
 
 // --- Central de Alertas --------------------------------------------------
-// Licenças já vencidas ou vencendo nos próximos 30 dias.
-$licencasVencendo = $pdo->query(
+// Licenças já vencidas ou vencendo nos próximos N dias (configurável em Configurações).
+$diasAlertaLicenca = (int) configGet('dias_alerta_licenca', '30');
+$stmtLicencasVencendo = $pdo->prepare(
     "SELECT l.id, l.software, l.data_validade, e.patrimonio
      FROM licencas l LEFT JOIN equipamentos e ON e.id = l.equipamento_id
-     WHERE l.data_validade IS NOT NULL AND l.data_validade <= DATE_ADD(CURDATE(), INTERVAL 30 DAY)
+     WHERE l.data_validade IS NOT NULL AND l.data_validade <= DATE_ADD(CURDATE(), INTERVAL :dias DAY)
      ORDER BY l.data_validade ASC"
-)->fetchAll();
+);
+$stmtLicencasVencendo->bindValue('dias', $diasAlertaLicenca, PDO::PARAM_INT);
+$stmtLicencasVencendo->execute();
+$licencasVencendo = $stmtLicencasVencendo->fetchAll();
 
 // Itens de estoque abaixo da quantidade mínima.
 $itensEstoqueBaixo = $pdo->query(

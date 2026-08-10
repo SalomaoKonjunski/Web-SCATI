@@ -205,11 +205,35 @@ function statusServidorBadgeClass(?string $status): string
 }
 
 /**
- * Lista fixa dos tipos de manutenção aceitos ao registrar uma manutenção no histórico.
+ * Tipos de manutenção aceitos ao registrar uma manutenção no histórico.
+ * Gerenciados pela tela de Configurações (tabela tipos_manutencao).
  */
 function tiposManutencao(): array
 {
-    return ['Manutenção Preventiva', 'Limpeza', 'Troca de Componente', 'Outro'];
+    return array_column(db()->query('SELECT nome FROM tipos_manutencao ORDER BY nome')->fetchAll(), 'nome');
+}
+
+/**
+ * Lê um parâmetro salvo na tabela configuracoes. Retorna $padrao se a chave
+ * ainda não tiver sido definida.
+ */
+function configGet(string $chave, ?string $padrao = null): ?string
+{
+    $stmt = db()->prepare('SELECT valor FROM configuracoes WHERE chave = :chave');
+    $stmt->execute(['chave' => $chave]);
+    $valor = $stmt->fetchColumn();
+    return $valor !== false ? $valor : $padrao;
+}
+
+/**
+ * Salva (ou atualiza) um parâmetro na tabela configuracoes.
+ */
+function configSet(string $chave, string $valor): void
+{
+    db()->prepare(
+        'INSERT INTO configuracoes (chave, valor) VALUES (:chave, :valor)
+         ON DUPLICATE KEY UPDATE valor = :valor2'
+    )->execute(['chave' => $chave, 'valor' => $valor, 'valor2' => $valor]);
 }
 
 /**

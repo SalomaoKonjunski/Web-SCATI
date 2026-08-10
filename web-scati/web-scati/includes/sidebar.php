@@ -39,9 +39,9 @@ function isActive(string $needle, string $currentPath): string
             </a>
         </li>
         <li class="nav-item mt-3 border-top border-secondary-subtle pt-3">
-            <span class="nav-link disabled text-muted">
+            <a class="nav-link <?= isActive('/modules/configuracoes/', $currentPath) ?: (isActive('/modules/categorias_estoque/', $currentPath) ?: isActive('/modules/tipos_manutencao/', $currentPath)) ?>" href="<?= BASE_URL ?>/modules/configuracoes/index.php">
                 <i class="bi bi-gear"></i> Configurações
-            </span>
+            </a>
         </li>
     </ul>
 </aside>

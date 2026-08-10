@@ -260,6 +260,33 @@ CREATE TABLE compartilhamento_computadores (
 ) ENGINE=InnoDB;
 
 -- ---------------------------------------------------------------------
+-- Tabela: tipos_manutencao
+-- Tipos de manutenção disponíveis para registro no Histórico dos
+-- equipamentos, editáveis pela tela de Configurações.
+-- ---------------------------------------------------------------------
+CREATE TABLE tipos_manutencao (
+    id      INT AUTO_INCREMENT PRIMARY KEY,
+    nome    VARCHAR(80) NOT NULL UNIQUE
+) ENGINE=InnoDB;
+
+INSERT INTO tipos_manutencao (nome) VALUES
+('Manutenção Preventiva'), ('Limpeza'), ('Troca de Componente'), ('Outro');
+
+-- ---------------------------------------------------------------------
+-- Tabela: configuracoes
+-- Armazenamento simples de chave/valor para parâmetros ajustáveis pela
+-- tela de Configurações (ex.: dias de antecedência do alerta de
+-- licenças vencendo).
+-- ---------------------------------------------------------------------
+CREATE TABLE configuracoes (
+    chave   VARCHAR(60) PRIMARY KEY,
+    valor   VARCHAR(255) NOT NULL
+) ENGINE=InnoDB;
+
+INSERT INTO configuracoes (chave, valor) VALUES
+('dias_alerta_licenca', '30');
+
+-- ---------------------------------------------------------------------
 -- Índices auxiliares para pesquisa (seção 13 da documentação)
 -- ---------------------------------------------------------------------
 CREATE INDEX idx_equip_hostname   ON equipamentos(hostname);
