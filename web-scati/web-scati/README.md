@@ -84,6 +84,13 @@ Funcional (v1.0).
    mysql -u root -p scati < database/migration_acesso_usb.sql
    ```
 
+   Se o banco já existia antes da tela de **Configurações** (antes das
+   tabelas `tipos_manutencao` e `configuracoes`), rode também esta
+   migração incremental **uma única vez**:
+   ```bash
+   mysql -u root -p scati < database/migration_configuracoes.sql
+   ```
+
    > Importante: ao importar qualquer um dos arquivos `.sql` deste projeto,
    > garanta que o cliente MySQL use UTF-8 (ex.: `mysql --default-character-set=utf8mb4 -u root -p < arquivo.sql`),
    > caso contrário os valores acentuados dos campos `ENUM` (como "Disponível")
@@ -242,6 +249,20 @@ web-scati/
   categoria, período e patrimônio/item.
 - **Interface responsiva** com Bootstrap 5, menu lateral recolhível em
   telas pequenas.
+- **Configurações**: tela central (menu lateral) com três ajustes do
+  sistema:
+  - **Categorias de Estoque**: CRUD completo das categorias usadas para
+    classificar itens do Estoque — antes só podiam ser criadas via SQL
+    direto. A categoria "Toner" é protegida contra renomeação e exclusão
+    (é usada por nome em outras partes do sistema), e uma categoria com
+    itens de estoque vinculados não pode ser excluída.
+  - **Tipos de Manutenção**: CRUD completo dos tipos disponíveis ao
+    registrar uma manutenção no histórico de um equipamento — antes era
+    uma lista fixa no código. Excluir um tipo não afeta os registros já
+    existentes no histórico.
+  - **Alerta de Licenças**: define com quantos dias de antecedência uma
+    licença a vencer aparece na Central de Alertas do Dashboard (antes
+    fixo em 30 dias).
 
 ## Notas de projeto
 
