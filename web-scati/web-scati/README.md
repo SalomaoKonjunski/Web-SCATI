@@ -77,6 +77,13 @@ Funcional (v1.0).
    mysql -u root -p scati < database/migration_placa_video.sql
    ```
 
+   Se o banco já existia antes do campo **Acesso a Dispositivos USB**
+   (antes da coluna `acesso_usb` na tabela `equipamentos`), rode também
+   esta migração incremental **uma única vez**:
+   ```bash
+   mysql -u root -p scati < database/migration_acesso_usb.sql
+   ```
+
    > Importante: ao importar qualquer um dos arquivos `.sql` deste projeto,
    > garanta que o cliente MySQL use UTF-8 (ex.: `mysql --default-character-set=utf8mb4 -u root -p < arquivo.sql`),
    > caso contrário os valores acentuados dos campos `ENUM` (como "Disponível")
@@ -155,6 +162,10 @@ web-scati/
 - **Computadores**: campos adicionais de **IP Fixo**, **Placa Mãe** e
   **Placa de Vídeo**, exibidos apenas quando o tipo do equipamento é
   Computador.
+- **Acesso a Dispositivos USB**: checkbox "Permitir acesso a dispositivos
+  USB" disponível no cadastro de **qualquer tipo de equipamento**, exibido
+  na ficha como um badge (Permitido/Bloqueado) na seção Localização e Uso.
+  Alterações ficam registradas no histórico do equipamento.
 - **Anexos**: aba na ficha de qualquer equipamento para anexar arquivos
   (nota fiscal, foto, manual em PDF, etc.), com descrição opcional,
   download e exclusão. O upload valida extensão (imagens, PDF, Office,
