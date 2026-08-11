@@ -239,7 +239,12 @@ web-scati/
   restrito à categoria de estoque "Toner"). Permite vincular, desvincular e
   também excluir o toner diretamente da tela da impressora, além do mesmo
   atalho "Cadastrar e Vincular" (com a mesma lógica de evitar duplicidade)
-  para registrar e vincular um toner sem sair da página.
+  para registrar e vincular um toner sem sair da página. A mesma seção
+  "Toner" também aparece direto na tela de **edição** da impressora
+  (Equipamentos > Editar), então dá pra vincular, desvincular ou cadastrar
+  um toner sem precisar abrir a ficha separadamente. Ao editar um
+  equipamento ainda não salvo, aparece um aviso pedindo para salvar o
+  cadastro primeiro.
 - **Cadastro e exclusão de itens de estoque com histórico**: toda vez que
   um item é cadastrado no Estoque, um evento "Cadastro" é gravado
   automaticamente na tabela `historico_estoque`. A exclusão de qualquer
