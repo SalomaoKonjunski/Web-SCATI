@@ -91,6 +91,14 @@ Funcional (v1.0).
    mysql -u root -p scati < database/migration_configuracoes.sql
    ```
 
+   Se o banco já existia antes do **alerta de troca de toner por tempo de
+   uso** (antes das colunas `toner_duracao_dias` e `toner_ultima_troca` na
+   tabela `equipamentos`), rode também esta migração incremental **uma
+   única vez**:
+   ```bash
+   mysql -u root -p scati < database/migration_toner_troca.sql
+   ```
+
    > Importante: ao importar qualquer um dos arquivos `.sql` deste projeto,
    > garanta que o cliente MySQL use UTF-8 (ex.: `mysql --default-character-set=utf8mb4 -u root -p < arquivo.sql`),
    > caso contrário os valores acentuados dos campos `ENUM` (como "Disponível")
@@ -149,8 +157,9 @@ web-scati/
 - **Dashboard** com indicadores de equipamentos, estoque, licenças e (se
   preenchido) valor total do patrimônio, além de uma **Central de Alertas**
   no topo da página reunindo licenças vencidas ou vencendo nos próximos 30
-  dias, itens de estoque abaixo do mínimo e impressoras sem toner
-  vinculado — cada alerta linka direto para a tela correspondente. Logo
+  dias, itens de estoque abaixo do mínimo, impressoras sem toner vinculado
+  e impressoras com a troca de toner por tempo de uso próxima ou vencida —
+  cada alerta linka direto para a tela correspondente. Logo
   abaixo, o card **"Itens de Estoque por Categoria"** mostra em um gráfico
   de pizza (donut) como a quantidade em estoque está distribuída entre as
   categorias cadastradas, com legenda (quantidade e percentual), tooltip
@@ -254,6 +263,19 @@ web-scati/
   um toner sem precisar abrir a ficha separadamente. Ao editar um
   equipamento ainda não salvo, aparece um aviso pedindo para salvar o
   cadastro primeiro.
+- **Alerta de troca de toner por tempo de uso**: independente da
+  vinculação de itens de Estoque acima, cada impressora pode ter uma
+  **duração estimada do toner** (em dias, ex.: 90 ≈ 3 meses) definida no
+  campo "Duração estimada do toner (dias)" em Equipamentos > Editar. Um
+  botão **"Registrar Troca de Toner"** (na aba Toner da ficha e na tela de
+  edição) grava a data de hoje como a última troca e reinicia a contagem —
+  o evento fica registrado no Histórico do equipamento. Com base nessa data
+  e na duração configurada, um painel mostra se a impressora está "Em dia",
+  com a "Troca se aproximando" ou com a "Troca atrasada". Quando a troca
+  está próxima ou vencida, a impressora aparece automaticamente na Central
+  de Alertas do Dashboard. Como cada impressora tem sua própria duração
+  configurada, locais com uso mais intenso podem ter um prazo menor que
+  locais com uso mais leve.
 - **Cadastro e exclusão de itens de estoque com histórico**: toda vez que
   um item é cadastrado no Estoque, um evento "Cadastro" é gravado
   automaticamente na tabela `historico_estoque`. A exclusão de qualquer
@@ -289,6 +311,10 @@ web-scati/
   - **Alerta de Licenças**: define com quantos dias de antecedência uma
     licença a vencer aparece na Central de Alertas do Dashboard (antes
     fixo em 30 dias).
+  - **Alerta de Troca de Toner**: define com quantos dias de antecedência
+    uma impressora com a troca de toner se aproximando (com base na
+    duração estimada configurada em cada impressora) aparece na Central de
+    Alertas do Dashboard (padrão: 7 dias).
 
 ## Notas de projeto
 
