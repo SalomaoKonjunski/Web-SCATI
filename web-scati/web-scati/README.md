@@ -177,7 +177,10 @@ web-scati/
   nenhum vinculado no momento. Tem pesquisa e filtro por status
   próprios. O botão "Nova Impressora" abre o cadastro de equipamentos
   já com o tipo Impressora selecionado; cadastro, edição, ficha e
-  exclusão continuam nas mesmas telas do módulo de Equipamentos.
+  exclusão continuam nas mesmas telas do módulo de Equipamentos. Por não
+  se aplicarem a impressoras, as abas/seções **Hardware** e
+  **Licenciamento** não aparecem para esse tipo de equipamento (nem na
+  ficha, nem no cadastro, nem na ficha para impressão).
 - **Servidores**: tipo de equipamento cadastrado no mesmo módulo de
   Equipamentos, com campos adicionais (função do servidor, status
   Ativo/Inativo e observações) e uma aba própria de **Compartilhamentos**,
