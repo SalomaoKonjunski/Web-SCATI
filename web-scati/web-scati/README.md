@@ -277,7 +277,11 @@ web-scati/
   (Equipamentos > Editar), então dá pra vincular, desvincular ou cadastrar
   um toner sem precisar abrir a ficha separadamente. Ao editar um
   equipamento ainda não salvo, aparece um aviso pedindo para salvar o
-  cadastro primeiro.
+  cadastro primeiro. Impressoras só podem ter itens de estoque da
+  categoria "Toner" vinculados — a aba genérica "Itens Vinculados" (usada
+  pelos demais tipos de equipamento) não aparece para impressoras, e o
+  sistema recusa no servidor qualquer tentativa de vincular ou
+  cadastrar-e-vincular um item de outra categoria a uma impressora.
 - **Alerta de troca de toner por tempo de uso**: independente da
   vinculação de itens de Estoque acima, cada impressora pode ter uma
   **duração estimada do toner** (em dias, ex.: 90 ≈ 3 meses) definida no
