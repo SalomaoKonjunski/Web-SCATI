@@ -30,6 +30,17 @@ $flash = getFlash();
         <i class="bi bi-hdd-network me-2"></i>Web SCATI
     </a>
     <span class="text-white-50 small d-none d-md-inline">Sistema de Controle de Ativos de TI</span>
+    <?php $usuarioAtual = usuarioLogado(); ?>
+    <?php if ($usuarioAtual): ?>
+        <span class="ms-auto d-flex align-items-center gap-2">
+            <span class="text-white-50 small d-none d-sm-inline">
+                <i class="bi bi-person-circle"></i> <?= e($usuarioAtual['usuario']) ?>
+            </span>
+            <a href="<?= BASE_URL ?>/modules/auth/logout.php" class="btn btn-sm btn-outline-light">
+                <i class="bi bi-box-arrow-right"></i> Sair
+            </a>
+        </span>
+    <?php endif; ?>
 </nav>
 
 <div class="scati-layout">

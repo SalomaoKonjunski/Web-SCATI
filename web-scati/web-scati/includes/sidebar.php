@@ -48,5 +48,12 @@ function isActive(string $needle, string $currentPath): string
                 <i class="bi bi-gear"></i> Configurações
             </a>
         </li>
+        <?php if ((usuarioLogado()['admin'] ?? false)): ?>
+        <li class="nav-item">
+            <a class="nav-link <?= isActive('/modules/usuarios/', $currentPath) ?>" href="<?= BASE_URL ?>/modules/usuarios/index.php">
+                <i class="bi bi-people"></i> Usuários
+            </a>
+        </li>
+        <?php endif; ?>
     </ul>
 </aside>
