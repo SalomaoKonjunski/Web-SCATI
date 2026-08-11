@@ -99,6 +99,13 @@ Funcional (v1.0).
    mysql -u root -p scati < database/migration_toner_troca.sql
    ```
 
+   Se o banco já existia antes do **patrimônio opcional** (antes da coluna
+   `patrimonio` da tabela `equipamentos` aceitar valores em branco), rode
+   também esta migração incremental **uma única vez**:
+   ```bash
+   mysql -u root -p scati < database/migration_patrimonio_indefinido.sql
+   ```
+
    > Importante: ao importar qualquer um dos arquivos `.sql` deste projeto,
    > garanta que o cliente MySQL use UTF-8 (ex.: `mysql --default-character-set=utf8mb4 -u root -p < arquivo.sql`),
    > caso contrário os valores acentuados dos campos `ENUM` (como "Disponível")
@@ -168,7 +175,12 @@ web-scati/
   própria; o restante é agrupado em "Outras categorias".
 - **Equipamentos**: CRUD completo, pesquisa e filtros (tipo, status, rede),
   ficha individual com abas de Dados Gerais, Hardware, Licenciamento,
-  Financeiro, Histórico e Observações.
+  Financeiro, Histórico e Observações. O campo **Patrimônio** é opcional —
+  se deixado em branco, o equipamento é salvo e exibido como "Indefinido"
+  em todas as listagens, fichas, relatórios e seletores, permitindo
+  cadastrar vários equipamentos sem patrimônio definido ao mesmo tempo
+  (a verificação de duplicidade continua ativa apenas entre patrimônios
+  preenchidos).
 - **Impressoras**: aba própria no menu lateral com uma listagem separada,
   mostrando só os equipamentos do tipo Impressora (reaproveita a mesma
   tabela de Equipamentos, sem cadastro duplicado). Além de Patrimônio,
