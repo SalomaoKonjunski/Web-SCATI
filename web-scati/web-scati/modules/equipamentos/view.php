@@ -60,26 +60,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['registrar_manutencao'
 // Trata a vinculação de uma unidade de um item de estoque a este equipamento (POST nesta mesma página)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['vincular_item'])) {
     $itemId = (int) ($_POST['item_estoque_id'] ?? 0);
+    $abaRetorno = ehImpressora($eq['tipo']) ? 'toner' : 'itens';
+
     if ($itemId > 0) {
-        // Reserva 1 unidade de forma atômica: só decrementa se ainda houver quantidade disponível
-        $stmtDecr = $pdo->prepare('UPDATE estoque SET quantidade = quantidade - 1 WHERE id = :id AND quantidade > 0');
-        $stmtDecr->execute(['id' => $itemId]);
+        // Impressoras só podem ter itens da categoria "Toner" vinculados.
+        $bloqueado = false;
+        if (ehImpressora($eq['tipo'])) {
+            $stmtCatItem = $pdo->prepare('SELECT c.nome FROM estoque es JOIN categorias_estoque c ON c.id = es.categoria_id WHERE es.id = :id');
+            $stmtCatItem->execute(['id' => $itemId]);
+            if ($stmtCatItem->fetchColumn() !== 'Toner') {
+                $bloqueado = true;
+                flash('danger', 'Impressoras só podem ter itens da categoria "Toner" vinculados.');
+            }
+        }
 
-        if ($stmtDecr->rowCount() > 0) {
-            $stmtNome = $pdo->prepare('SELECT nome FROM estoque WHERE id = :id');
-            $stmtNome->execute(['id' => $itemId]);
-            $nomeItem = $stmtNome->fetchColumn();
+        if (!$bloqueado) {
+            // Reserva 1 unidade de forma atômica: só decrementa se ainda houver quantidade disponível
+            $stmtDecr = $pdo->prepare('UPDATE estoque SET quantidade = quantidade - 1 WHERE id = :id AND quantidade > 0');
+            $stmtDecr->execute(['id' => $itemId]);
 
-            $pdo->prepare('INSERT INTO itens_vinculados (estoque_id, equipamento_id) VALUES (:estoque_id, :equipamento_id)')
-                ->execute(['estoque_id' => $itemId, 'equipamento_id' => $id]);
+            if ($stmtDecr->rowCount() > 0) {
+                $stmtNome = $pdo->prepare('SELECT nome FROM estoque WHERE id = :id');
+                $stmtNome->execute(['id' => $itemId]);
+                $nomeItem = $stmtNome->fetchColumn();
 
-            registrarHistorico($id, 'Item', 'Item "' . $nomeItem . '" vinculado a este equipamento');
-            flash('success', 'Item vinculado com sucesso.');
-        } else {
-            flash('danger', 'Item indisponível para vínculo (sem unidades em estoque).');
+                $pdo->prepare('INSERT INTO itens_vinculados (estoque_id, equipamento_id) VALUES (:estoque_id, :equipamento_id)')
+                    ->execute(['estoque_id' => $itemId, 'equipamento_id' => $id]);
+
+                registrarHistorico($id, 'Item', 'Item "' . $nomeItem . '" vinculado a este equipamento');
+                flash('success', 'Item vinculado com sucesso.');
+            } else {
+                flash('danger', 'Item indisponível para vínculo (sem unidades em estoque).');
+            }
         }
     }
-    redirect('/modules/equipamentos/view.php?id=' . $id . '#itens');
+    redirect('/modules/equipamentos/view.php?id=' . $id . '#' . $abaRetorno);
 }
 
 // Registra a troca física do toner: reinicia a contagem do prazo de alerta
@@ -94,7 +109,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['registrar_troca_toner
 // Trata o cadastro (ou reaproveitamento) de um item de estoque direto nesta
 // página, já vinculando-o automaticamente a este equipamento (POST nesta mesma página)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cadastrar_item_estoque'])) {
-    $destinoAba = in_array($_POST['destino_aba'] ?? '', ['itens', 'toner'], true) ? $_POST['destino_aba'] : 'itens';
+    $abaPadrao = ehImpressora($eq['tipo']) ? 'toner' : 'itens';
+    $destinoAba = in_array($_POST['destino_aba'] ?? '', ['itens', 'toner'], true) ? $_POST['destino_aba'] : $abaPadrao;
 
     $novoNome = trim($_POST['novo_item_nome'] ?? '');
     $novaCategoriaId = (int) ($_POST['novo_item_categoria_id'] ?? 0);
@@ -113,6 +129,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cadastrar_item_estoqu
     $stmtCat = $pdo->prepare('SELECT nome FROM categorias_estoque WHERE id = :id');
     $stmtCat->execute(['id' => $novaCategoriaId]);
     $categoriaNome = $stmtCat->fetchColumn() ?: null;
+
+    // Impressoras só podem ter itens da categoria "Toner" cadastrados/vinculados.
+    if (ehImpressora($eq['tipo']) && $categoriaNome !== 'Toner') {
+        flash('danger', 'Impressoras só podem ter itens da categoria "Toner" vinculados.');
+        redirect('/modules/equipamentos/view.php?id=' . $id . '#' . $destinoAba);
+    }
 
     // Procura um item já cadastrado com o mesmo nome, marca e modelo (comparação
     // sem diferenciar maiúsculas/minúsculas ou espaços nas pontas) para não
@@ -334,11 +356,13 @@ include __DIR__ . '/../../includes/header.php';
         </button>
     </li>
     <?php endif; ?>
+    <?php if (!ehImpressora($eq['tipo'])): ?>
     <li class="nav-item" role="presentation">
         <button class="nav-link" data-bs-toggle="tab" data-bs-target="#itens" type="button">
             Itens Vinculados <span class="badge bg-secondary"><?= count($itensVinculados) ?></span>
         </button>
     </li>
+    <?php endif; ?>
     <?php if (ehImpressora($eq['tipo'])): ?>
     <li class="nav-item" role="presentation">
         <button class="nav-link" data-bs-toggle="tab" data-bs-target="#toner" type="button">
@@ -501,6 +525,7 @@ include __DIR__ . '/../../includes/header.php';
     </div>
     <?php endif; ?>
 
+    <?php if (!ehImpressora($eq['tipo'])): ?>
     <!-- Itens Vinculados -->
     <div class="tab-pane fade" id="itens">
         <h6 class="text-muted text-uppercase small mb-3">Itens de estoque vinculados a este equipamento</h6>
@@ -623,6 +648,7 @@ include __DIR__ . '/../../includes/header.php';
             </div>
         </div>
     </div>
+    <?php endif; ?>
 
     <?php if (ehImpressora($eq['tipo'])): ?>
     <!-- Toner -->

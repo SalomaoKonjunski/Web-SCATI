@@ -30,4 +30,9 @@ $pdo->prepare('UPDATE estoque SET quantidade = quantidade + 1 WHERE id = :id')
 registrarHistorico($equipamentoId, 'Item', 'Item "' . $vinculo['item_nome'] . '" desvinculado deste equipamento');
 
 flash('success', 'Item "' . $vinculo['item_nome'] . '" desvinculado e devolvido ao estoque.');
-redirect('/modules/equipamentos/view.php?id=' . $equipamentoId . '#itens');
+
+$tipoEquipamento = $pdo->prepare('SELECT tipo FROM equipamentos WHERE id = :id');
+$tipoEquipamento->execute(['id' => $equipamentoId]);
+$abaRetorno = ehImpressora((string) $tipoEquipamento->fetchColumn()) ? 'toner' : 'itens';
+
+redirect('/modules/equipamentos/view.php?id=' . $equipamentoId . '#' . $abaRetorno);
