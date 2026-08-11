@@ -19,6 +19,11 @@ function isActive(string $needle, string $currentPath): string
             </a>
         </li>
         <li class="nav-item">
+            <a class="nav-link <?= isActive('/modules/impressoras/', $currentPath) ?>" href="<?= BASE_URL ?>/modules/impressoras/index.php">
+                <i class="bi bi-printer"></i> Impressoras
+            </a>
+        </li>
+        <li class="nav-item">
             <a class="nav-link <?= isActive('/modules/estoque/', $currentPath) ?>" href="<?= BASE_URL ?>/modules/estoque/index.php">
                 <i class="bi bi-box-seam"></i> Estoque
             </a>

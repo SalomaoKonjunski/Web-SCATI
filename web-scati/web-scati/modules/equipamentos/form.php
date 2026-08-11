@@ -7,8 +7,13 @@ $pdo = db();
 $id = isset($_GET['id']) ? (int) $_GET['id'] : null;
 $edicao = $id !== null;
 
+// Ao abrir o cadastro a partir de uma aba específica (ex.: "Nova Impressora"),
+// pré-seleciona o tipo do equipamento.
+$tipoPreSelecionado = $_GET['tipo'] ?? '';
+$tipoInicial = in_array($tipoPreSelecionado, tiposEquipamento(), true) ? $tipoPreSelecionado : 'Computador';
+
 $equipamento = [
-    'patrimonio' => '', 'tipo' => 'Computador', 'marca' => '', 'modelo' => '', 'numero_serie' => '',
+    'patrimonio' => '', 'tipo' => $tipoInicial, 'marca' => '', 'modelo' => '', 'numero_serie' => '',
     'hostname' => '', 'processador' => '', 'memoria_ram' => '', 'armazenamento' => '', 'sistema_operacional' => '',
     'status' => 'Disponível', 'localizacao' => '', 'usuario_responsavel' => '', 'rede_id' => '', 'acesso_usb' => '',
     'ip' => '', 'modelo_toner' => '', 'qtd_toners' => '',
