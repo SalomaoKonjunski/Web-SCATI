@@ -46,6 +46,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const placaMaeField = document.getElementById('placaMaeField');
     const placaVideoField = document.getElementById('placaVideoField');
     const tonerNotaNovoField = document.getElementById('tonerNotaNovoField');
+    const hardwareFields = document.getElementById('hardwareFields');
     function toggleTypeFields() {
         if (!tipoSelect) return;
         if (printerFields) {
@@ -53,6 +54,9 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         if (tonerNotaNovoField) {
             tonerNotaNovoField.style.display = tipoSelect.value === 'Impressora' ? '' : 'none';
+        }
+        if (hardwareFields) {
+            hardwareFields.style.display = tipoSelect.value === 'Impressora' ? 'none' : '';
         }
         if (serverFields) {
             serverFields.style.display = tipoSelect.value === 'Servidor' ? '' : 'none';

@@ -406,7 +406,7 @@ include __DIR__ . '/../../includes/header.php';
     </div>
 
     <!-- Hardware -->
-    <div class="card mb-3">
+    <div class="card mb-3" id="hardwareFields">
         <div class="card-header bg-white"><strong><i class="bi bi-cpu me-1"></i> Hardware</strong></div>
         <div class="card-body row g-3">
             <div class="col-md-3">
