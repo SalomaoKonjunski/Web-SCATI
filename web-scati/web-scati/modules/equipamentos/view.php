@@ -327,11 +327,13 @@ include __DIR__ . '/../../includes/header.php';
     <li class="nav-item" role="presentation">
         <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#dados" type="button">Dados Gerais</button>
     </li>
+    <?php if (!ehImpressora($eq['tipo'])): ?>
     <li class="nav-item" role="presentation">
         <button class="nav-link" data-bs-toggle="tab" data-bs-target="#licenciamento" type="button">
             Licenciamento <span class="badge bg-secondary"><?= count($licencas) ?></span>
         </button>
     </li>
+    <?php endif; ?>
     <li class="nav-item" role="presentation">
         <button class="nav-link" data-bs-toggle="tab" data-bs-target="#itens" type="button">
             Itens Vinculados <span class="badge bg-secondary"><?= count($itensVinculados) ?></span>
@@ -463,6 +465,7 @@ include __DIR__ . '/../../includes/header.php';
         </div>
     </div>
 
+    <?php if (!ehImpressora($eq['tipo'])): ?>
     <!-- Licenciamento -->
     <div class="tab-pane fade" id="licenciamento">
         <div class="d-flex justify-content-between align-items-center mb-3">
@@ -496,6 +499,7 @@ include __DIR__ . '/../../includes/header.php';
             </table>
         <?php endif; ?>
     </div>
+    <?php endif; ?>
 
     <!-- Itens Vinculados -->
     <div class="tab-pane fade" id="itens">
