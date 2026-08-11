@@ -160,6 +160,15 @@ web-scati/
 - **Equipamentos**: CRUD completo, pesquisa e filtros (tipo, status, rede),
   ficha individual com abas de Dados Gerais, Hardware, Licenciamento,
   Financeiro, Histórico e Observações.
+- **Impressoras**: aba própria no menu lateral com uma listagem separada,
+  mostrando só os equipamentos do tipo Impressora (reaproveita a mesma
+  tabela de Equipamentos, sem cadastro duplicado). Além de Patrimônio,
+  Marca/Modelo, IP, Status e Localização, mostra também o **Toner**
+  instalado — ou um alerta "Sem toner" quando a impressora não tem
+  nenhum vinculado no momento. Tem pesquisa e filtro por status
+  próprios. O botão "Nova Impressora" abre o cadastro de equipamentos
+  já com o tipo Impressora selecionado; cadastro, edição, ficha e
+  exclusão continuam nas mesmas telas do módulo de Equipamentos.
 - **Servidores**: tipo de equipamento cadastrado no mesmo módulo de
   Equipamentos, com campos adicionais (função do servidor, status
   Ativo/Inativo e observações) e uma aba própria de **Compartilhamentos**,
