@@ -154,9 +154,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     // Validações essenciais
-    if ($equipamento['patrimonio'] === '') {
-        $erros[] = 'O campo Patrimônio é obrigatório.';
-    }
     if (!in_array($equipamento['tipo'], tiposEquipamento(), true)) {
         $erros[] = 'Tipo de equipamento inválido.';
     }
@@ -188,7 +185,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $dataCompra = $equipamento['data_compra'] !== '' ? $equipamento['data_compra'] : null;
 
         $dadosParaSalvar = [
-            'patrimonio' => $equipamento['patrimonio'],
+            'patrimonio' => $equipamento['patrimonio'] ?: null,
             'tipo' => $equipamento['tipo'],
             'marca' => $equipamento['marca'] ?: null,
             'modelo' => $equipamento['modelo'] ?: null,
@@ -412,8 +409,9 @@ include __DIR__ . '/../../includes/header.php';
         <div class="card-header bg-white"><strong><i class="bi bi-tag me-1"></i> Identificação</strong></div>
         <div class="card-body row g-3">
             <div class="col-md-3">
-                <label class="form-label">Patrimônio *</label>
-                <input type="text" name="patrimonio" class="form-control" required value="<?= e($equipamento['patrimonio']) ?>">
+                <label class="form-label">Patrimônio</label>
+                <input type="text" name="patrimonio" class="form-control" placeholder="Indefinido" value="<?= e($equipamento['patrimonio']) ?>">
+                <div class="form-text">Deixe em branco se o patrimônio ainda não foi definido.</div>
             </div>
             <div class="col-md-3">
                 <label class="form-label">Tipo *</label>

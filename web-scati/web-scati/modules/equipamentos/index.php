@@ -127,7 +127,13 @@ include __DIR__ . '/../../includes/header.php';
                 <?php endif; ?>
                 <?php foreach ($equipamentos as $eq): ?>
                     <tr data-href="view.php?id=<?= (int) $eq['id'] ?>">
-                        <td><strong><?= e($eq['patrimonio']) ?></strong></td>
+                        <td>
+                            <?php if ($eq['patrimonio']): ?>
+                                <strong><?= e($eq['patrimonio']) ?></strong>
+                            <?php else: ?>
+                                <span class="text-muted fst-italic">Indefinido</span>
+                            <?php endif; ?>
+                        </td>
                         <td><?= e($eq['tipo']) ?></td>
                         <td><?= e(trim(($eq['marca'] ?? '') . ' ' . ($eq['modelo'] ?? ''))) ?: '-' ?></td>
                         <td><?= e($eq['hostname']) ?: '-' ?></td>
@@ -142,7 +148,7 @@ include __DIR__ . '/../../includes/header.php';
                                 <i class="bi bi-pencil"></i>
                             </a>
                             <a href="delete.php?id=<?= (int) $eq['id'] ?>" class="btn btn-sm btn-outline-danger js-confirm-delete"
-                               data-confirm-msg="Excluir o equipamento <?= e($eq['patrimonio']) ?>? Esta ação não pode ser desfeita." title="Excluir">
+                               data-confirm-msg="Excluir o equipamento <?= e(patrimonioOuIndefinido($eq['patrimonio'])) ?>? Esta ação não pode ser desfeita." title="Excluir">
                                 <i class="bi bi-trash"></i>
                             </a>
                         </td>

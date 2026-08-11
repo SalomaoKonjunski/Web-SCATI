@@ -118,7 +118,7 @@ include __DIR__ . '/../../includes/header.php';
     <a href="../equipamentos/view.php?id=<?= $servidorId ?>#compartilhamentos" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Voltar</a>
 </div>
 
-<p class="text-muted">Servidor: <strong><?= e($servidor['patrimonio']) ?></strong></p>
+<p class="text-muted">Servidor: <strong><?= e(patrimonioOuIndefinido($servidor['patrimonio'])) ?></strong></p>
 
 <?php if (!empty($erros)): ?>
     <div class="alert alert-danger">
@@ -158,7 +158,7 @@ include __DIR__ . '/../../includes/header.php';
                                            id="comp<?= (int) $comp['id'] ?>"
                                            <?= in_array((int) $comp['id'], $computadoresSelecionados, true) ? 'checked' : '' ?>>
                                     <label class="form-check-label" for="comp<?= (int) $comp['id'] ?>">
-                                        <?= e($comp['patrimonio']) ?><?= $comp['hostname'] ? ' — ' . e($comp['hostname']) : '' ?>
+                                        <?= e(patrimonioOuIndefinido($comp['patrimonio'])) ?><?= $comp['hostname'] ? ' — ' . e($comp['hostname']) : '' ?>
                                     </label>
                                 </div>
                             </div>

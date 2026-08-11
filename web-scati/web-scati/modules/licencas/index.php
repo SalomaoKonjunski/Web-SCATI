@@ -85,8 +85,8 @@ include __DIR__ . '/../../includes/header.php';
                         <td><?= e($lic['fabricante']) ?: '-' ?></td>
                         <td><?= e($lic['tipo']) ?></td>
                         <td>
-                            <?php if ($lic['patrimonio']): ?>
-                                <a href="../equipamentos/view.php?id=<?= (int) $lic['equipamento_id'] ?>"><?= e($lic['patrimonio']) ?></a>
+                            <?php if ($lic['equipamento_id']): ?>
+                                <a href="../equipamentos/view.php?id=<?= (int) $lic['equipamento_id'] ?>"><?= e(patrimonioOuIndefinido($lic['patrimonio'])) ?></a>
                             <?php else: ?>
                                 <span class="badge bg-light text-dark border">Sem vínculo</span>
                             <?php endif; ?>

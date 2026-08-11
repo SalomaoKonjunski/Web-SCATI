@@ -89,7 +89,13 @@ include __DIR__ . '/../../includes/header.php';
                 <?php endif; ?>
                 <?php foreach ($impressoras as $imp): ?>
                     <tr data-href="../equipamentos/view.php?id=<?= (int) $imp['id'] ?>">
-                        <td><?= e($imp['patrimonio']) ?></td>
+                        <td>
+                            <?php if ($imp['patrimonio']): ?>
+                                <?= e($imp['patrimonio']) ?>
+                            <?php else: ?>
+                                <span class="text-muted fst-italic">Indefinido</span>
+                            <?php endif; ?>
+                        </td>
                         <td><?= e(trim(($imp['marca'] ?? '') . ' ' . ($imp['modelo'] ?? ''))) ?: '-' ?></td>
                         <td><?= e($imp['ip']) ?: '-' ?></td>
                         <td><span class="badge <?= statusBadgeClass($imp['status']) ?>"><?= e($imp['status']) ?></span></td>
@@ -105,7 +111,7 @@ include __DIR__ . '/../../includes/header.php';
                             <a href="../equipamentos/view.php?id=<?= (int) $imp['id'] ?>" class="btn btn-sm btn-outline-secondary"><i class="bi bi-eye"></i></a>
                             <a href="../equipamentos/form.php?id=<?= (int) $imp['id'] ?>" class="btn btn-sm btn-outline-primary"><i class="bi bi-pencil"></i></a>
                             <a href="../equipamentos/delete.php?id=<?= (int) $imp['id'] ?>" class="btn btn-sm btn-outline-danger js-confirm-delete"
-                               data-confirm-msg="Excluir a impressora &quot;<?= e($imp['patrimonio']) ?>&quot;?"><i class="bi bi-trash"></i></a>
+                               data-confirm-msg="Excluir a impressora &quot;<?= e(patrimonioOuIndefinido($imp['patrimonio'])) ?>&quot;?"><i class="bi bi-trash"></i></a>
                         </td>
                     </tr>
                 <?php endforeach; ?>

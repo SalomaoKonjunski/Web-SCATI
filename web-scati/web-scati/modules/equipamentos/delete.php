@@ -27,5 +27,5 @@ foreach ($stmtItensVinc->fetchAll() as $vinc) {
 // Licenças vinculadas ficam sem equipamento (equipamento_id = NULL) em vez de serem apagadas.
 $pdo->prepare('DELETE FROM equipamentos WHERE id = :id')->execute(['id' => $id]);
 
-flash('success', 'Equipamento "' . $equipamento['patrimonio'] . '" excluído com sucesso.');
+flash('success', 'Equipamento "' . patrimonioOuIndefinido($equipamento['patrimonio']) . '" excluído com sucesso.');
 redirect('/modules/equipamentos/index.php');

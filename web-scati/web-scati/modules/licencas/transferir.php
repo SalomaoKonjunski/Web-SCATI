@@ -41,7 +41,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($novoEquipamentoId) {
             registrarHistorico($novoEquipamentoId, 'Licença',
                 'Licença "' . $licenca['software'] . '" recebida por transferência' .
-                ($licenca['patrimonio_atual'] ? ' (anteriormente em ' . $licenca['patrimonio_atual'] . ')' : ''));
+                ($equipamentoAnteriorId ? ' (anteriormente em ' . patrimonioOuIndefinido($licenca['patrimonio_atual']) . ')' : ''));
         }
 
         flash('success', 'Licença transferida com sucesso.');
@@ -70,7 +70,7 @@ include __DIR__ . '/../../includes/header.php';
     <div class="card-body">
         <table class="table table-sm mb-4">
             <tr><th style="width:30%">Licença</th><td><?= e($licenca['software']) ?> <span class="text-muted small"><?= e($licenca['versao']) ?></span></td></tr>
-            <tr><th>Equipamento Atual</th><td><?= $licenca['patrimonio_atual'] ? e($licenca['patrimonio_atual']) : '<span class="text-muted">Sem vínculo</span>' ?></td></tr>
+            <tr><th>Equipamento Atual</th><td><?= $licenca['equipamento_id'] ? e(patrimonioOuIndefinido($licenca['patrimonio_atual'])) : '<span class="text-muted">Sem vínculo</span>' ?></td></tr>
         </table>
 
         <form method="post">
@@ -81,7 +81,7 @@ include __DIR__ . '/../../includes/header.php';
                     <option value="">Sem vínculo</option>
                     <?php foreach ($equipamentos as $eq): ?>
                         <option value="<?= (int) $eq['id'] ?>" <?= (int) $eq['id'] === (int) $licenca['equipamento_id'] ? 'disabled' : '' ?>>
-                            <?= e($eq['patrimonio']) ?><?= $eq['hostname'] ? ' — ' . e($eq['hostname']) : '' ?>
+                            <?= e(patrimonioOuIndefinido($eq['patrimonio'])) ?><?= $eq['hostname'] ? ' — ' . e($eq['hostname']) : '' ?>
                         </option>
                     <?php endforeach; ?>
                 </select>

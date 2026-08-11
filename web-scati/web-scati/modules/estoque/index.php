@@ -12,7 +12,7 @@ $somenteAbaixoMinimo = isset($_GET['abaixo_minimo']);
 
 $sql = "SELECT es.*, c.nome AS categoria_nome,
                COUNT(iv.id) AS qtd_vinculada,
-               GROUP_CONCAT(DISTINCT eq.patrimonio ORDER BY eq.patrimonio SEPARATOR ', ') AS equipamentos_vinculados
+               GROUP_CONCAT(DISTINCT COALESCE(eq.patrimonio, 'Indefinido') ORDER BY eq.patrimonio SEPARATOR ', ') AS equipamentos_vinculados
         FROM estoque es
         JOIN categorias_estoque c ON c.id = es.categoria_id
         LEFT JOIN itens_vinculados iv ON iv.estoque_id = es.id

@@ -50,6 +50,15 @@ function e(?string $valor): string
 }
 
 /**
+ * Retorna o patrimônio para exibição, com o rótulo "Indefinido" quando o
+ * equipamento foi cadastrado sem um patrimônio definido.
+ */
+function patrimonioOuIndefinido(?string $patrimonio): string
+{
+    return ($patrimonio !== null && trim($patrimonio) !== '') ? $patrimonio : 'Indefinido';
+}
+
+/**
  * Formata um valor monetário no padrão brasileiro. Retorna "-" se nulo.
  */
 function formatMoney($valor): string

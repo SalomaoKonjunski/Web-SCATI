@@ -43,7 +43,7 @@ $ultimosEquipamentos = $pdo->query(
 // Licenças já vencidas ou vencendo nos próximos N dias (configurável em Configurações).
 $diasAlertaLicenca = (int) configGet('dias_alerta_licenca', '30');
 $stmtLicencasVencendo = $pdo->prepare(
-    "SELECT l.id, l.software, l.data_validade, e.patrimonio
+    "SELECT l.id, l.software, l.data_validade, l.equipamento_id, e.patrimonio
      FROM licencas l LEFT JOIN equipamentos e ON e.id = l.equipamento_id
      WHERE l.data_validade IS NOT NULL AND l.data_validade <= DATE_ADD(CURDATE(), INTERVAL :dias DAY)
      ORDER BY l.data_validade ASC"
@@ -178,7 +178,7 @@ include __DIR__ . '/includes/header.php';
                     ?>
                     <a href="<?= BASE_URL ?>/modules/licencas/index.php" class="list-group-item list-group-item-action">
                         <span class="badge <?= $vencida ? 'bg-danger' : 'bg-warning text-dark' ?> me-2">Licença</span>
-                        <?= e($lic['software']) ?><?= $lic['patrimonio'] ? ' — ' . e($lic['patrimonio']) : '' ?>
+                        <?= e($lic['software']) ?><?= $lic['equipamento_id'] ? ' — ' . e(patrimonioOuIndefinido($lic['patrimonio'])) : '' ?>
                         <?= $vencida
                             ? 'vencida em ' . formatDate($lic['data_validade'])
                             : 'vence em ' . formatDate($lic['data_validade']) . ' (' . $diasParaVencer . ' dia(s))' ?>
@@ -196,7 +196,7 @@ include __DIR__ . '/includes/header.php';
                     <?php $marcaModeloImp = trim(($imp['marca'] ?? '') . ' ' . ($imp['modelo'] ?? '')); ?>
                     <a href="<?= BASE_URL ?>/modules/equipamentos/view.php?id=<?= (int) $imp['id'] ?>#toner" class="list-group-item list-group-item-action">
                         <span class="badge bg-warning text-dark me-2">Impressora</span>
-                        <?= e($imp['patrimonio']) ?><?= $marcaModeloImp ? ' — ' . e($marcaModeloImp) : '' ?> sem toner vinculado
+                        <?= e(patrimonioOuIndefinido($imp['patrimonio'])) ?><?= $marcaModeloImp ? ' — ' . e($marcaModeloImp) : '' ?> sem toner vinculado
                     </a>
                 <?php endforeach; ?>
 
@@ -208,7 +208,7 @@ include __DIR__ . '/includes/header.php';
                     ?>
                     <a href="<?= BASE_URL ?>/modules/equipamentos/view.php?id=<?= (int) $imp['id'] ?>#toner" class="list-group-item list-group-item-action">
                         <span class="badge <?= $tocaVencida ? 'bg-danger' : 'bg-warning text-dark' ?> me-2">Toner</span>
-                        <?= e($imp['patrimonio']) ?><?= $marcaModeloTv ? ' — ' . e($marcaModeloTv) : '' ?>
+                        <?= e(patrimonioOuIndefinido($imp['patrimonio'])) ?><?= $marcaModeloTv ? ' — ' . e($marcaModeloTv) : '' ?>
                         <?= $tocaVencida
                             ? 'troca de toner atrasada desde ' . formatDate($imp['proxima_troca'])
                             : 'troca de toner prevista para ' . formatDate($imp['proxima_troca']) . ' (' . $diasParaTroca . ' dia(s))' ?>
@@ -431,7 +431,13 @@ include __DIR__ . '/includes/header.php';
                 <?php endif; ?>
                 <?php foreach ($ultimosEquipamentos as $eq): ?>
                     <tr data-href="<?= BASE_URL ?>/modules/equipamentos/view.php?id=<?= (int) $eq['id'] ?>">
-                        <td><?= e($eq['patrimonio']) ?></td>
+                        <td>
+                            <?php if ($eq['patrimonio']): ?>
+                                <?= e($eq['patrimonio']) ?>
+                            <?php else: ?>
+                                <span class="text-muted fst-italic">Indefinido</span>
+                            <?php endif; ?>
+                        </td>
                         <td><?= e($eq['tipo']) ?></td>
                         <td><?= e(trim(($eq['marca'] ?? '') . ' ' . ($eq['modelo'] ?? ''))) ?: '-' ?></td>
                         <td><span class="badge <?= statusBadgeClass($eq['status']) ?>"><?= e($eq['status']) ?></span></td>

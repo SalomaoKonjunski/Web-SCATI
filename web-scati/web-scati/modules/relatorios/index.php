@@ -49,7 +49,7 @@ if ($relatorio !== '' && isset($titulosRelatorios[$relatorio])) {
         case 'todos_equipamentos':
             $colunas = ['Patrimônio', 'Tipo', 'Marca/Modelo', 'Status', 'Responsável'];
             $rows = $pdo->query("SELECT patrimonio, tipo, CONCAT_WS(' ', marca, modelo) AS marca_modelo, status, usuario_responsavel FROM equipamentos ORDER BY patrimonio")->fetchAll();
-            foreach ($rows as $r) { $linhas[] = [$r['patrimonio'], $r['tipo'], $r['marca_modelo'] ?: '-', $r['status'], $r['usuario_responsavel'] ?: '-']; }
+            foreach ($rows as $r) { $linhas[] = [patrimonioOuIndefinido($r['patrimonio']), $r['tipo'], $r['marca_modelo'] ?: '-', $r['status'], $r['usuario_responsavel'] ?: '-']; }
             break;
 
         case 'equipamentos_em_uso':
@@ -65,19 +65,19 @@ if ($relatorio !== '' && isset($titulosRelatorios[$relatorio])) {
             $colunas = ['Patrimônio', 'Tipo', 'Marca/Modelo', 'Localização', 'Responsável'];
             $stmt = $pdo->prepare("SELECT patrimonio, tipo, CONCAT_WS(' ', marca, modelo) AS marca_modelo, localizacao, usuario_responsavel FROM equipamentos WHERE status = :status ORDER BY patrimonio");
             $stmt->execute(['status' => $mapaStatus[$relatorio]]);
-            foreach ($stmt->fetchAll() as $r) { $linhas[] = [$r['patrimonio'], $r['tipo'], $r['marca_modelo'] ?: '-', $r['localizacao'] ?: '-', $r['usuario_responsavel'] ?: '-']; }
+            foreach ($stmt->fetchAll() as $r) { $linhas[] = [patrimonioOuIndefinido($r['patrimonio']), $r['tipo'], $r['marca_modelo'] ?: '-', $r['localizacao'] ?: '-', $r['usuario_responsavel'] ?: '-']; }
             break;
 
         case 'equipamentos_por_responsavel':
             $colunas = ['Responsável', 'Patrimônio', 'Tipo', 'Status'];
             $rows = $pdo->query("SELECT usuario_responsavel, patrimonio, tipo, status FROM equipamentos WHERE usuario_responsavel IS NOT NULL AND usuario_responsavel <> '' ORDER BY usuario_responsavel, patrimonio")->fetchAll();
-            foreach ($rows as $r) { $linhas[] = [$r['usuario_responsavel'], $r['patrimonio'], $r['tipo'], $r['status']]; }
+            foreach ($rows as $r) { $linhas[] = [$r['usuario_responsavel'], patrimonioOuIndefinido($r['patrimonio']), $r['tipo'], $r['status']]; }
             break;
 
         case 'equipamentos_por_rede':
             $colunas = ['Rede', 'Patrimônio', 'Tipo', 'Status'];
             $rows = $pdo->query("SELECT r.nome AS rede_nome, e.patrimonio, e.tipo, e.status FROM equipamentos e JOIN redes r ON r.id = e.rede_id ORDER BY r.nome, e.patrimonio")->fetchAll();
-            foreach ($rows as $r) { $linhas[] = [$r['rede_nome'], $r['patrimonio'], $r['tipo'], $r['status']]; }
+            foreach ($rows as $r) { $linhas[] = [$r['rede_nome'], patrimonioOuIndefinido($r['patrimonio']), $r['tipo'], $r['status']]; }
             break;
 
         case 'estoque_lista':
@@ -94,39 +94,39 @@ if ($relatorio !== '' && isset($titulosRelatorios[$relatorio])) {
 
         case 'licencas_lista':
             $colunas = ['Software', 'Fabricante', 'Tipo', 'Equipamento'];
-            $rows = $pdo->query("SELECT l.software, l.fabricante, l.tipo, e.patrimonio FROM licencas l LEFT JOIN equipamentos e ON e.id = l.equipamento_id ORDER BY l.software")->fetchAll();
-            foreach ($rows as $r) { $linhas[] = [$r['software'], $r['fabricante'] ?: '-', $r['tipo'], $r['patrimonio'] ?: 'Sem vínculo']; }
+            $rows = $pdo->query("SELECT l.software, l.fabricante, l.tipo, l.equipamento_id, e.patrimonio FROM licencas l LEFT JOIN equipamentos e ON e.id = l.equipamento_id ORDER BY l.software")->fetchAll();
+            foreach ($rows as $r) { $linhas[] = [$r['software'], $r['fabricante'] ?: '-', $r['tipo'], $r['equipamento_id'] ? patrimonioOuIndefinido($r['patrimonio']) : 'Sem vínculo']; }
             break;
 
         case 'licencas_vinculadas':
             $colunas = ['Software', 'Equipamento', 'Responsável'];
             $rows = $pdo->query("SELECT l.software, e.patrimonio, e.usuario_responsavel FROM licencas l JOIN equipamentos e ON e.id = l.equipamento_id ORDER BY e.patrimonio")->fetchAll();
-            foreach ($rows as $r) { $linhas[] = [$r['software'], $r['patrimonio'], $r['usuario_responsavel'] ?: '-']; }
+            foreach ($rows as $r) { $linhas[] = [$r['software'], patrimonioOuIndefinido($r['patrimonio']), $r['usuario_responsavel'] ?: '-']; }
             break;
 
         case 'financeiro_valor_total':
             $colunas = ['Patrimônio', 'Tipo', 'Valor de Aquisição', 'Valor Atual'];
             $rows = $pdo->query("SELECT patrimonio, tipo, valor_aquisicao, valor_atual FROM equipamentos WHERE valor_atual IS NOT NULL ORDER BY patrimonio")->fetchAll();
-            foreach ($rows as $r) { $linhas[] = [$r['patrimonio'], $r['tipo'], formatMoney($r['valor_aquisicao']), formatMoney($r['valor_atual'])]; }
+            foreach ($rows as $r) { $linhas[] = [patrimonioOuIndefinido($r['patrimonio']), $r['tipo'], formatMoney($r['valor_aquisicao']), formatMoney($r['valor_atual'])]; }
             break;
 
         case 'financeiro_sem_valor':
             $colunas = ['Patrimônio', 'Tipo', 'Status'];
             $rows = $pdo->query("SELECT patrimonio, tipo, status FROM equipamentos WHERE valor_atual IS NULL ORDER BY patrimonio")->fetchAll();
-            foreach ($rows as $r) { $linhas[] = [$r['patrimonio'], $r['tipo'], $r['status']]; }
+            foreach ($rows as $r) { $linhas[] = [patrimonioOuIndefinido($r['patrimonio']), $r['tipo'], $r['status']]; }
             break;
 
         case 'financeiro_garantia':
             $colunas = ['Patrimônio', 'Tipo', 'Garantia', 'Data da Compra'];
             $rows = $pdo->query("SELECT patrimonio, tipo, garantia, data_compra FROM equipamentos WHERE garantia IS NOT NULL AND garantia <> '' ORDER BY patrimonio")->fetchAll();
-            foreach ($rows as $r) { $linhas[] = [$r['patrimonio'], $r['tipo'], $r['garantia'], formatDate($r['data_compra'])]; }
+            foreach ($rows as $r) { $linhas[] = [patrimonioOuIndefinido($r['patrimonio']), $r['tipo'], $r['garantia'], formatDate($r['data_compra'])]; }
             break;
 
         case 'historico_alteracoes':
             $colunas = ['Data/Hora', 'Origem', 'Patrimônio/Item', 'Categoria', 'Evento', 'Descrição'];
 
             $sql = "SELECT * FROM (
-                        SELECT h.data_hora, 'Equipamento' AS origem, e.patrimonio AS identificacao, NULL AS categoria, h.evento, h.descricao
+                        SELECT h.data_hora, 'Equipamento' AS origem, COALESCE(e.patrimonio, 'Indefinido') AS identificacao, NULL AS categoria, h.evento, h.descricao
                         FROM historico_equipamentos h JOIN equipamentos e ON e.id = h.equipamento_id
                         UNION ALL
                         SELECT he.data_hora, 'Item de Estoque' AS origem, he.item_nome AS identificacao, he.categoria_nome AS categoria, he.evento, he.descricao

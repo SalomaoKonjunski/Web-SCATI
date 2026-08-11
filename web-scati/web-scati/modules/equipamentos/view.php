@@ -306,7 +306,7 @@ include __DIR__ . '/../../includes/header.php';
 
 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
     <div>
-        <h1 class="h3 mb-0"><i class="bi bi-pc-display me-2"></i><?= e($eq['patrimonio']) ?></h1>
+        <h1 class="h3 mb-0"><i class="bi bi-pc-display me-2"></i><?= e(patrimonioOuIndefinido($eq['patrimonio'])) ?></h1>
         <span class="badge <?= statusBadgeClass($eq['status']) ?> mt-1"><?= e($eq['status']) ?></span>
         <span class="text-muted ms-2"><?= e($eq['tipo']) ?> · <?= e(trim(($eq['marca'] ?? '') . ' ' . ($eq['modelo'] ?? ''))) ?: '' ?></span>
     </div>
@@ -317,7 +317,7 @@ include __DIR__ . '/../../includes/header.php';
         </a>
         <a href="form.php?id=<?= (int) $eq['id'] ?>" class="btn btn-primary"><i class="bi bi-pencil"></i> Editar</a>
         <a href="delete.php?id=<?= (int) $eq['id'] ?>" class="btn btn-outline-danger js-confirm-delete"
-           data-confirm-msg="Excluir o equipamento <?= e($eq['patrimonio']) ?>? Esta ação não pode ser desfeita.">
+           data-confirm-msg="Excluir o equipamento <?= e(patrimonioOuIndefinido($eq['patrimonio'])) ?>? Esta ação não pode ser desfeita.">
             <i class="bi bi-trash"></i> Excluir
         </a>
     </div>
@@ -381,7 +381,7 @@ include __DIR__ . '/../../includes/header.php';
             <div class="col-md-6">
                 <h6 class="text-muted text-uppercase small mb-3">Identificação</h6>
                 <table class="table table-sm">
-                    <tr><th style="width:40%">Patrimônio</th><td><?= e($eq['patrimonio']) ?></td></tr>
+                    <tr><th style="width:40%">Patrimônio</th><td><?= e(patrimonioOuIndefinido($eq['patrimonio'])) ?></td></tr>
                     <tr><th>Tipo</th><td><?= e($eq['tipo']) ?></td></tr>
                     <tr><th>Marca</th><td><?= e($eq['marca']) ?: '-' ?></td></tr>
                     <tr><th>Modelo</th><td><?= e($eq['modelo']) ?: '-' ?></td></tr>
@@ -959,7 +959,7 @@ include __DIR__ . '/../../includes/header.php';
                             <?php else: ?>
                                 <?php foreach ($vinc as $v): ?>
                                     <a href="view.php?id=<?= (int) $v['id'] ?>" class="badge bg-light text-dark border text-decoration-none me-1">
-                                        <?= e($v['patrimonio']) ?><?= $v['hostname'] ? ' — ' . e($v['hostname']) : '' ?>
+                                        <?= e(patrimonioOuIndefinido($v['patrimonio'])) ?><?= $v['hostname'] ? ' — ' . e($v['hostname']) : '' ?>
                                     </a>
                                 <?php endforeach; ?>
                             <?php endif; ?>

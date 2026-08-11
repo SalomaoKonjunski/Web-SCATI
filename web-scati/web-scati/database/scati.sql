@@ -39,7 +39,7 @@ CREATE TABLE equipamentos (
     id                      INT AUTO_INCREMENT PRIMARY KEY,
 
     -- Identificação
-    patrimonio              VARCHAR(50)  NOT NULL UNIQUE,
+    patrimonio              VARCHAR(50)  NULL UNIQUE,
     tipo                    ENUM('Computador','Notebook','Impressora','Monitor','Switch',
                                   'Roteador','Access Point','Nobreak','Servidor','Outros') NOT NULL,
     marca                   VARCHAR(80)  NULL,

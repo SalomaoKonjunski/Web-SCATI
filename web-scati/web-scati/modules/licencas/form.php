@@ -160,7 +160,7 @@ include __DIR__ . '/../../includes/header.php';
                     <option value="">Nenhum (sem vínculo)</option>
                     <?php foreach ($equipamentos as $eq): ?>
                         <option value="<?= (int) $eq['id'] ?>" <?= (string) $licenca['equipamento_id'] === (string) $eq['id'] ? 'selected' : '' ?>>
-                            <?= e($eq['patrimonio']) ?><?= $eq['hostname'] ? ' — ' . e($eq['hostname']) : '' ?>
+                            <?= e(patrimonioOuIndefinido($eq['patrimonio'])) ?><?= $eq['hostname'] ? ' — ' . e($eq['hostname']) : '' ?>
                         </option>
                     <?php endforeach; ?>
                 </select>
