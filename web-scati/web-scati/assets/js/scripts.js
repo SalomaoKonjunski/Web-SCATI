@@ -45,10 +45,14 @@ document.addEventListener('DOMContentLoaded', function () {
     const computerFields = document.getElementById('computerFields');
     const placaMaeField = document.getElementById('placaMaeField');
     const placaVideoField = document.getElementById('placaVideoField');
+    const tonerNotaNovoField = document.getElementById('tonerNotaNovoField');
     function toggleTypeFields() {
         if (!tipoSelect) return;
         if (printerFields) {
             printerFields.style.display = tipoSelect.value === 'Impressora' ? '' : 'none';
+        }
+        if (tonerNotaNovoField) {
+            tonerNotaNovoField.style.display = tipoSelect.value === 'Impressora' ? '' : 'none';
         }
         if (serverFields) {
             serverFields.style.display = tipoSelect.value === 'Servidor' ? '' : 'none';

@@ -29,6 +29,108 @@ if ($edicao) {
     $equipamento = array_merge($equipamento, $registro);
 }
 
+// Trata o gerenciamento de Toner direto no cadastro/edição da impressora
+// (POST nesta mesma página, só faz sentido quando o equipamento já existe)
+if ($edicao && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['vincular_toner_form'])) {
+    $itemId = (int) ($_POST['item_estoque_id'] ?? 0);
+    if ($itemId > 0) {
+        $stmtDecr = $pdo->prepare('UPDATE estoque SET quantidade = quantidade - 1 WHERE id = :id AND quantidade > 0');
+        $stmtDecr->execute(['id' => $itemId]);
+
+        if ($stmtDecr->rowCount() > 0) {
+            $stmtNome = $pdo->prepare('SELECT nome FROM estoque WHERE id = :id');
+            $stmtNome->execute(['id' => $itemId]);
+            $nomeItem = $stmtNome->fetchColumn();
+
+            $pdo->prepare('INSERT INTO itens_vinculados (estoque_id, equipamento_id) VALUES (:estoque_id, :equipamento_id)')
+                ->execute(['estoque_id' => $itemId, 'equipamento_id' => $id]);
+
+            registrarHistorico($id, 'Item', 'Toner "' . $nomeItem . '" vinculado a este equipamento');
+            flash('success', 'Toner vinculado com sucesso.');
+        } else {
+            flash('danger', 'Toner indisponível para vínculo (sem unidades em estoque).');
+        }
+    }
+    redirect('/modules/equipamentos/form.php?id=' . $id . '#toner');
+}
+
+if ($edicao && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cadastrar_toner_form'])) {
+    $novoNome = trim($_POST['novo_item_nome'] ?? '');
+    $novaCategoriaId = (int) ($_POST['novo_item_categoria_id'] ?? 0);
+    $novaMarca = trim($_POST['novo_item_marca'] ?? '');
+    $novoModelo = trim($_POST['novo_item_modelo'] ?? '');
+    $novaQuantidade = (int) ($_POST['novo_item_quantidade'] ?? 0);
+    $novaQuantidadeMinima = (int) ($_POST['novo_item_quantidade_minima'] ?? 0);
+    $novaLocalizacao = trim($_POST['novo_item_localizacao'] ?? '');
+    $novasObservacoes = trim($_POST['novo_item_observacoes'] ?? '');
+
+    if ($novoNome === '' || $novaCategoriaId <= 0 || $novaQuantidade < 1) {
+        flash('danger', 'Preencha nome, categoria e uma quantidade de pelo menos 1 unidade para cadastrar e vincular o toner.');
+        redirect('/modules/equipamentos/form.php?id=' . $id . '#toner');
+    }
+
+    $stmtCat = $pdo->prepare('SELECT nome FROM categorias_estoque WHERE id = :id');
+    $stmtCat->execute(['id' => $novaCategoriaId]);
+    $categoriaNome = $stmtCat->fetchColumn() ?: null;
+
+    $stmtExistente = $pdo->prepare(
+        "SELECT id, quantidade FROM estoque
+         WHERE LOWER(TRIM(nome)) = LOWER(TRIM(:nome))
+           AND LOWER(TRIM(COALESCE(marca, ''))) = LOWER(TRIM(:marca))
+           AND LOWER(TRIM(COALESCE(modelo, ''))) = LOWER(TRIM(:modelo))
+         LIMIT 1"
+    );
+    $stmtExistente->execute(['nome' => $novoNome, 'marca' => $novaMarca, 'modelo' => $novoModelo]);
+    $itemExistente = $stmtExistente->fetch();
+
+    if ($itemExistente) {
+        $itemId = (int) $itemExistente['id'];
+        $pdo->prepare('UPDATE estoque SET quantidade = quantidade + :quantidade WHERE id = :id')
+            ->execute(['quantidade' => $novaQuantidade, 'id' => $itemId]);
+
+        registrarHistoricoEstoque(
+            $itemId,
+            $novoNome,
+            $categoriaNome,
+            'Alteração',
+            'Quantidade alterada de ' . (int) $itemExistente['quantidade'] . ' para ' . ((int) $itemExistente['quantidade'] + $novaQuantidade) . ' (+' . $novaQuantidade . ', via cadastro da impressora)'
+        );
+        $mensagemCadastro = 'Toner já existia no estoque — quantidade somada e ';
+    } else {
+        $pdo->prepare(
+            'INSERT INTO estoque (nome, categoria_id, marca, modelo, quantidade, quantidade_minima, localizacao, observacoes)
+             VALUES (:nome, :categoria_id, :marca, :modelo, :quantidade, :quantidade_minima, :localizacao, :observacoes)'
+        )->execute([
+            'nome' => $novoNome,
+            'categoria_id' => $novaCategoriaId,
+            'marca' => $novaMarca ?: null,
+            'modelo' => $novoModelo ?: null,
+            'quantidade' => $novaQuantidade,
+            'quantidade_minima' => $novaQuantidadeMinima,
+            'localizacao' => $novaLocalizacao ?: null,
+            'observacoes' => $novasObservacoes ?: null,
+        ]);
+        $itemId = (int) $pdo->lastInsertId();
+
+        registrarHistoricoEstoque($itemId, $novoNome, $categoriaNome, 'Cadastro', 'Item cadastrado no estoque');
+        $mensagemCadastro = 'Toner cadastrado no estoque e ';
+    }
+
+    $stmtDecr = $pdo->prepare('UPDATE estoque SET quantidade = quantidade - 1 WHERE id = :id AND quantidade > 0');
+    $stmtDecr->execute(['id' => $itemId]);
+
+    if ($stmtDecr->rowCount() > 0) {
+        $pdo->prepare('INSERT INTO itens_vinculados (estoque_id, equipamento_id) VALUES (:estoque_id, :equipamento_id)')
+            ->execute(['estoque_id' => $itemId, 'equipamento_id' => $id]);
+        registrarHistorico($id, 'Item', 'Toner "' . $novoNome . '" ' . ($itemExistente ? 'reaproveitado do estoque' : 'cadastrado no estoque') . ' e vinculado a este equipamento');
+        flash('success', $mensagemCadastro . 'vinculado com sucesso.');
+    } else {
+        flash('success', $mensagemCadastro . 'atualizado, mas não foi possível vinculá-lo automaticamente.');
+    }
+
+    redirect('/modules/equipamentos/form.php?id=' . $id . '#toner');
+}
+
 $erros = [];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -191,6 +293,63 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $redes = $pdo->query('SELECT id, nome FROM redes ORDER BY nome')->fetchAll();
 $pageTitle = $edicao ? 'Editar Equipamento' : 'Novo Equipamento';
+
+// Dados de Toner, usados apenas ao editar um equipamento do tipo Impressora
+$tonersVinculados = [];
+$tonersDisponiveis = [];
+$categoriaTonerId = 0;
+if ($edicao && ehImpressora($equipamento['tipo'])) {
+    $categoriasEstoque = $pdo->query('SELECT id, nome FROM categorias_estoque ORDER BY nome')->fetchAll();
+    foreach ($categoriasEstoque as $catEst) {
+        if ($catEst['nome'] === 'Toner') {
+            $categoriaTonerId = (int) $catEst['id'];
+            break;
+        }
+    }
+
+    $tonersPorRegistro = $pdo->prepare(
+        "SELECT MIN(iv.id) AS vinculo_id, es.id AS estoque_id, es.nome, es.marca, es.modelo,
+                COUNT(iv.id) AS qtd_registro
+         FROM itens_vinculados iv
+         JOIN estoque es ON es.id = iv.estoque_id
+         JOIN categorias_estoque c ON c.id = es.categoria_id
+         WHERE iv.equipamento_id = :id AND c.nome = 'Toner'
+         GROUP BY es.id, es.nome, es.marca, es.modelo
+         ORDER BY es.nome, es.marca, es.modelo"
+    );
+    $tonersPorRegistro->execute(['id' => $id]);
+    $tonersPorRegistro = $tonersPorRegistro->fetchAll();
+
+    $tonersAgrupados = [];
+    foreach ($tonersPorRegistro as $registroToner) {
+        $chaveGrupo = $registroToner['nome'];
+        if (!isset($tonersAgrupados[$chaveGrupo])) {
+            $tonersAgrupados[$chaveGrupo] = [
+                'vinculo_id' => $registroToner['vinculo_id'],
+                'estoque_id' => $registroToner['estoque_id'],
+                'nome' => $registroToner['nome'],
+                'qtd_vinculada' => 0,
+                'marcas' => [],
+            ];
+        }
+        $tonersAgrupados[$chaveGrupo]['qtd_vinculada'] += (int) $registroToner['qtd_registro'];
+        $tonersAgrupados[$chaveGrupo]['vinculo_id'] = min($tonersAgrupados[$chaveGrupo]['vinculo_id'], $registroToner['vinculo_id']);
+        $tonersAgrupados[$chaveGrupo]['marcas'][] = [
+            'texto' => trim(($registroToner['marca'] ?? '') . ' ' . ($registroToner['modelo'] ?? '')) ?: '-',
+            'qtd' => (int) $registroToner['qtd_registro'],
+        ];
+    }
+    $tonersVinculados = array_values($tonersAgrupados);
+
+    $tonersDisponiveis = $pdo->prepare(
+        "SELECT es.* FROM estoque es
+         JOIN categorias_estoque c ON c.id = es.categoria_id
+         WHERE es.quantidade > 0 AND c.nome = 'Toner'
+         ORDER BY es.nome"
+    );
+    $tonersDisponiveis->execute();
+    $tonersDisponiveis = $tonersDisponiveis->fetchAll();
+}
 
 include __DIR__ . '/../../includes/header.php';
 ?>
@@ -415,5 +574,136 @@ include __DIR__ . '/../../includes/header.php';
         <a href="index.php" class="btn btn-outline-secondary">Cancelar</a>
     </div>
 </form>
+
+<?php if (!$edicao): ?>
+    <div class="card mb-5" id="tonerNotaNovoField" style="display: none;">
+        <div class="card-body">
+            <p class="text-muted mb-0">
+                <i class="bi bi-info-circle me-1"></i>
+                Salve o cadastro da impressora primeiro — depois disso, uma seção "Toner" aparece aqui
+                para vincular ou cadastrar o toner sem precisar sair desta tela.
+            </p>
+        </div>
+    </div>
+<?php elseif (ehImpressora($equipamento['tipo'])): ?>
+    <div class="card mb-5" id="toner">
+        <div class="card-header bg-white"><strong><i class="bi bi-inkbottle me-1"></i> Toner</strong></div>
+        <div class="card-body">
+            <h6 class="text-muted text-uppercase small mb-3">Toner instalado nesta impressora</h6>
+            <?php if (empty($tonersVinculados)): ?>
+                <p class="text-muted">Nenhum toner vinculado a esta impressora.</p>
+            <?php else: ?>
+                <table class="table table-sm table-hover mb-4">
+                    <thead class="table-light">
+                        <tr><th>Nome</th><th>Marca/Modelo</th><th class="text-center">Qtd. Itens</th><th class="text-end">Ações</th></tr>
+                    </thead>
+                    <tbody>
+                    <?php foreach ($tonersVinculados as $tv): ?>
+                        <tr>
+                            <td><?= e($tv['nome']) ?></td>
+                            <td>
+                                <?php foreach ($tv['marcas'] as $marcaItem): ?>
+                                    <div class="d-flex justify-content-between gap-3" style="max-width: 260px;">
+                                        <span><?= e($marcaItem['texto']) ?></span>
+                                        <span class="text-muted"><?= $marcaItem['qtd'] ?></span>
+                                    </div>
+                                <?php endforeach; ?>
+                            </td>
+                            <td class="text-center" title="Quantidade deste item vinculada a esta impressora"><?= (int) $tv['qtd_vinculada'] ?></td>
+                            <td class="text-end">
+                                <a href="../estoque/desvincular.php?id=<?= (int) $tv['vinculo_id'] ?>" class="btn btn-sm btn-outline-secondary js-confirm-delete"
+                                   data-confirm-msg="Desvincular 1 unidade de &quot;<?= e($tv['nome']) ?>&quot; desta impressora?<?= (int) $tv['qtd_vinculada'] > 1 ? ' Ainda restarão ' . ((int) $tv['qtd_vinculada'] - 1) . ' unidade(s) vinculada(s).' : '' ?> Ela voltará a ficar disponível no estoque.">
+                                    <i class="bi bi-x-lg"></i> Desvincular
+                                </a>
+                                <a href="../estoque/delete.php?id=<?= (int) $tv['estoque_id'] ?>&equipamento_id=<?= (int) $id ?>" class="btn btn-sm btn-outline-danger">
+                                    <i class="bi bi-trash"></i> Excluir Toner
+                                </a>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                    </tbody>
+                </table>
+            <?php endif; ?>
+
+            <form method="post" class="row g-2 align-items-end">
+                <div class="col-md-8">
+                    <label class="form-label fw-semibold">+ Vincular Toner do Estoque</label>
+                    <select name="item_estoque_id" class="form-select" <?= empty($tonersDisponiveis) ? 'disabled' : '' ?> required>
+                        <?php if (empty($tonersDisponiveis)): ?>
+                            <option value="">Nenhum toner disponível no estoque</option>
+                        <?php else: ?>
+                            <option value="">Selecione um toner...</option>
+                            <?php foreach ($tonersDisponiveis as $disp): ?>
+                                <?php $marcaModelo = trim(($disp['marca'] ?? '') . ' ' . ($disp['modelo'] ?? '')); ?>
+                                <option value="<?= (int) $disp['id'] ?>">
+                                    <?= e($disp['nome']) ?><?= $marcaModelo ? ' (' . e($marcaModelo) . ')' : '' ?> · <?= (int) $disp['quantidade'] ?> disponível(is)
+                                </option>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </select>
+                    <div class="form-text">Somente itens da categoria "Toner" aparecem aqui.</div>
+                </div>
+                <div class="col-md-4">
+                    <button type="submit" name="vincular_toner_form" value="1" class="btn btn-primary w-100" <?= empty($tonersDisponiveis) ? 'disabled' : '' ?>>
+                        <i class="bi bi-plus-lg"></i> Vincular
+                    </button>
+                </div>
+            </form>
+
+            <?php if ($categoriaTonerId > 0): ?>
+            <div class="mt-3">
+                <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#novoTonerFormCollapse">
+                    <i class="bi bi-plus-circle"></i> Cadastrar e Vincular
+                </button>
+                <div class="collapse mt-3" id="novoTonerFormCollapse">
+                    <div class="card card-body bg-light">
+                        <p class="text-muted small mb-3">
+                            Cadastra um toner no Estoque (categoria "Toner") e já vincula a esta impressora, sem
+                            sair desta página. Se já existir um item com o mesmo nome, marca e modelo, a
+                            quantidade informada é somada a ele em vez de criar um cadastro duplicado.
+                        </p>
+                        <form method="post" class="row g-2">
+                            <input type="hidden" name="novo_item_categoria_id" value="<?= (int) $categoriaTonerId ?>">
+                            <div class="col-md-4">
+                                <label class="form-label small">Nome *</label>
+                                <input type="text" name="novo_item_nome" class="form-control form-control-sm" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small">Marca</label>
+                                <input type="text" name="novo_item_marca" class="form-control form-control-sm">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small">Modelo</label>
+                                <input type="text" name="novo_item_modelo" class="form-control form-control-sm">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small">Quantidade cadastrada *</label>
+                                <input type="number" min="1" name="novo_item_quantidade" class="form-control form-control-sm" value="1" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small">Quantidade mínima</label>
+                                <input type="number" min="0" name="novo_item_quantidade_minima" class="form-control form-control-sm" value="0">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small">Localização</label>
+                                <input type="text" name="novo_item_localizacao" class="form-control form-control-sm">
+                            </div>
+                            <div class="col-md-12">
+                                <label class="form-label small">Observações</label>
+                                <input type="text" name="novo_item_observacoes" class="form-control form-control-sm">
+                            </div>
+                            <div class="col-12 mt-2">
+                                <button type="submit" name="cadastrar_toner_form" value="1" class="btn btn-sm btn-primary">
+                                    <i class="bi bi-check-lg"></i> Cadastrar e vincular a esta impressora
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            <?php endif; ?>
+        </div>
+    </div>
+<?php endif; ?>
 
 <?php include __DIR__ . '/../../includes/footer.php'; ?>
