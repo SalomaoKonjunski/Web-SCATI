@@ -106,6 +106,13 @@ Funcional (v1.0).
    mysql -u root -p scati < database/migration_patrimonio_indefinido.sql
    ```
 
+   Se o banco já existia antes do **sistema de login** (antes da tabela
+   `usuarios`), rode também esta migração incremental **uma única vez**
+   — ela já cria o usuário administrador padrão (`Salomao`):
+   ```bash
+   mysql -u root -p scati < database/migration_usuarios.sql
+   ```
+
    > Importante: ao importar qualquer um dos arquivos `.sql` deste projeto,
    > garanta que o cliente MySQL use UTF-8 (ex.: `mysql --default-character-set=utf8mb4 -u root -p < arquivo.sql`),
    > caso contrário os valores acentuados dos campos `ENUM` (como "Disponível")
@@ -129,7 +136,10 @@ Funcional (v1.0).
    ```
    Neste caso, defina `BASE_URL` como `''` (string vazia) em `config/database.php`.
 
-4. Acesse o sistema pelo navegador e comece cadastrando as **Redes** e
+4. Acesse o sistema pelo navegador — a primeira tela será o **login**.
+   Entre com o usuário administrador padrão (**usuário:** `Salomao`,
+   **senha:** `scati2026`) e cadastre os demais usuários da equipe em
+   **Usuários** (menu lateral). Depois, comece cadastrando as **Redes** e
    **Categorias de Estoque** (já vêm pré-cadastradas) antes dos equipamentos,
    para poder vinculá-los.
 
@@ -141,12 +151,15 @@ web-scati/
 │   └── database.php        # Conexão PDO e constantes de configuração
 ├── includes/
 │   ├── functions.php       # Funções auxiliares (formatação, histórico, etc.)
+│   ├── auth.php            # Autenticação/sessão (exigirLogin, exigirAdmin)
 │   ├── header.php          # Cabeçalho HTML + navbar (compartilhado)
 │   ├── sidebar.php         # Menu lateral (compartilhado)
 │   └── footer.php          # Rodapé HTML + scripts (compartilhado)
 ├── database/
 │   └── scati.sql           # Script de criação do banco de dados
 ├── modules/
+│   ├── auth/                # Login e logout
+│   ├── usuarios/             # CRUD de usuários (somente administradores)
 │   ├── equipamentos/       # CRUD + ficha detalhada (histórico e observações)
 │   ├── compartilhamentos/  # CRUD de pastas de rede compartilhadas por servidores
 │   ├── estoque/            # CRUD de itens de estoque
@@ -334,12 +347,23 @@ web-scati/
     uma impressora com a troca de toner se aproximando (com base na
     duração estimada configurada em cada impressora) aparece na Central de
     Alertas do Dashboard (padrão: 7 dias).
+- **Login e usuários**: todas as páginas do sistema exigem autenticação
+  (usuário e senha, com a senha armazenada com hash bcrypt via
+  `password_hash()`). Qualquer usuário logado pode realizar normalmente
+  todas as operações do sistema (cadastros, edições, exclusões em
+  qualquer módulo) — não há permissões diferentes por módulo. Apenas
+  usuários **administradores** têm acesso à tela **Usuários** (menu
+  lateral), onde é possível criar, editar (inclusive redefinir senha) e
+  excluir outras contas, e marcar/desmarcar o perfil de administrador. O
+  sistema sempre mantém pelo menos um administrador: não é possível
+  excluir a própria conta logada, nem excluir ou remover o perfil de
+  administrador do único administrador restante. A instalação já vem com
+  um usuário administrador padrão (usuário `Salomao`) — recomenda-se
+  trocar a senha após o primeiro acesso, ou cadastrar um novo
+  administrador e excluir o padrão.
 
 ## Notas de projeto
 
-- O sistema foi propositalmente mantido **sem autenticação/login** e sem
-  módulo de usuários, pois a documentação define "Controle de usuários do
-  sistema" como fora do escopo desta versão.
 - O código usa **PDO com prepared statements** em todas as consultas para
   evitar SQL Injection, e `htmlspecialchars()` em todas as saídas para
   evitar XSS.
