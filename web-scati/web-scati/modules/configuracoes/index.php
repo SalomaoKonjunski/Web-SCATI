@@ -20,7 +20,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['salvar_dias_alerta'])
     }
 }
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['salvar_dias_alerta_toner'])) {
+    $diasAlertaToner = $_POST['dias_alerta_toner'] ?? '';
+
+    if (!is_numeric($diasAlertaToner) || (int) $diasAlertaToner < 0) {
+        $erros[] = 'Informe um número de dias válido (0 ou mais) para o alerta de troca de toner.';
+    } else {
+        configSet('dias_alerta_toner', (string) (int) $diasAlertaToner);
+        flash('success', 'Configuração de alerta de troca de toner salva com sucesso.');
+        redirect('/modules/configuracoes/index.php');
+    }
+}
+
 $diasAlertaLicenca = configGet('dias_alerta_licenca', '30');
+$diasAlertaToner = configGet('dias_alerta_toner', '7');
 $totalCategorias = (int) $pdo->query('SELECT COUNT(*) FROM categorias_estoque')->fetchColumn();
 $totalTiposManutencao = (int) $pdo->query('SELECT COUNT(*) FROM tipos_manutencao')->fetchColumn();
 
@@ -85,6 +98,30 @@ include __DIR__ . '/../../includes/header.php';
                     </div>
                     <div class="col-6">
                         <button type="submit" name="salvar_dias_alerta" value="1" class="btn btn-primary w-100">
+                            <i class="bi bi-check-lg"></i> Salvar
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title"><i class="bi bi-inkbottle me-1"></i> Alerta de Troca de Toner</h5>
+                <p class="card-text text-muted">
+                    Define com quantos dias de antecedência uma impressora com a troca de toner se
+                    aproximando (com base na duração estimada configurada em cada impressora) aparece
+                    na Central de Alertas do Dashboard.
+                </p>
+                <form method="post" class="row g-2 align-items-end">
+                    <div class="col-6">
+                        <label class="form-label">Dias de antecedência</label>
+                        <input type="number" min="0" name="dias_alerta_toner" class="form-control" value="<?= e($diasAlertaToner) ?>">
+                    </div>
+                    <div class="col-6">
+                        <button type="submit" name="salvar_dias_alerta_toner" value="1" class="btn btn-primary w-100">
                             <i class="bi bi-check-lg"></i> Salvar
                         </button>
                     </div>

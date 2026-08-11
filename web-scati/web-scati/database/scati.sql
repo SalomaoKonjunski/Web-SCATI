@@ -65,6 +65,8 @@ CREATE TABLE equipamentos (
     ip                       VARCHAR(45)  NULL,
     modelo_toner             VARCHAR(80)  NULL,
     qtd_toners               INT NULL,
+    toner_duracao_dias       INT NULL,
+    toner_ultima_troca       DATE NULL,
 
     -- Campos específicos de computadores
     ip_fixo                  VARCHAR(45)  NULL,
@@ -284,7 +286,8 @@ CREATE TABLE configuracoes (
 ) ENGINE=InnoDB;
 
 INSERT INTO configuracoes (chave, valor) VALUES
-('dias_alerta_licenca', '30');
+('dias_alerta_licenca', '30'),
+('dias_alerta_toner', '7');
 
 -- ---------------------------------------------------------------------
 -- Índices auxiliares para pesquisa (seção 13 da documentação)

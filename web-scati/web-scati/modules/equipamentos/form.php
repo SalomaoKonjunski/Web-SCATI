@@ -16,7 +16,7 @@ $equipamento = [
     'patrimonio' => '', 'tipo' => $tipoInicial, 'marca' => '', 'modelo' => '', 'numero_serie' => '',
     'hostname' => '', 'processador' => '', 'memoria_ram' => '', 'armazenamento' => '', 'sistema_operacional' => '',
     'status' => 'Disponível', 'localizacao' => '', 'usuario_responsavel' => '', 'rede_id' => '', 'acesso_usb' => '',
-    'ip' => '', 'modelo_toner' => '', 'qtd_toners' => '',
+    'ip' => '', 'modelo_toner' => '', 'qtd_toners' => '', 'toner_duracao_dias' => '',
     'ip_fixo' => '', 'placa_mae' => '', 'placa_video' => '',
     'funcao_servidor' => '', 'servidor_status' => 'Ativo', 'servidor_observacoes' => '',
     'valor_aquisicao' => '', 'data_compra' => '', 'fornecedor' => '', 'numero_nota_fiscal' => '',
@@ -136,6 +136,15 @@ if ($edicao && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cadastrar_
     redirect('/modules/equipamentos/form.php?id=' . $id . '#toner');
 }
 
+// Registra a troca física do toner: reinicia a contagem do prazo de alerta
+// a partir de hoje, independente da vinculação de itens do Estoque.
+if ($edicao && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['registrar_troca_toner'])) {
+    $pdo->prepare('UPDATE equipamentos SET toner_ultima_troca = CURDATE() WHERE id = :id')->execute(['id' => $id]);
+    registrarHistorico($id, 'Manutenção', 'Troca de toner registrada — prazo de alerta reiniciado');
+    flash('success', 'Troca de toner registrada. O prazo de alerta foi reiniciado a partir de hoje.');
+    redirect('/modules/equipamentos/form.php?id=' . $id . '#toner');
+}
+
 $erros = [];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -173,6 +182,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Normaliza campos numéricos/nulos
         $redeId = $equipamento['rede_id'] !== '' ? (int) $equipamento['rede_id'] : null;
         $qtdToners = $equipamento['qtd_toners'] !== '' ? (int) $equipamento['qtd_toners'] : null;
+        $tonerDuracaoDias = $equipamento['toner_duracao_dias'] !== '' ? (int) $equipamento['toner_duracao_dias'] : null;
         $valorAquisicao = $equipamento['valor_aquisicao'] !== '' ? (float) str_replace(',', '.', $equipamento['valor_aquisicao']) : null;
         $valorAtual = $equipamento['valor_atual'] !== '' ? (float) str_replace(',', '.', $equipamento['valor_atual']) : null;
         $dataCompra = $equipamento['data_compra'] !== '' ? $equipamento['data_compra'] : null;
@@ -196,6 +206,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'ip' => $equipamento['ip'] ?: null,
             'modelo_toner' => $equipamento['modelo_toner'] ?: null,
             'qtd_toners' => $qtdToners,
+            'toner_duracao_dias' => $tonerDuracaoDias,
             'ip_fixo' => $equipamento['ip_fixo'] ?: null,
             'placa_mae' => $equipamento['placa_mae'] ?: null,
             'placa_video' => $equipamento['placa_video'] ?: null,
@@ -253,7 +264,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         memoria_ram = :memoria_ram, armazenamento = :armazenamento, sistema_operacional = :sistema_operacional,
                         status = :status, localizacao = :localizacao, usuario_responsavel = :usuario_responsavel, rede_id = :rede_id,
                         acesso_usb = :acesso_usb,
-                        ip = :ip, modelo_toner = :modelo_toner, qtd_toners = :qtd_toners, ip_fixo = :ip_fixo, placa_mae = :placa_mae,
+                        ip = :ip, modelo_toner = :modelo_toner, qtd_toners = :qtd_toners, toner_duracao_dias = :toner_duracao_dias,
+                        ip_fixo = :ip_fixo, placa_mae = :placa_mae,
                         placa_video = :placa_video,
                         funcao_servidor = :funcao_servidor, servidor_status = :servidor_status, servidor_observacoes = :servidor_observacoes,
                         valor_aquisicao = :valor_aquisicao, data_compra = :data_compra, fornecedor = :fornecedor,
@@ -273,13 +285,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $sql = 'INSERT INTO equipamentos
                         (patrimonio, tipo, marca, modelo, numero_serie, hostname, processador, memoria_ram,
                          armazenamento, sistema_operacional, status, localizacao, usuario_responsavel, rede_id, acesso_usb,
-                         ip, modelo_toner, qtd_toners, ip_fixo, placa_mae, placa_video, funcao_servidor, servidor_status, servidor_observacoes,
+                         ip, modelo_toner, qtd_toners, toner_duracao_dias, ip_fixo, placa_mae, placa_video, funcao_servidor, servidor_status, servidor_observacoes,
                          valor_aquisicao, data_compra, fornecedor, numero_nota_fiscal,
                          garantia, valor_atual, observacoes_financeiras)
                         VALUES
                         (:patrimonio, :tipo, :marca, :modelo, :numero_serie, :hostname, :processador, :memoria_ram,
                          :armazenamento, :sistema_operacional, :status, :localizacao, :usuario_responsavel, :rede_id, :acesso_usb,
-                         :ip, :modelo_toner, :qtd_toners, :ip_fixo, :placa_mae, :placa_video, :funcao_servidor, :servidor_status, :servidor_observacoes,
+                         :ip, :modelo_toner, :qtd_toners, :toner_duracao_dias, :ip_fixo, :placa_mae, :placa_video, :funcao_servidor, :servidor_status, :servidor_observacoes,
                          :valor_aquisicao, :data_compra, :fornecedor, :numero_nota_fiscal,
                          :garantia, :valor_atual, :observacoes_financeiras)';
                 $pdo->prepare($sql)->execute($dadosParaSalvar);
@@ -298,6 +310,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $redes = $pdo->query('SELECT id, nome FROM redes ORDER BY nome')->fetchAll();
 $pageTitle = $edicao ? 'Editar Equipamento' : 'Novo Equipamento';
+
+// Status do alerta de troca de toner por tempo de uso (independente da
+// vinculação de itens do Estoque — baseado só na data da última troca
+// registrada e na duração estimada configurada para esta impressora).
+$tonerStatus = null;
+if ($edicao && !empty($registro['toner_duracao_dias']) && !empty($registro['toner_ultima_troca'])) {
+    $diasAlertaToner = (int) configGet('dias_alerta_toner', '7');
+    $proximaTroca = new DateTime($registro['toner_ultima_troca']);
+    $proximaTroca->modify('+' . (int) $registro['toner_duracao_dias'] . ' days');
+    $hoje = new DateTime('today');
+    $diasRestantes = (int) floor(($proximaTroca->getTimestamp() - $hoje->getTimestamp()) / 86400);
+    if ($diasRestantes < 0) {
+        $nivel = 'vencido';
+    } elseif ($diasRestantes <= $diasAlertaToner) {
+        $nivel = 'alerta';
+    } else {
+        $nivel = 'ok';
+    }
+    $tonerStatus = ['proxima_troca' => $proximaTroca, 'dias_restantes' => $diasRestantes, 'nivel' => $nivel];
+}
 
 // Dados de Toner, usados apenas ao editar um equipamento do tipo Impressora
 $tonersVinculados = [];
@@ -457,6 +489,11 @@ include __DIR__ . '/../../includes/header.php';
                 <label class="form-label">Qtd. de Toners Disponíveis</label>
                 <input type="number" min="0" name="qtd_toners" class="form-control" value="<?= e((string) $equipamento['qtd_toners']) ?>">
             </div>
+            <div class="col-md-4">
+                <label class="form-label">Duração estimada do toner (dias)</label>
+                <input type="number" min="1" name="toner_duracao_dias" class="form-control" placeholder="Ex: 90 (≈ 3 meses)" value="<?= e((string) $equipamento['toner_duracao_dias']) ?>">
+                <div class="form-text">Usado para calcular quando avisar sobre a próxima troca. Deixe em branco para não gerar alerta por tempo.</div>
+            </div>
         </div>
     </div>
 
@@ -594,6 +631,39 @@ include __DIR__ . '/../../includes/header.php';
     <div class="card mb-5" id="toner">
         <div class="card-header bg-white"><strong><i class="bi bi-inkbottle me-1"></i> Toner</strong></div>
         <div class="card-body">
+            <h6 class="text-muted text-uppercase small mb-3">Alerta de troca por tempo de uso</h6>
+            <div class="d-flex flex-wrap align-items-center gap-3 mb-4">
+                <div>
+                    <?php if ($tonerStatus === null): ?>
+                        <?php if (empty($registro['toner_duracao_dias'])): ?>
+                            <span class="badge bg-secondary">Não configurado</span>
+                            <span class="text-muted small ms-1">Defina a "Duração estimada do toner" acima para ativar este alerta.</span>
+                        <?php else: ?>
+                            <span class="badge bg-secondary">Aguardando 1ª troca</span>
+                            <span class="text-muted small ms-1">Duração configurada: <?= (int) $registro['toner_duracao_dias'] ?> dia(s). Registre a troca para o prazo começar a contar.</span>
+                        <?php endif; ?>
+                    <?php elseif ($tonerStatus['nivel'] === 'vencido'): ?>
+                        <span class="badge bg-danger"><i class="bi bi-exclamation-triangle"></i> Troca atrasada</span>
+                        <span class="text-muted small ms-1">Prevista para <?= $tonerStatus['proxima_troca']->format('d/m/Y') ?> (há <?= abs($tonerStatus['dias_restantes']) ?> dia(s)).</span>
+                    <?php elseif ($tonerStatus['nivel'] === 'alerta'): ?>
+                        <span class="badge bg-warning text-dark"><i class="bi bi-exclamation-triangle"></i> Troca se aproximando</span>
+                        <span class="text-muted small ms-1">Prevista para <?= $tonerStatus['proxima_troca']->format('d/m/Y') ?> (em <?= $tonerStatus['dias_restantes'] ?> dia(s)).</span>
+                    <?php else: ?>
+                        <span class="badge bg-success">Em dia</span>
+                        <span class="text-muted small ms-1">Próxima troca prevista para <?= $tonerStatus['proxima_troca']->format('d/m/Y') ?> (em <?= $tonerStatus['dias_restantes'] ?> dia(s)).</span>
+                    <?php endif; ?>
+                    <div class="text-muted small mt-1">
+                        Última troca registrada: <?= !empty($registro['toner_ultima_troca']) ? (new DateTime($registro['toner_ultima_troca']))->format('d/m/Y') : 'nunca' ?>
+                    </div>
+                </div>
+                <form method="post" class="ms-auto">
+                    <button type="submit" name="registrar_troca_toner" value="1" class="btn btn-outline-primary btn-sm js-confirm-delete"
+                            data-confirm-msg="Registrar a troca do toner desta impressora hoje? O prazo de alerta será reiniciado a partir de hoje.">
+                        <i class="bi bi-arrow-repeat"></i> Registrar Troca de Toner
+                    </button>
+                </form>
+            </div>
+
             <h6 class="text-muted text-uppercase small mb-3">Toner instalado nesta impressora</h6>
             <?php if (empty($tonersVinculados)): ?>
                 <p class="text-muted">Nenhum toner vinculado a esta impressora.</p>

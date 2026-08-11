@@ -82,6 +82,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['vincular_item'])) {
     redirect('/modules/equipamentos/view.php?id=' . $id . '#itens');
 }
 
+// Registra a troca física do toner: reinicia a contagem do prazo de alerta
+// a partir de hoje, independente da vinculação de itens do Estoque.
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['registrar_troca_toner'])) {
+    $pdo->prepare('UPDATE equipamentos SET toner_ultima_troca = CURDATE() WHERE id = :id')->execute(['id' => $id]);
+    registrarHistorico($id, 'Manutenção', 'Troca de toner registrada — prazo de alerta reiniciado');
+    flash('success', 'Troca de toner registrada. O prazo de alerta foi reiniciado a partir de hoje.');
+    redirect('/modules/equipamentos/view.php?id=' . $id . '#toner');
+}
+
 // Trata o cadastro (ou reaproveitamento) de um item de estoque direto nesta
 // página, já vinculando-o automaticamente a este equipamento (POST nesta mesma página)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cadastrar_item_estoque'])) {
@@ -235,6 +244,26 @@ $itensDisponiveis = $pdo->query(
      FROM estoque es JOIN categorias_estoque c ON c.id = es.categoria_id
      WHERE es.quantidade > 0 ORDER BY c.nome, es.nome'
 )->fetchAll();
+
+// Status do alerta de troca de toner por tempo de uso (independente da
+// vinculação de itens do Estoque — baseado só na data da última troca
+// registrada e na duração estimada configurada para esta impressora).
+$tonerStatus = null;
+if (!empty($eq['toner_duracao_dias']) && !empty($eq['toner_ultima_troca'])) {
+    $diasAlertaToner = (int) configGet('dias_alerta_toner', '7');
+    $proximaTroca = new DateTime($eq['toner_ultima_troca']);
+    $proximaTroca->modify('+' . (int) $eq['toner_duracao_dias'] . ' days');
+    $hoje = new DateTime('today');
+    $diasRestantes = (int) floor(($proximaTroca->getTimestamp() - $hoje->getTimestamp()) / 86400);
+    if ($diasRestantes < 0) {
+        $nivel = 'vencido';
+    } elseif ($diasRestantes <= $diasAlertaToner) {
+        $nivel = 'alerta';
+    } else {
+        $nivel = 'ok';
+    }
+    $tonerStatus = ['proxima_troca' => $proximaTroca, 'dias_restantes' => $diasRestantes, 'nivel' => $nivel];
+}
 
 // Toners vinculados/disponíveis (subconjunto dos itens acima, restrito à categoria "Toner")
 $tonersVinculados = array_values(array_filter($itensVinculados, fn($iv) => $iv['categoria_nome'] === 'Toner'));
@@ -594,6 +623,39 @@ include __DIR__ . '/../../includes/header.php';
     <?php if (ehImpressora($eq['tipo'])): ?>
     <!-- Toner -->
     <div class="tab-pane fade" id="toner">
+        <h6 class="text-muted text-uppercase small mb-3">Alerta de troca por tempo de uso</h6>
+        <div class="d-flex flex-wrap align-items-center gap-3 mb-4">
+            <div>
+                <?php if ($tonerStatus === null): ?>
+                    <?php if (empty($eq['toner_duracao_dias'])): ?>
+                        <span class="badge bg-secondary">Não configurado</span>
+                        <span class="text-muted small ms-1">Defina a "Duração estimada do toner" na edição do equipamento para ativar este alerta.</span>
+                    <?php else: ?>
+                        <span class="badge bg-secondary">Aguardando 1ª troca</span>
+                        <span class="text-muted small ms-1">Duração configurada: <?= (int) $eq['toner_duracao_dias'] ?> dia(s). Registre a troca para o prazo começar a contar.</span>
+                    <?php endif; ?>
+                <?php elseif ($tonerStatus['nivel'] === 'vencido'): ?>
+                    <span class="badge bg-danger"><i class="bi bi-exclamation-triangle"></i> Troca atrasada</span>
+                    <span class="text-muted small ms-1">Prevista para <?= $tonerStatus['proxima_troca']->format('d/m/Y') ?> (há <?= abs($tonerStatus['dias_restantes']) ?> dia(s)).</span>
+                <?php elseif ($tonerStatus['nivel'] === 'alerta'): ?>
+                    <span class="badge bg-warning text-dark"><i class="bi bi-exclamation-triangle"></i> Troca se aproximando</span>
+                    <span class="text-muted small ms-1">Prevista para <?= $tonerStatus['proxima_troca']->format('d/m/Y') ?> (em <?= $tonerStatus['dias_restantes'] ?> dia(s)).</span>
+                <?php else: ?>
+                    <span class="badge bg-success">Em dia</span>
+                    <span class="text-muted small ms-1">Próxima troca prevista para <?= $tonerStatus['proxima_troca']->format('d/m/Y') ?> (em <?= $tonerStatus['dias_restantes'] ?> dia(s)).</span>
+                <?php endif; ?>
+                <div class="text-muted small mt-1">
+                    Última troca registrada: <?= !empty($eq['toner_ultima_troca']) ? (new DateTime($eq['toner_ultima_troca']))->format('d/m/Y') : 'nunca' ?>
+                </div>
+            </div>
+            <form method="post" class="ms-auto">
+                <button type="submit" name="registrar_troca_toner" value="1" class="btn btn-outline-primary btn-sm js-confirm-delete"
+                        data-confirm-msg="Registrar a troca do toner desta impressora hoje? O prazo de alerta será reiniciado a partir de hoje.">
+                    <i class="bi bi-arrow-repeat"></i> Registrar Troca de Toner
+                </button>
+            </form>
+        </div>
+
         <h6 class="text-muted text-uppercase small mb-3">Toner instalado nesta impressora</h6>
         <?php if (empty($tonersVinculados)): ?>
             <p class="text-muted">Nenhum toner vinculado a esta impressora.</p>

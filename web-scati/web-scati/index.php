@@ -72,7 +72,25 @@ $impressorasSemToner = $pdo->query(
      ORDER BY e.patrimonio"
 )->fetchAll();
 
-$totalAlertas = count($licencasVencendo) + count($itensEstoqueBaixo) + count($impressorasSemToner);
+// Impressoras com troca de toner vencida ou se aproximando do prazo estimado
+// (dias configuráveis em Configurações), com base na duração estimada e na
+// data da última troca registrada em cada impressora.
+$diasAlertaToner = (int) configGet('dias_alerta_toner', '7');
+$stmtTonerVencendo = $pdo->prepare(
+    "SELECT id, patrimonio, marca, modelo, toner_ultima_troca, toner_duracao_dias,
+            DATE_ADD(toner_ultima_troca, INTERVAL toner_duracao_dias DAY) AS proxima_troca
+     FROM equipamentos
+     WHERE tipo = 'Impressora'
+       AND toner_duracao_dias IS NOT NULL
+       AND toner_ultima_troca IS NOT NULL
+       AND DATE_ADD(toner_ultima_troca, INTERVAL toner_duracao_dias DAY) <= DATE_ADD(CURDATE(), INTERVAL :dias DAY)
+     ORDER BY proxima_troca ASC"
+);
+$stmtTonerVencendo->bindValue('dias', $diasAlertaToner, PDO::PARAM_INT);
+$stmtTonerVencendo->execute();
+$impressorasTonerVencendo = $stmtTonerVencendo->fetchAll();
+
+$totalAlertas = count($licencasVencendo) + count($itensEstoqueBaixo) + count($impressorasSemToner) + count($impressorasTonerVencendo);
 
 // --- Itens de estoque por categoria (gráfico) -----------------------------
 $itensPorCategoriaRaw = $pdo->query(
@@ -179,6 +197,21 @@ include __DIR__ . '/includes/header.php';
                     <a href="<?= BASE_URL ?>/modules/equipamentos/view.php?id=<?= (int) $imp['id'] ?>#toner" class="list-group-item list-group-item-action">
                         <span class="badge bg-warning text-dark me-2">Impressora</span>
                         <?= e($imp['patrimonio']) ?><?= $marcaModeloImp ? ' — ' . e($marcaModeloImp) : '' ?> sem toner vinculado
+                    </a>
+                <?php endforeach; ?>
+
+                <?php foreach ($impressorasTonerVencendo as $imp): ?>
+                    <?php
+                        $marcaModeloTv = trim(($imp['marca'] ?? '') . ' ' . ($imp['modelo'] ?? ''));
+                        $diasParaTroca = (int) floor((strtotime($imp['proxima_troca']) - strtotime('today')) / 86400);
+                        $tocaVencida = $diasParaTroca < 0;
+                    ?>
+                    <a href="<?= BASE_URL ?>/modules/equipamentos/view.php?id=<?= (int) $imp['id'] ?>#toner" class="list-group-item list-group-item-action">
+                        <span class="badge <?= $tocaVencida ? 'bg-danger' : 'bg-warning text-dark' ?> me-2">Toner</span>
+                        <?= e($imp['patrimonio']) ?><?= $marcaModeloTv ? ' — ' . e($marcaModeloTv) : '' ?>
+                        <?= $tocaVencida
+                            ? 'troca de toner atrasada desde ' . formatDate($imp['proxima_troca'])
+                            : 'troca de toner prevista para ' . formatDate($imp['proxima_troca']) . ' (' . $diasParaTroca . ' dia(s))' ?>
                     </a>
                 <?php endforeach; ?>
             </div>
