@@ -358,6 +358,7 @@ include __DIR__ . '/../../includes/header.php';
                     <tr><th>Hostname</th><td><?= e($eq['hostname']) ?: '-' ?></td></tr>
                 </table>
 
+                <?php if (!ehImpressora($eq['tipo'])): ?>
                 <h6 class="text-muted text-uppercase small mb-3 mt-4">Hardware</h6>
                 <table class="table table-sm">
                     <tr><th style="width:40%">Processador</th><td><?= e($eq['processador']) ?: '-' ?></td></tr>
@@ -369,6 +370,7 @@ include __DIR__ . '/../../includes/header.php';
                     <tr><th>Placa de Vídeo</th><td><?= e($eq['placa_video']) ?: '-' ?></td></tr>
                     <?php endif; ?>
                 </table>
+                <?php endif; ?>
 
                 <?php if (ehImpressora($eq['tipo'])): ?>
                 <h6 class="text-muted text-uppercase small mb-3 mt-4">Dados da Impressora</h6>

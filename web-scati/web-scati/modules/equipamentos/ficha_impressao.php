@@ -88,6 +88,7 @@ if (!$eq) {
                 <div class="ficha-campo"><strong>Número de Série:</strong> <?= e($eq['numero_serie']) ?: '-' ?></div>
                 <div class="ficha-campo"><strong>Hostname:</strong> <?= e($eq['hostname']) ?: '-' ?></div>
 
+                <?php if (!ehImpressora($eq['tipo'])): ?>
                 <h6 class="text-uppercase small mt-4">Hardware</h6>
                 <div class="ficha-campo"><strong>Processador:</strong> <?= e($eq['processador']) ?: '-' ?></div>
                 <div class="ficha-campo"><strong>Memória RAM:</strong> <?= e($eq['memoria_ram']) ?: '-' ?></div>
@@ -96,6 +97,7 @@ if (!$eq) {
                 <?php if (ehComputador($eq['tipo'])): ?>
                     <div class="ficha-campo"><strong>Placa Mãe:</strong> <?= e($eq['placa_mae']) ?: '-' ?></div>
                     <div class="ficha-campo"><strong>Placa de Vídeo:</strong> <?= e($eq['placa_video']) ?: '-' ?></div>
+                <?php endif; ?>
                 <?php endif; ?>
 
                 <?php if (ehImpressora($eq['tipo'])): ?>
