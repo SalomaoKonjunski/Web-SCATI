@@ -5,6 +5,8 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/auth.php';
+
 /**
  * Redireciona para outra URL relativa à BASE_URL e encerra o script.
  */
@@ -128,13 +130,14 @@ function statusBadgeClass(string $status): string
 function registrarHistorico(int $equipamentoId, string $evento, string $descricao): void
 {
     $stmt = db()->prepare(
-        'INSERT INTO historico_equipamentos (equipamento_id, evento, descricao)
-         VALUES (:equipamento_id, :evento, :descricao)'
+        'INSERT INTO historico_equipamentos (equipamento_id, evento, descricao, usuario_nome)
+         VALUES (:equipamento_id, :evento, :descricao, :usuario_nome)'
     );
     $stmt->execute([
         'equipamento_id' => $equipamentoId,
         'evento'         => $evento,
         'descricao'      => $descricao,
+        'usuario_nome'   => usuarioLogado()['usuario'] ?? null,
     ]);
 }
 
@@ -277,8 +280,8 @@ function iconeAnexo(string $extensao): string
 function registrarHistoricoEstoque(?int $estoqueId, string $itemNome, ?string $categoriaNome, string $evento, ?string $descricao = null): void
 {
     $stmt = db()->prepare(
-        'INSERT INTO historico_estoque (estoque_id, item_nome, categoria_nome, evento, descricao)
-         VALUES (:estoque_id, :item_nome, :categoria_nome, :evento, :descricao)'
+        'INSERT INTO historico_estoque (estoque_id, item_nome, categoria_nome, evento, descricao, usuario_nome)
+         VALUES (:estoque_id, :item_nome, :categoria_nome, :evento, :descricao, :usuario_nome)'
     );
     $stmt->execute([
         'estoque_id' => $estoqueId,
@@ -286,5 +289,6 @@ function registrarHistoricoEstoque(?int $estoqueId, string $itemNome, ?string $c
         'categoria_nome' => $categoriaNome,
         'evento' => $evento,
         'descricao' => $descricao,
+        'usuario_nome' => usuarioLogado()['usuario'] ?? null,
     ]);
 }

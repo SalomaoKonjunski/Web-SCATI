@@ -125,13 +125,13 @@ if ($relatorio !== '' && isset($titulosRelatorios[$relatorio])) {
             break;
 
         case 'historico_alteracoes':
-            $colunas = ['Data/Hora', 'Origem', 'Patrimônio/Item', 'Categoria', 'Evento', 'Descrição'];
+            $colunas = ['Data/Hora', 'Origem', 'Patrimônio/Item', 'Categoria', 'Evento', 'Descrição', 'Usuário'];
 
             $sql = "SELECT * FROM (
-                        SELECT h.data_hora, 'Equipamento' AS origem, COALESCE(e.patrimonio, 'Indefinido') AS identificacao, NULL AS categoria, h.evento, h.descricao
+                        SELECT h.data_hora, 'Equipamento' AS origem, COALESCE(e.patrimonio, 'Indefinido') AS identificacao, NULL AS categoria, h.evento, h.descricao, h.usuario_nome
                         FROM historico_equipamentos h JOIN equipamentos e ON e.id = h.equipamento_id
                         UNION ALL
-                        SELECT he.data_hora, 'Item de Estoque' AS origem, he.item_nome AS identificacao, he.categoria_nome AS categoria, he.evento, he.descricao
+                        SELECT he.data_hora, 'Item de Estoque' AS origem, he.item_nome AS identificacao, he.categoria_nome AS categoria, he.evento, he.descricao, he.usuario_nome
                         FROM historico_estoque he
                     ) AS combinado WHERE 1=1";
             $params = [];
@@ -161,7 +161,7 @@ if ($relatorio !== '' && isset($titulosRelatorios[$relatorio])) {
             $stmt = $pdo->prepare($sql);
             $stmt->execute($params);
             foreach ($stmt->fetchAll() as $r) {
-                $linhas[] = [formatDateTime($r['data_hora']), $r['origem'], $r['identificacao'], $r['categoria'] ?: '-', $r['evento'], $r['descricao']];
+                $linhas[] = [formatDateTime($r['data_hora']), $r['origem'], $r['identificacao'], $r['categoria'] ?: '-', $r['evento'], $r['descricao'], $r['usuario_nome'] ?: '-'];
             }
             break;
     }

@@ -184,6 +184,7 @@ CREATE TABLE historico_equipamentos (
     data_hora       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     evento          VARCHAR(60) NOT NULL,
     descricao       VARCHAR(255) NOT NULL,
+    usuario_nome    VARCHAR(50) NULL,
 
     CONSTRAINT fk_historico_equipamento
         FOREIGN KEY (equipamento_id) REFERENCES equipamentos(id) ON DELETE CASCADE
@@ -203,6 +204,7 @@ CREATE TABLE historico_estoque (
     evento          VARCHAR(60) NOT NULL,
     descricao       VARCHAR(255) NULL,
     data_hora       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    usuario_nome    VARCHAR(50) NULL,
 
     CONSTRAINT fk_historico_estoque_item
         FOREIGN KEY (estoque_id) REFERENCES estoque(id) ON DELETE SET NULL

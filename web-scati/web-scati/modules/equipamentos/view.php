@@ -43,14 +43,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['registrar_manutencao'
     if (in_array($tipoManutencao, tiposManutencao(), true) && $dataManutencao !== '') {
         $descricaoFinal = $descricaoManutencao !== '' ? $descricaoManutencao : $tipoManutencao;
         $stmtManut = $pdo->prepare(
-            'INSERT INTO historico_equipamentos (equipamento_id, data_hora, evento, descricao)
-             VALUES (:id, :data_hora, :evento, :descricao)'
+            'INSERT INTO historico_equipamentos (equipamento_id, data_hora, evento, descricao, usuario_nome)
+             VALUES (:id, :data_hora, :evento, :descricao, :usuario_nome)'
         );
         $stmtManut->execute([
             'id' => $id,
             'data_hora' => $dataManutencao . ' ' . date('H:i:s'),
             'evento' => $tipoManutencao,
             'descricao' => $descricaoFinal,
+            'usuario_nome' => usuarioLogado()['usuario'] ?? null,
         ]);
         flash('success', 'Manutenção registrada no histórico.');
     } else {
@@ -850,13 +851,14 @@ include __DIR__ . '/../../includes/header.php';
             <p class="text-muted">Nenhum evento registrado.</p>
         <?php else: ?>
             <table class="table table-sm table-hover">
-                <thead class="table-light"><tr><th style="width:160px">Data / Hora</th><th style="width:160px">Evento</th><th>Descrição</th></tr></thead>
+                <thead class="table-light"><tr><th style="width:160px">Data / Hora</th><th style="width:160px">Evento</th><th>Descrição</th><th style="width:140px">Usuário</th></tr></thead>
                 <tbody>
                 <?php foreach ($historico as $h): ?>
                     <tr>
                         <td><?= formatDateTime($h['data_hora']) ?></td>
                         <td><span class="badge bg-light text-dark border"><?= e($h['evento']) ?></span></td>
                         <td><?= e($h['descricao']) ?></td>
+                        <td><?= e($h['usuario_nome']) ?: '<span class="text-muted">-</span>' ?></td>
                     </tr>
                 <?php endforeach; ?>
                 </tbody>
