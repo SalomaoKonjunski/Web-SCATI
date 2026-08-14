@@ -113,6 +113,14 @@ Funcional (v1.0).
    mysql -u root -p scati < database/migration_usuarios.sql
    ```
 
+   Se o banco já existia antes do **registro de usuário no histórico**
+   (antes da coluna `usuario_nome` nas tabelas `historico_equipamentos` e
+   `historico_estoque`), rode também esta migração incremental **uma
+   única vez**:
+   ```bash
+   mysql -u root -p scati < database/migration_historico_usuario.sql
+   ```
+
    > Importante: ao importar qualquer um dos arquivos `.sql` deste projeto,
    > garanta que o cliente MySQL use UTF-8 (ex.: `mysql --default-character-set=utf8mb4 -u root -p < arquivo.sql`),
    > caso contrário os valores acentuados dos campos `ENUM` (como "Disponível")
@@ -314,7 +322,10 @@ web-scati/
   item passa por uma tela de confirmação que exige um motivo por escrito
   antes de concluir — a exclusão só acontece depois do motivo preenchido,
   e fica registrada no histórico (inclusive no histórico do equipamento,
-  se o item estava vinculado a algum).
+  se o item estava vinculado a algum). Todo evento do histórico (de
+  equipamentos e de estoque) também grava **qual usuário** o realizou —
+  a coluna "Usuário" aparece na aba Histórico da ficha do equipamento e
+  no relatório "Histórico de alterações".
 - **Redes**: CRUD simples, com contagem de equipamentos vinculados.
 - **Licenças**: CRUD com a regra `1 equipamento : N licenças` (uma licença
   pertence a no máximo um equipamento) e tela dedicada de **transferência**
