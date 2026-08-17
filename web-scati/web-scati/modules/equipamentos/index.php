@@ -21,10 +21,10 @@ $sql = "SELECT e.*, r.nome AS rede_nome
 $params = [];
 
 if ($busca !== '') {
-    // Pesquisa por patrimônio, hostname, número de série, marca, modelo ou responsável (seção 13)
-    $sql .= " AND (e.patrimonio LIKE :busca1 OR e.hostname LIKE :busca2
-              OR e.numero_serie LIKE :busca3 OR e.marca LIKE :busca4
-              OR e.modelo LIKE :busca5 OR e.usuario_responsavel LIKE :busca6)";
+    // Pesquisa por nome, patrimônio, hostname, número de série, marca, modelo ou responsável (seção 13)
+    $sql .= " AND (e.nome LIKE :busca1 OR e.patrimonio LIKE :busca2 OR e.hostname LIKE :busca3
+              OR e.numero_serie LIKE :busca4 OR e.marca LIKE :busca5
+              OR e.modelo LIKE :busca6 OR e.usuario_responsavel LIKE :busca7)";
     $curingaBusca = '%' . $busca . '%';
     $params['busca1'] = $curingaBusca;
     $params['busca2'] = $curingaBusca;
@@ -32,6 +32,7 @@ if ($busca !== '') {
     $params['busca4'] = $curingaBusca;
     $params['busca5'] = $curingaBusca;
     $params['busca6'] = $curingaBusca;
+    $params['busca7'] = $curingaBusca;
 }
 if ($filtroTipo !== '') {
     $sql .= " AND e.tipo = :tipo";
@@ -46,7 +47,7 @@ if ($filtroRede !== '') {
     $params['rede_id'] = $filtroRede;
 }
 
-$sql .= " ORDER BY e.patrimonio ASC";
+$sql .= " ORDER BY e.nome ASC, e.patrimonio ASC";
 
 $stmt = $pdo->prepare($sql);
 $stmt->execute($params);
@@ -70,7 +71,7 @@ include __DIR__ . '/../../includes/header.php';
         <form method="get" class="row g-2 align-items-end">
             <div class="col-md-4">
                 <label class="form-label small text-muted mb-1">Pesquisar</label>
-                <input type="text" name="busca" class="form-control" placeholder="Patrimônio, hostname, série, marca, modelo, responsável..."
+                <input type="text" name="busca" class="form-control" placeholder="Nome, patrimônio, hostname, série, marca, modelo, responsável..."
                        value="<?= e($busca) ?>">
             </div>
             <div class="col-md-2">
@@ -113,6 +114,7 @@ include __DIR__ . '/../../includes/header.php';
         <table class="table table-hover align-middle mb-0">
             <thead class="table-light">
                 <tr>
+                    <th>Nome</th>
                     <th>Patrimônio</th>
                     <th>Tipo</th>
                     <th>Marca / Modelo</th>
@@ -125,13 +127,20 @@ include __DIR__ . '/../../includes/header.php';
             </thead>
             <tbody>
                 <?php if (empty($equipamentos)): ?>
-                    <tr><td colspan="8" class="text-center text-muted py-4">Nenhum equipamento encontrado.</td></tr>
+                    <tr><td colspan="9" class="text-center text-muted py-4">Nenhum equipamento encontrado.</td></tr>
                 <?php endif; ?>
                 <?php foreach ($equipamentos as $eq): ?>
                     <tr data-href="view.php?id=<?= (int) $eq['id'] ?>">
                         <td>
+                            <?php if ($eq['nome']): ?>
+                                <strong><?= e($eq['nome']) ?></strong>
+                            <?php else: ?>
+                                <span class="text-muted fst-italic">Sem nome</span>
+                            <?php endif; ?>
+                        </td>
+                        <td>
                             <?php if ($eq['patrimonio']): ?>
-                                <strong><?= e($eq['patrimonio']) ?></strong>
+                                <?= e($eq['patrimonio']) ?>
                             <?php else: ?>
                                 <span class="text-muted fst-italic">Indefinido</span>
                             <?php endif; ?>
@@ -150,7 +159,7 @@ include __DIR__ . '/../../includes/header.php';
                                 <i class="bi bi-pencil"></i>
                             </a>
                             <a href="delete.php?id=<?= (int) $eq['id'] ?>" class="btn btn-sm btn-outline-danger js-confirm-delete"
-                               data-confirm-msg="Excluir o equipamento <?= e(patrimonioOuIndefinido($eq['patrimonio'])) ?>? Esta ação não pode ser desfeita." title="Excluir">
+                               data-confirm-msg="Excluir o equipamento <?= e(nomeEquipamento($eq['nome'], $eq['patrimonio'])) ?>? Esta ação não pode ser desfeita." title="Excluir">
                                 <i class="bi bi-trash"></i>
                             </a>
                         </td>

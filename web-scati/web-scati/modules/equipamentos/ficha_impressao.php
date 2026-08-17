@@ -26,7 +26,7 @@ if (!$eq) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ficha de Impressão · <?= e(patrimonioOuIndefinido($eq['patrimonio'])) ?> · Web SCATI</title>
+    <title>Ficha de Impressão · <?= e(nomeEquipamento($eq['nome'], $eq['patrimonio'])) ?> · Web SCATI</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
     <style>
@@ -70,7 +70,7 @@ if (!$eq) {
     <div class="ficha-header d-flex justify-content-between align-items-center">
         <div>
             <div class="small text-uppercase" style="opacity:.75;">Web SCATI · Ficha do Equipamento</div>
-            <h2 class="mb-0"><?= e(patrimonioOuIndefinido($eq['patrimonio'])) ?></h2>
+            <h2 class="mb-0"><?= e(nomeEquipamento($eq['nome'], $eq['patrimonio'])) ?></h2>
         </div>
         <span class="badge <?= statusBadgeClass($eq['status']) ?> fs-6"><?= e($eq['status']) ?></span>
     </div>
@@ -83,6 +83,7 @@ if (!$eq) {
         <div class="row">
             <div class="col-md-6 ficha-secao">
                 <h6 class="text-uppercase small">Identificação</h6>
+                <div class="ficha-campo"><strong>Nome:</strong> <?= e(nomeEquipamento($eq['nome'], $eq['patrimonio'])) ?></div>
                 <div class="ficha-campo"><strong>Patrimônio:</strong> <?= e(patrimonioOuIndefinido($eq['patrimonio'])) ?></div>
                 <div class="ficha-campo"><strong>Tipo:</strong> <?= e($eq['tipo']) ?></div>
                 <div class="ficha-campo"><strong>Marca:</strong> <?= e($eq['marca']) ?: '-' ?></div>

@@ -37,7 +37,7 @@ $temInfoFinanceira = $valorTotalPatrimonio !== null;
 
 // --- Últimos equipamentos cadastrados -----------------------------------
 $ultimosEquipamentos = $pdo->query(
-    "SELECT id, patrimonio, tipo, marca, modelo, status, criado_em
+    "SELECT id, nome, patrimonio, tipo, marca, modelo, status, criado_em
      FROM equipamentos ORDER BY criado_em DESC LIMIT 5"
 )->fetchAll();
 
@@ -420,6 +420,7 @@ include __DIR__ . '/includes/header.php';
         <table class="table table-hover align-middle mb-0">
             <thead class="table-light">
                 <tr>
+                    <th>Nome</th>
                     <th>Patrimônio</th>
                     <th>Tipo</th>
                     <th>Marca / Modelo</th>
@@ -429,10 +430,17 @@ include __DIR__ . '/includes/header.php';
             </thead>
             <tbody>
                 <?php if (empty($ultimosEquipamentos)): ?>
-                    <tr><td colspan="5" class="text-center text-muted py-3">Nenhum equipamento cadastrado ainda.</td></tr>
+                    <tr><td colspan="6" class="text-center text-muted py-3">Nenhum equipamento cadastrado ainda.</td></tr>
                 <?php endif; ?>
                 <?php foreach ($ultimosEquipamentos as $eq): ?>
                     <tr data-href="<?= BASE_URL ?>/modules/equipamentos/view.php?id=<?= (int) $eq['id'] ?>">
+                        <td>
+                            <?php if ($eq['nome']): ?>
+                                <strong><?= e($eq['nome']) ?></strong>
+                            <?php else: ?>
+                                <span class="text-muted fst-italic">Sem nome</span>
+                            <?php endif; ?>
+                        </td>
                         <td>
                             <?php if ($eq['patrimonio']): ?>
                                 <?= e($eq['patrimonio']) ?>

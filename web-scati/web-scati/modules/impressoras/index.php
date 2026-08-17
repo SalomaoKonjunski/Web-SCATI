@@ -22,19 +22,20 @@ $sql = "SELECT e.*,
 $params = [];
 
 if ($busca !== '') {
-    $sql .= " AND (e.patrimonio LIKE :busca1 OR e.marca LIKE :busca2 OR e.modelo LIKE :busca3 OR e.ip LIKE :busca4)";
+    $sql .= " AND (e.nome LIKE :busca1 OR e.patrimonio LIKE :busca2 OR e.marca LIKE :busca3 OR e.modelo LIKE :busca4 OR e.ip LIKE :busca5)";
     $curingaBusca = '%' . $busca . '%';
     $params['busca1'] = $curingaBusca;
     $params['busca2'] = $curingaBusca;
     $params['busca3'] = $curingaBusca;
     $params['busca4'] = $curingaBusca;
+    $params['busca5'] = $curingaBusca;
 }
 if ($filtroStatus !== '') {
     $sql .= " AND e.status = :status";
     $params['status'] = $filtroStatus;
 }
 
-$sql .= " GROUP BY e.id ORDER BY e.patrimonio ASC";
+$sql .= " GROUP BY e.id ORDER BY e.nome ASC, e.patrimonio ASC";
 $stmt = $pdo->prepare($sql);
 $stmt->execute($params);
 $impressoras = $stmt->fetchAll();
@@ -52,7 +53,7 @@ include __DIR__ . '/../../includes/header.php';
         <form method="get" class="row g-2 align-items-end">
             <div class="col-md-6">
                 <label class="form-label small text-muted mb-1">Pesquisar</label>
-                <input type="text" name="busca" class="form-control" placeholder="Patrimônio, marca, modelo ou IP..." value="<?= e($busca) ?>">
+                <input type="text" name="busca" class="form-control" placeholder="Nome, patrimônio, marca, modelo ou IP..." value="<?= e($busca) ?>">
             </div>
             <div class="col-md-3">
                 <label class="form-label small text-muted mb-1">Status</label>
@@ -76,6 +77,7 @@ include __DIR__ . '/../../includes/header.php';
         <table class="table table-hover align-middle mb-0">
             <thead class="table-light">
                 <tr>
+                    <th>Nome</th>
                     <th>Patrimônio</th>
                     <th>Marca / Modelo</th>
                     <th>IP</th>
@@ -87,10 +89,17 @@ include __DIR__ . '/../../includes/header.php';
             </thead>
             <tbody>
                 <?php if (empty($impressoras)): ?>
-                    <tr><td colspan="7" class="text-center text-muted py-4">Nenhuma impressora cadastrada.</td></tr>
+                    <tr><td colspan="8" class="text-center text-muted py-4">Nenhuma impressora cadastrada.</td></tr>
                 <?php endif; ?>
                 <?php foreach ($impressoras as $imp): ?>
                     <tr data-href="../equipamentos/view.php?id=<?= (int) $imp['id'] ?>">
+                        <td>
+                            <?php if ($imp['nome']): ?>
+                                <strong><?= e($imp['nome']) ?></strong>
+                            <?php else: ?>
+                                <span class="text-muted fst-italic">Sem nome</span>
+                            <?php endif; ?>
+                        </td>
                         <td>
                             <?php if ($imp['patrimonio']): ?>
                                 <?= e($imp['patrimonio']) ?>
@@ -113,7 +122,7 @@ include __DIR__ . '/../../includes/header.php';
                             <a href="../equipamentos/view.php?id=<?= (int) $imp['id'] ?>" class="btn btn-sm btn-outline-secondary"><i class="bi bi-eye"></i></a>
                             <a href="../equipamentos/form.php?id=<?= (int) $imp['id'] ?>" class="btn btn-sm btn-outline-primary"><i class="bi bi-pencil"></i></a>
                             <a href="../equipamentos/delete.php?id=<?= (int) $imp['id'] ?>" class="btn btn-sm btn-outline-danger js-confirm-delete"
-                               data-confirm-msg="Excluir a impressora &quot;<?= e(patrimonioOuIndefinido($imp['patrimonio'])) ?>&quot;?"><i class="bi bi-trash"></i></a>
+                               data-confirm-msg="Excluir a impressora &quot;<?= e(nomeEquipamento($imp['nome'], $imp['patrimonio'])) ?>&quot;?"><i class="bi bi-trash"></i></a>
                         </td>
                     </tr>
                 <?php endforeach; ?>

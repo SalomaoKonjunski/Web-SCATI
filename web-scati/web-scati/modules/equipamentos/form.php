@@ -15,7 +15,7 @@ $tipoPreSelecionado = $_GET['tipo'] ?? '';
 $tipoInicial = in_array($tipoPreSelecionado, tiposEquipamento(), true) ? $tipoPreSelecionado : 'Computador';
 
 $equipamento = [
-    'patrimonio' => '', 'tipo' => $tipoInicial, 'marca' => '', 'modelo' => '', 'numero_serie' => '',
+    'nome' => '', 'patrimonio' => '', 'tipo' => $tipoInicial, 'marca' => '', 'modelo' => '', 'numero_serie' => '',
     'hostname' => '', 'processador' => '', 'memoria_ram' => '', 'armazenamento' => '', 'sistema_operacional' => '',
     'status' => 'Disponível', 'localizacao' => '', 'usuario_responsavel' => '', 'rede_id' => '', 'acesso_usb' => '',
     'ip' => '', 'modelo_toner' => '', 'qtd_toners' => '', 'toner_duracao_dias' => '',
@@ -156,6 +156,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     // Validações essenciais
+    if ($equipamento['nome'] === '') {
+        $erros[] = 'O campo Nome do Equipamento é obrigatório.';
+    }
     if (!in_array($equipamento['tipo'], tiposEquipamento(), true)) {
         $erros[] = 'Tipo de equipamento inválido.';
     }
@@ -187,6 +190,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $dataCompra = $equipamento['data_compra'] !== '' ? $equipamento['data_compra'] : null;
 
         $dadosParaSalvar = [
+            'nome' => $equipamento['nome'],
             'patrimonio' => $equipamento['patrimonio'] ?: null,
             'tipo' => $equipamento['tipo'],
             'marca' => $equipamento['marca'] ?: null,
@@ -225,6 +229,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($edicao) {
                 // Monta o histórico comparando valores antigos x novos antes de salvar
                 $mudancas = [];
+                if (($registro['nome'] ?? '') !== $dadosParaSalvar['nome']) {
+                    $de = $registro['nome'] ?: '(vazio)';
+                    $para = $dadosParaSalvar['nome'] ?: '(vazio)';
+                    $mudancas[] = ['Alteração', "Nome alterado de \"$de\" para \"$para\""];
+                }
                 if ($registro['status'] !== $dadosParaSalvar['status']) {
                     $mudancas[] = ['Alteração', "Status alterado de \"{$registro['status']}\" para \"{$dadosParaSalvar['status']}\""];
                 }
@@ -258,7 +267,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
 
                 $sql = 'UPDATE equipamentos SET
-                        patrimonio = :patrimonio, tipo = :tipo, marca = :marca, modelo = :modelo,
+                        nome = :nome, patrimonio = :patrimonio, tipo = :tipo, marca = :marca, modelo = :modelo,
                         numero_serie = :numero_serie, hostname = :hostname, processador = :processador,
                         memoria_ram = :memoria_ram, armazenamento = :armazenamento, sistema_operacional = :sistema_operacional,
                         status = :status, localizacao = :localizacao, usuario_responsavel = :usuario_responsavel, rede_id = :rede_id,
@@ -282,13 +291,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 redirect('/modules/equipamentos/view.php?id=' . $id);
             } else {
                 $sql = 'INSERT INTO equipamentos
-                        (patrimonio, tipo, marca, modelo, numero_serie, hostname, processador, memoria_ram,
+                        (nome, patrimonio, tipo, marca, modelo, numero_serie, hostname, processador, memoria_ram,
                          armazenamento, sistema_operacional, status, localizacao, usuario_responsavel, rede_id, acesso_usb,
                          ip, modelo_toner, qtd_toners, toner_duracao_dias, ip_fixo, placa_mae, placa_video, funcao_servidor, servidor_status, servidor_observacoes,
                          valor_aquisicao, data_compra, fornecedor, numero_nota_fiscal,
                          garantia, valor_atual, observacoes_financeiras)
                         VALUES
-                        (:patrimonio, :tipo, :marca, :modelo, :numero_serie, :hostname, :processador, :memoria_ram,
+                        (:nome, :patrimonio, :tipo, :marca, :modelo, :numero_serie, :hostname, :processador, :memoria_ram,
                          :armazenamento, :sistema_operacional, :status, :localizacao, :usuario_responsavel, :rede_id, :acesso_usb,
                          :ip, :modelo_toner, :qtd_toners, :toner_duracao_dias, :ip_fixo, :placa_mae, :placa_video, :funcao_servidor, :servidor_status, :servidor_observacoes,
                          :valor_aquisicao, :data_compra, :fornecedor, :numero_nota_fiscal,
@@ -410,6 +419,11 @@ include __DIR__ . '/../../includes/header.php';
     <div class="card mb-3">
         <div class="card-header bg-white"><strong><i class="bi bi-tag me-1"></i> Identificação</strong></div>
         <div class="card-body row g-3">
+            <div class="col-md-6">
+                <label class="form-label">Nome do Equipamento *</label>
+                <input type="text" name="nome" class="form-control" required placeholder="Ex: Notebook do Financeiro" value="<?= e($equipamento['nome']) ?>">
+                <div class="form-text">Nome usado para identificar o equipamento nas listagens (além do patrimônio).</div>
+            </div>
             <div class="col-md-3">
                 <label class="form-label">Patrimônio</label>
                 <input type="text" name="patrimonio" class="form-control" placeholder="Indefinido" value="<?= e($equipamento['patrimonio']) ?>">
@@ -431,11 +445,11 @@ include __DIR__ . '/../../includes/header.php';
                 <label class="form-label">Modelo</label>
                 <input type="text" name="modelo" class="form-control" value="<?= e($equipamento['modelo']) ?>">
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <label class="form-label">Número de Série</label>
                 <input type="text" name="numero_serie" class="form-control" value="<?= e($equipamento['numero_serie']) ?>">
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <label class="form-label">Hostname</label>
                 <input type="text" name="hostname" class="form-control" value="<?= e($equipamento['hostname']) ?>">
             </div>

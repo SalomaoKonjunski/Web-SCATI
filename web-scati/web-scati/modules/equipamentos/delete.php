@@ -8,7 +8,7 @@ exigirLogin();
 $pdo = db();
 $id = (int) ($_GET['id'] ?? 0);
 
-$stmt = $pdo->prepare('SELECT patrimonio FROM equipamentos WHERE id = :id');
+$stmt = $pdo->prepare('SELECT nome, patrimonio FROM equipamentos WHERE id = :id');
 $stmt->execute(['id' => $id]);
 $equipamento = $stmt->fetch();
 
@@ -29,5 +29,5 @@ foreach ($stmtItensVinc->fetchAll() as $vinc) {
 // Licenças vinculadas ficam sem equipamento (equipamento_id = NULL) em vez de serem apagadas.
 $pdo->prepare('DELETE FROM equipamentos WHERE id = :id')->execute(['id' => $id]);
 
-flash('success', 'Equipamento "' . patrimonioOuIndefinido($equipamento['patrimonio']) . '" excluído com sucesso.');
+flash('success', 'Equipamento "' . nomeEquipamento($equipamento['nome'], $equipamento['patrimonio']) . '" excluído com sucesso.');
 redirect('/modules/equipamentos/index.php');

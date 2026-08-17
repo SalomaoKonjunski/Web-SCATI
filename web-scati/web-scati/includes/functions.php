@@ -61,6 +61,16 @@ function patrimonioOuIndefinido(?string $patrimonio): string
 }
 
 /**
+ * Retorna o nome do equipamento para exibição. Equipamentos cadastrados
+ * antes do campo "Nome" existir (ou ainda não editados) não têm nome
+ * preenchido — nesse caso, cai para o patrimônio (ou "Indefinido").
+ */
+function nomeEquipamento(?string $nome, ?string $patrimonio): string
+{
+    return ($nome !== null && trim($nome) !== '') ? $nome : patrimonioOuIndefinido($patrimonio);
+}
+
+/**
  * Formata um valor monetário no padrão brasileiro. Retorna "-" se nulo.
  */
 function formatMoney($valor): string
