@@ -14,6 +14,20 @@ $filtroTipo = $_GET['tipo'] ?? '';
 $filtroStatus = $_GET['status'] ?? '';
 $filtroRede = $_GET['rede_id'] ?? '';
 
+// --- Ordenação (colunas clicáveis no cabeçalho da tabela) ---------------
+$colunasOrdenaveis = [
+    'responsavel' => 'e.usuario_responsavel',
+    'tipo'        => 'e.tipo',
+    'marca'       => 'e.marca, e.modelo',
+    'rede'        => 'r.nome',
+    'status'      => 'e.status',
+];
+$ordenarPor = $_GET['sort'] ?? '';
+$direcao = (($_GET['dir'] ?? '') === 'desc') ? 'desc' : 'asc';
+if (!array_key_exists($ordenarPor, $colunasOrdenaveis)) {
+    $ordenarPor = '';
+}
+
 $sql = "SELECT e.*, r.nome AS rede_nome
         FROM equipamentos e
         LEFT JOIN redes r ON r.id = e.rede_id
@@ -47,13 +61,36 @@ if ($filtroRede !== '') {
     $params['rede_id'] = $filtroRede;
 }
 
-$sql .= " ORDER BY e.nome ASC, e.patrimonio ASC";
+if ($ordenarPor !== '') {
+    $sql .= ' ORDER BY ' . $colunasOrdenaveis[$ordenarPor] . ' ' . strtoupper($direcao) . ', e.nome ASC';
+} else {
+    $sql .= ' ORDER BY e.nome ASC, e.patrimonio ASC';
+}
 
 $stmt = $pdo->prepare($sql);
 $stmt->execute($params);
 $equipamentos = $stmt->fetchAll();
 
 $redes = $pdo->query("SELECT id, nome FROM redes ORDER BY nome")->fetchAll();
+
+// Monta o link de cada cabeçalho ordenável, preservando os filtros atuais
+// e alternando asc/desc quando a coluna clicada já é a ordenação ativa.
+function linkOrdenacao(string $coluna, string $ordenarPor, string $direcao): string
+{
+    $novaDirecao = ($ordenarPor === $coluna && $direcao === 'asc') ? 'desc' : 'asc';
+    $query = $_GET;
+    $query['sort'] = $coluna;
+    $query['dir'] = $novaDirecao;
+    return '?' . http_build_query($query);
+}
+
+function iconeOrdenacao(string $coluna, string $ordenarPor, string $direcao): string
+{
+    if ($ordenarPor !== $coluna) {
+        return '';
+    }
+    return $direcao === 'asc' ? ' <i class="bi bi-sort-up"></i>' : ' <i class="bi bi-sort-down"></i>';
+}
 
 include __DIR__ . '/../../includes/header.php';
 ?>
@@ -116,12 +153,12 @@ include __DIR__ . '/../../includes/header.php';
                 <tr>
                     <th>Nome</th>
                     <th>Patrimônio</th>
-                    <th>Tipo</th>
-                    <th>Marca / Modelo</th>
+                    <th><a class="text-dark text-decoration-none" href="<?= e(linkOrdenacao('tipo', $ordenarPor, $direcao)) ?>">Tipo<?= iconeOrdenacao('tipo', $ordenarPor, $direcao) ?></a></th>
+                    <th><a class="text-dark text-decoration-none" href="<?= e(linkOrdenacao('marca', $ordenarPor, $direcao)) ?>">Marca / Modelo<?= iconeOrdenacao('marca', $ordenarPor, $direcao) ?></a></th>
                     <th>Hostname</th>
-                    <th>Responsável</th>
-                    <th>Rede</th>
-                    <th>Status</th>
+                    <th><a class="text-dark text-decoration-none" href="<?= e(linkOrdenacao('responsavel', $ordenarPor, $direcao)) ?>">Responsável<?= iconeOrdenacao('responsavel', $ordenarPor, $direcao) ?></a></th>
+                    <th><a class="text-dark text-decoration-none" href="<?= e(linkOrdenacao('rede', $ordenarPor, $direcao)) ?>">Rede<?= iconeOrdenacao('rede', $ordenarPor, $direcao) ?></a></th>
+                    <th><a class="text-dark text-decoration-none" href="<?= e(linkOrdenacao('status', $ordenarPor, $direcao)) ?>">Status<?= iconeOrdenacao('status', $ordenarPor, $direcao) ?></a></th>
                     <th class="text-end">Ações</th>
                 </tr>
             </thead>
