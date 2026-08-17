@@ -121,6 +121,13 @@ Funcional (v1.0).
    mysql -u root -p scati < database/migration_historico_usuario.sql
    ```
 
+   Se o banco já existia antes do **Nome do Equipamento** (antes da
+   coluna `nome` na tabela `equipamentos`), rode também esta migração
+   incremental **uma única vez**:
+   ```bash
+   mysql -u root -p scati < database/migration_nome_equipamento.sql
+   ```
+
    > Importante: ao importar qualquer um dos arquivos `.sql` deste projeto,
    > garanta que o cliente MySQL use UTF-8 (ex.: `mysql --default-character-set=utf8mb4 -u root -p < arquivo.sql`),
    > caso contrário os valores acentuados dos campos `ENUM` (como "Disponível")
@@ -196,12 +203,19 @@ web-scati/
   própria; o restante é agrupado em "Outras categorias".
 - **Equipamentos**: CRUD completo, pesquisa e filtros (tipo, status, rede),
   ficha individual com abas de Dados Gerais, Hardware, Licenciamento,
-  Financeiro, Histórico e Observações. O campo **Patrimônio** é opcional —
-  se deixado em branco, o equipamento é salvo e exibido como "Indefinido"
-  em todas as listagens, fichas, relatórios e seletores, permitindo
-  cadastrar vários equipamentos sem patrimônio definido ao mesmo tempo
-  (a verificação de duplicidade continua ativa apenas entre patrimônios
-  preenchidos).
+  Financeiro, Histórico e Observações. Todo equipamento tem um campo
+  **Nome do Equipamento** (obrigatório, ex.: "Notebook do Financeiro"),
+  usado como identificador principal (em negrito) nas listagens de
+  Equipamentos e Impressoras, nos últimos equipamentos do Dashboard, na
+  ficha, na ficha para impressão e nos relatórios — o **Patrimônio**
+  continua aparecendo ao lado, em sua própria coluna, sem ser removido.
+  Equipamentos cadastrados antes deste campo existir mostram o patrimônio
+  (ou "Indefinido") no lugar do nome até serem editados. O campo
+  **Patrimônio** em si é opcional — se deixado em branco, o equipamento é
+  salvo e exibido como "Indefinido" em todas as listagens, fichas,
+  relatórios e seletores, permitindo cadastrar vários equipamentos sem
+  patrimônio definido ao mesmo tempo (a verificação de duplicidade
+  continua ativa apenas entre patrimônios preenchidos).
 - **Impressoras**: aba própria no menu lateral com uma listagem separada,
   mostrando só os equipamentos do tipo Impressora (reaproveita a mesma
   tabela de Equipamentos, sem cadastro duplicado). Além de Patrimônio,
