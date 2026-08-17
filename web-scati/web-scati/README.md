@@ -215,7 +215,11 @@ web-scati/
   salvo e exibido como "Indefinido" em todas as listagens, fichas,
   relatórios e seletores, permitindo cadastrar vários equipamentos sem
   patrimônio definido ao mesmo tempo (a verificação de duplicidade
-  continua ativa apenas entre patrimônios preenchidos).
+  continua ativa apenas entre patrimônios preenchidos). Os cabeçalhos
+  **Tipo**, **Marca/Modelo**, **Responsável**, **Rede** e **Status** na
+  listagem são clicáveis para ordenar a tabela por aquela coluna — clicar
+  de novo inverte a direção (crescente/decrescente) — e os filtros de
+  pesquisa continuam aplicados ao trocar a ordenação.
 - **Impressoras**: aba própria no menu lateral com uma listagem separada,
   mostrando só os equipamentos do tipo Impressora (reaproveita a mesma
   tabela de Equipamentos, sem cadastro duplicado). Além de Patrimônio,
