@@ -278,7 +278,10 @@ web-scati/
   separados, mantendo cada modelo com sua própria quantidade e
   rastreável individualmente — inclusive a qual equipamento cada um
   está vinculado, visível na coluna "Vinculado a" da listagem de
-  Estoque.
+  Estoque. A coluna **Observações** na mesma listagem mostra as anotações
+  cadastradas em cada item (com um ícone, quando preenchida) — o texto
+  completo aparece ao passar o mouse, sem precisar abrir a edição do item
+  para conferir.
 - **Itens Vinculados**: aba na ficha do equipamento para vincular itens já
   cadastrados no Estoque (periféricos, cabos, etc.) diretamente a ele, sem
   duplicar o cadastro. Cada vínculo consome 1 unidade da quantidade
