@@ -93,12 +93,13 @@ include __DIR__ . '/../../includes/header.php';
                     <th class="text-center">Mínimo</th>
                     <th>Localização</th>
                     <th>Vinculado a</th>
+                    <th>Observações</th>
                     <th class="text-end">Ações</th>
                 </tr>
             </thead>
             <tbody>
                 <?php if (empty($itens)): ?>
-                    <tr><td colspan="8" class="text-center text-muted py-4">Nenhum item encontrado.</td></tr>
+                    <tr><td colspan="9" class="text-center text-muted py-4">Nenhum item encontrado.</td></tr>
                 <?php endif; ?>
                 <?php foreach ($itens as $item): ?>
                     <?php $abaixoMinimo = $item['quantidade'] < $item['quantidade_minima']; ?>
@@ -127,6 +128,15 @@ include __DIR__ . '/../../includes/header.php';
                                 <div class="small text-muted mt-1"><?= e($item['equipamentos_vinculados']) ?></div>
                             <?php else: ?>
                                 -
+                            <?php endif; ?>
+                        </td>
+                        <td>
+                            <?php if (!empty($item['observacoes'])): ?>
+                                <div class="small text-muted text-truncate" style="max-width: 220px;" title="<?= e($item['observacoes']) ?>">
+                                    <i class="bi bi-sticky-fill text-warning"></i> <?= e($item['observacoes']) ?>
+                                </div>
+                            <?php else: ?>
+                                <span class="text-muted">-</span>
                             <?php endif; ?>
                         </td>
                         <td class="text-end">
