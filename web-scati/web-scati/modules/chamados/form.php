@@ -51,6 +51,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $chamado['solicitante'] = $usuarioAtual['usuario'];
     }
 
+    if ($usuarioAtual['solicitante']) {
+        // O campo Andamento não é exibido para esse perfil (o formulário nem
+        // envia "status"), então o valor precisa ser preenchido aqui, antes
+        // da validação abaixo — senão a validação rejeita o campo vazio.
+        $chamado['status'] = 'Aberto';
+    }
+
     if ($chamado['titulo'] === '') {
         $erros[] = 'O campo Título é obrigatório.';
     }
