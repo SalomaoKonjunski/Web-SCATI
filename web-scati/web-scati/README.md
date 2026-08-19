@@ -419,7 +419,12 @@ web-scati/
   qualquer outro andamento) limpa essa data. A barra lateral mostra a
   contagem de chamados em aberto (não concluídos/cancelados), e chamados
   de prioridade Alta ou Urgente ainda em aberto aparecem na Central de
-  Alertas do Dashboard.
+  Alertas do Dashboard. A listagem tem cartões de resumo no topo
+  (Abertos, Em Andamento, Aguardando, Urgentes em Aberto), mostra um
+  trecho da descrição e o solicitante em cada linha, o tempo em aberto
+  (ex.: "há 3 dias") ou o tempo desde a conclusão, e destaca com um
+  fundo suave as linhas de chamados urgentes ou de alta prioridade
+  ainda em aberto.
 
 ## Notas de projeto
 
