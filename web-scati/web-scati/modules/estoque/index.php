@@ -103,7 +103,7 @@ include __DIR__ . '/../../includes/header.php';
                 <?php endif; ?>
                 <?php foreach ($itens as $item): ?>
                     <?php $abaixoMinimo = $item['quantidade'] < $item['quantidade_minima']; ?>
-                    <tr class="<?= $abaixoMinimo ? 'estoque-baixo' : '' ?>">
+                    <tr class="<?= $abaixoMinimo ? 'estoque-baixo' : '' ?>" data-href="form.php?id=<?= (int) $item['id'] ?>" title="Abrir cadastro do item">
                         <td><?= e($item['nome']) ?></td>
                         <td><?= e($item['categoria_nome']) ?></td>
                         <td><?= e(trim(($item['marca'] ?? '') . ' ' . ($item['modelo'] ?? ''))) ?: '-' ?></td>

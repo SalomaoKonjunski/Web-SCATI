@@ -353,13 +353,13 @@ if ($edicao && ehImpressora($equipamento['tipo'])) {
     }
 
     $tonersPorRegistro = $pdo->prepare(
-        "SELECT MIN(iv.id) AS vinculo_id, es.id AS estoque_id, es.nome, es.marca, es.modelo,
+        "SELECT MIN(iv.id) AS vinculo_id, es.id AS estoque_id, es.nome, es.marca, es.modelo, es.observacoes,
                 COUNT(iv.id) AS qtd_registro
          FROM itens_vinculados iv
          JOIN estoque es ON es.id = iv.estoque_id
          JOIN categorias_estoque c ON c.id = es.categoria_id
          WHERE iv.equipamento_id = :id AND c.nome = 'Toner'
-         GROUP BY es.id, es.nome, es.marca, es.modelo
+         GROUP BY es.id, es.nome, es.marca, es.modelo, es.observacoes
          ORDER BY es.nome, es.marca, es.modelo"
     );
     $tonersPorRegistro->execute(['id' => $id]);
@@ -382,6 +382,8 @@ if ($edicao && ehImpressora($equipamento['tipo'])) {
         $tonersAgrupados[$chaveGrupo]['marcas'][] = [
             'texto' => trim(($registroToner['marca'] ?? '') . ' ' . ($registroToner['modelo'] ?? '')) ?: '-',
             'qtd' => (int) $registroToner['qtd_registro'],
+            'estoque_id' => (int) $registroToner['estoque_id'],
+            'observacoes' => $registroToner['observacoes'],
         ];
     }
     $tonersVinculados = array_values($tonersAgrupados);
@@ -692,9 +694,19 @@ include __DIR__ . '/../../includes/header.php';
                             <td><?= e($tv['nome']) ?></td>
                             <td>
                                 <?php foreach ($tv['marcas'] as $marcaItem): ?>
-                                    <div class="d-flex justify-content-between gap-3" style="max-width: 260px;">
-                                        <span><?= e($marcaItem['texto']) ?></span>
-                                        <span class="text-muted"><?= $marcaItem['qtd'] ?></span>
+                                    <div class="d-flex justify-content-between align-items-center gap-3" style="max-width: 280px;">
+                                        <span>
+                                            <?= e($marcaItem['texto']) ?>
+                                            <?php if (!empty($marcaItem['observacoes'])): ?>
+                                                <i class="bi bi-sticky-fill text-warning" title="<?= e($marcaItem['observacoes']) ?>"></i>
+                                            <?php endif; ?>
+                                        </span>
+                                        <span class="d-flex align-items-center gap-2">
+                                            <span class="text-muted"><?= $marcaItem['qtd'] ?></span>
+                                            <a href="../estoque/form.php?id=<?= $marcaItem['estoque_id'] ?>" class="text-muted" title="Abrir cadastro do item no Estoque">
+                                                <i class="bi bi-box-arrow-up-right"></i>
+                                            </a>
+                                        </span>
                                     </div>
                                 <?php endforeach; ?>
                             </td>
