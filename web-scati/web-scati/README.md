@@ -134,9 +134,10 @@ Funcional (v1.0).
    mysql -u root -p scati < database/migration_chamados.sql
    ```
 
-   Se o banco já existia antes do **perfil de usuário Solicitante**
-   (a tabela `usuarios` ainda tem a antiga coluna `admin` em vez de
-   `perfil`), rode também esta migração incremental **uma única vez**:
+   Se o banco já existia antes do **perfil de usuário restrito a
+   Chamados** (a tabela `usuarios` ainda tem a antiga coluna `admin` em
+   vez de `perfil`), rode também esta migração incremental **uma única
+   vez**:
    ```bash
    mysql -u root -p scati < database/migration_perfil_usuario.sql
    ```
@@ -146,6 +147,13 @@ Funcional (v1.0).
    migração incremental **uma única vez** (depois da migração acima):
    ```bash
    mysql -u root -p scati < database/migration_chamados_solicitante.sql
+   ```
+
+   Se o banco já tem a coluna `perfil` com o nome antigo do perfil
+   restrito, **"Solicitante"** (em vez do nome atual, **"Usuário"**),
+   rode também esta migração incremental **uma única vez**:
+   ```bash
+   mysql -u root -p scati < database/migration_renomeia_perfil_usuario.sql
    ```
 
    > Importante: ao importar qualquer um dos arquivos `.sql` deste projeto,
@@ -412,7 +420,7 @@ web-scati/
     editar, redefinir senha e excluir outras contas).
   - **Padrão**: acesso completo ao sistema (cadastros, edições e
     exclusões em qualquer módulo), exceto gerenciar usuários.
-  - **Solicitante**: só acessa a aba **Chamados** — pode registrar
+  - **Usuário**: só acessa a aba **Chamados** — pode registrar
     chamados e acompanhar os que ele mesmo abriu, mas não enxerga o
     restante do sistema (Equipamentos, Estoque, Dashboard etc.) nem pode
     editar/excluir chamados, alterar prioridade/andamento ou se atribuir
@@ -451,7 +459,7 @@ web-scati/
   alguém que ligou ou pediu pessoalmente) — os demais perfis sempre
   abrem o chamado em seu próprio nome. O sistema também registra
   automaticamente qual usuário abriu cada chamado (usado para o perfil
-  Solicitante enxergar só os próprios). Prioridade e andamento podem
+  Usuário enxergar só os próprios). Prioridade e andamento podem
   ser alterados direto na listagem, através de um seletor colorido em
   cada linha, sem precisar abrir o cadastro — a mudança é salva assim
   que a opção é escolhida. Um botão **"Atribuir para mim"** (na
