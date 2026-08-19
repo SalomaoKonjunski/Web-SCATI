@@ -350,14 +350,14 @@ function statusChamadoBadgeClass(string $status): string
 
 function perfisUsuario(): array
 {
-    return ['Administrador', 'Padrão', 'Solicitante'];
+    return ['Administrador', 'Padrão', 'Usuário'];
 }
 
 function perfilUsuarioBadgeClass(string $perfil): string
 {
     return match ($perfil) {
         'Administrador' => 'bg-primary',
-        'Solicitante'   => 'bg-info text-dark',
+        'Usuário'       => 'bg-info text-dark',
         default         => 'bg-secondary',
     };
 }

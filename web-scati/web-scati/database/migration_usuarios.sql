@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS usuarios (
     id              INT AUTO_INCREMENT PRIMARY KEY,
     usuario         VARCHAR(50)  NOT NULL UNIQUE,
     senha_hash      VARCHAR(255) NOT NULL,
-    perfil          ENUM('Administrador','Padrão','Solicitante') NOT NULL DEFAULT 'Padrão',
+    perfil          ENUM('Administrador','Padrão','Usuário') NOT NULL DEFAULT 'Padrão',
     criado_em       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 

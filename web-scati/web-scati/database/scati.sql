@@ -13,14 +13,14 @@ CREATE TABLE usuarios (
     id              INT AUTO_INCREMENT PRIMARY KEY,
     usuario         VARCHAR(50)  NOT NULL UNIQUE,
     senha_hash      VARCHAR(255) NOT NULL,
-    perfil          ENUM('Administrador','Padrão','Solicitante') NOT NULL DEFAULT 'Padrão',
+    perfil          ENUM('Administrador','Padrão','Usuário') NOT NULL DEFAULT 'Padrão',
     criado_em       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 
 -- Perfis de acesso:
 --   Administrador: acesso completo, inclusive gerenciar outros usuários.
 --   Padrão:        acesso completo ao sistema, exceto gerenciar usuários.
---   Solicitante:   só acessa a aba de Chamados; pode registrar chamados e
+--   Usuário:       só acessa a aba de Chamados; pode registrar chamados e
 --                  acompanhar os que ele mesmo abriu, mas não edita/exclui
 --                  chamados nem enxerga o restante do sistema.
 --

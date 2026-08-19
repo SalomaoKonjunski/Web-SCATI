@@ -134,7 +134,7 @@ include __DIR__ . '/../../includes/header.php';
                 <div class="form-text">
                     <strong>Administrador</strong>: acesso completo, inclusive gerenciar usuários.<br>
                     <strong>Padrão</strong>: acesso completo ao sistema, exceto gerenciar usuários.<br>
-                    <strong>Solicitante</strong>: só acessa a aba de Chamados, para registrar e acompanhar os próprios chamados.
+                    <strong>Usuário</strong>: só acessa a aba de Chamados, para registrar e acompanhar os próprios chamados.
                 </div>
             </div>
             <div class="col-md-6">

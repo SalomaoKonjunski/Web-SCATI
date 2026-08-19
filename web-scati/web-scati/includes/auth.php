@@ -28,7 +28,7 @@ function usuarioLogado(): ?array
         'usuario'     => $_SESSION['usuario_nome'],
         'perfil'      => $perfil,
         'admin'       => $perfil === 'Administrador',
-        'solicitante' => $perfil === 'Solicitante',
+        'solicitante' => $perfil === 'Usuário',
     ];
 }
 

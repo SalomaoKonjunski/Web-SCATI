@@ -29,7 +29,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['usuario_id'] = (int) $registro['id'];
             $_SESSION['usuario_nome'] = $registro['usuario'];
             $_SESSION['usuario_perfil'] = $registro['perfil'];
-            redirect($registro['perfil'] === 'Solicitante' ? '/modules/chamados/index.php' : '/index.php');
+            redirect($registro['perfil'] === 'Usuário' ? '/modules/chamados/index.php' : '/index.php');
         } else {
             $erro = 'Usuário ou senha inválidos.';
         }
