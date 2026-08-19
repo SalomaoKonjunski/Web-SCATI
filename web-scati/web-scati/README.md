@@ -128,6 +128,12 @@ Funcional (v1.0).
    mysql -u root -p scati < database/migration_nome_equipamento.sql
    ```
 
+   Se o banco já existia antes da aba de **Chamados** (antes da tabela
+   `chamados`), rode também esta migração incremental **uma única vez**:
+   ```bash
+   mysql -u root -p scati < database/migration_chamados.sql
+   ```
+
    > Importante: ao importar qualquer um dos arquivos `.sql` deste projeto,
    > garanta que o cliente MySQL use UTF-8 (ex.: `mysql --default-character-set=utf8mb4 -u root -p < arquivo.sql`),
    > caso contrário os valores acentuados dos campos `ENUM` (como "Disponível")
@@ -398,6 +404,22 @@ web-scati/
   um usuário administrador padrão (usuário `Salomao`) — recomenda-se
   trocar a senha após o primeiro acesso, ou cadastrar um novo
   administrador e excluir o padrão.
+- **Chamados**: aba própria no menu lateral funcionando como uma tabela
+  de pendências de TI. Cada chamado tem título, descrição, solicitante
+  (texto livre), equipamento relacionado (opcional, escolhido entre os
+  já cadastrados), **prioridade** (Baixa/Média/Alta/Urgente) e
+  **andamento** (Aberto/Em andamento/Aguardando/Concluído/Cancelado).
+  Prioridade e andamento podem ser alterados direto na listagem, através
+  de um seletor colorido em cada linha, sem precisar abrir o cadastro —
+  a mudança é salva assim que a opção é escolhida. Um botão "Atribuir
+  para mim" (na listagem e no formulário) atribui o chamado ao usuário
+  logado com um clique; o atalho "Meus Chamados" filtra só os chamados
+  já atribuídos a você. Ao marcar um chamado como "Concluído", a data de
+  conclusão é registrada automaticamente; reabrir o chamado (mudar para
+  qualquer outro andamento) limpa essa data. A barra lateral mostra a
+  contagem de chamados em aberto (não concluídos/cancelados), e chamados
+  de prioridade Alta ou Urgente ainda em aberto aparecem na Central de
+  Alertas do Dashboard.
 
 ## Notas de projeto
 
