@@ -13,8 +13,8 @@ function iniciarSessao(): void
 }
 
 /**
- * Retorna os dados do usuário logado (id, usuario, admin) ou null se
- * ninguém estiver autenticado nesta sessão.
+ * Retorna os dados do usuário logado (id, usuario, perfil, admin,
+ * solicitante) ou null se ninguém estiver autenticado nesta sessão.
  */
 function usuarioLogado(): ?array
 {
@@ -22,10 +22,13 @@ function usuarioLogado(): ?array
     if (!isset($_SESSION['usuario_id'])) {
         return null;
     }
+    $perfil = $_SESSION['usuario_perfil'];
     return [
-        'id'      => (int) $_SESSION['usuario_id'],
-        'usuario' => $_SESSION['usuario_nome'],
-        'admin'   => (bool) $_SESSION['usuario_admin'],
+        'id'          => (int) $_SESSION['usuario_id'],
+        'usuario'     => $_SESSION['usuario_nome'],
+        'perfil'      => $perfil,
+        'admin'       => $perfil === 'Administrador',
+        'solicitante' => $perfil === 'Solicitante',
     ];
 }
 
@@ -50,5 +53,18 @@ function exigirAdmin(): void
     if (!usuarioLogado()['admin']) {
         flash('danger', 'Apenas o usuário administrador pode acessar esta página.');
         redirect('/index.php');
+    }
+}
+
+/**
+ * Bloqueia o acesso a páginas fora da aba de Chamados para o perfil
+ * Solicitante, que só pode registrar e acompanhar seus próprios chamados.
+ */
+function exigirNaoSolicitante(): void
+{
+    exigirLogin();
+    if (usuarioLogado()['solicitante']) {
+        flash('danger', 'Seu perfil só tem acesso à aba de Chamados.');
+        redirect('/modules/chamados/index.php');
     }
 }

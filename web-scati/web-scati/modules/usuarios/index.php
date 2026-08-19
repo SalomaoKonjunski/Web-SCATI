@@ -9,7 +9,7 @@ $pdo = db();
 $pageTitle = 'Usuários';
 
 $usuarios = $pdo->query('SELECT * FROM usuarios ORDER BY usuario ASC')->fetchAll();
-$totalAdmins = (int) $pdo->query('SELECT COUNT(*) FROM usuarios WHERE admin = 1')->fetchColumn();
+$totalAdmins = (int) $pdo->query("SELECT COUNT(*) FROM usuarios WHERE perfil = 'Administrador'")->fetchColumn();
 $usuarioAtualId = usuarioLogado()['id'];
 
 include __DIR__ . '/../../includes/header.php';
@@ -44,11 +44,7 @@ include __DIR__ . '/../../includes/header.php';
                             <?php endif; ?>
                         </td>
                         <td>
-                            <?php if ($u['admin']): ?>
-                                <span class="badge bg-primary">Administrador</span>
-                            <?php else: ?>
-                                <span class="badge bg-secondary">Usuário</span>
-                            <?php endif; ?>
+                            <span class="badge <?= perfilUsuarioBadgeClass($u['perfil']) ?>"><?= e($u['perfil']) ?></span>
                         </td>
                         <td><?= formatDateTime($u['criado_em']) ?></td>
                         <td class="text-end">
@@ -57,7 +53,7 @@ include __DIR__ . '/../../includes/header.php';
                                 <button type="button" class="btn btn-sm btn-outline-danger" disabled title="Não é possível excluir o próprio usuário logado">
                                     <i class="bi bi-trash"></i>
                                 </button>
-                            <?php elseif ($u['admin'] && $totalAdmins <= 1): ?>
+                            <?php elseif ($u['perfil'] === 'Administrador' && $totalAdmins <= 1): ?>
                                 <button type="button" class="btn btn-sm btn-outline-danger" disabled title="Precisa existir ao menos um administrador">
                                     <i class="bi bi-trash"></i>
                                 </button>

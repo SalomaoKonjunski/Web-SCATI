@@ -5,15 +5,25 @@ function isActive(string $needle, string $currentPath): string
 {
     return str_contains($currentPath, $needle) ? 'active' : '';
 }
-$totalChamadosAbertos = (int) db()->query("SELECT COUNT(*) FROM chamados WHERE status NOT IN ('Concluído', 'Cancelado')")->fetchColumn();
+$souSolicitante = usuarioLogado()['solicitante'] ?? false;
+$sqlChamadosAbertos = "SELECT COUNT(*) FROM chamados WHERE status NOT IN ('Concluído', 'Cancelado')";
+if ($souSolicitante) {
+    $stmtChamadosAbertos = db()->prepare($sqlChamadosAbertos . ' AND criado_por_id = :id');
+    $stmtChamadosAbertos->execute(['id' => usuarioLogado()['id']]);
+    $totalChamadosAbertos = (int) $stmtChamadosAbertos->fetchColumn();
+} else {
+    $totalChamadosAbertos = (int) db()->query($sqlChamadosAbertos)->fetchColumn();
+}
 ?>
 <aside class="scati-sidebar" id="scatiSidebar">
     <ul class="nav flex-column">
+        <?php if (!$souSolicitante): ?>
         <li class="nav-item">
             <a class="nav-link <?= $currentPath === BASE_URL . '/index.php' ? 'active' : '' ?>" href="<?= BASE_URL ?>/index.php">
                 <i class="bi bi-speedometer2"></i> Dashboard
             </a>
         </li>
+        <?php endif; ?>
         <li class="nav-item">
             <a class="nav-link <?= isActive('/modules/chamados/', $currentPath) ?>" href="<?= BASE_URL ?>/modules/chamados/index.php">
                 <i class="bi bi-life-preserver"></i> Chamados
@@ -22,6 +32,7 @@ $totalChamadosAbertos = (int) db()->query("SELECT COUNT(*) FROM chamados WHERE s
                 <?php endif; ?>
             </a>
         </li>
+        <?php if (!$souSolicitante): ?>
         <li class="nav-item">
             <a class="nav-link <?= isActive('/modules/equipamentos/', $currentPath) ?>" href="<?= BASE_URL ?>/modules/equipamentos/index.php">
                 <i class="bi bi-pc-display"></i> Equipamentos
@@ -57,6 +68,7 @@ $totalChamadosAbertos = (int) db()->query("SELECT COUNT(*) FROM chamados WHERE s
                 <i class="bi bi-gear"></i> Configurações
             </a>
         </li>
+        <?php endif; ?>
         <?php if ((usuarioLogado()['admin'] ?? false)): ?>
         <li class="nav-item">
             <a class="nav-link <?= isActive('/modules/usuarios/', $currentPath) ?>" href="<?= BASE_URL ?>/modules/usuarios/index.php">

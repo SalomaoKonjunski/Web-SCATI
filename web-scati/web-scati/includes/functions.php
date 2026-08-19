@@ -347,3 +347,17 @@ function statusChamadoBadgeClass(string $status): string
         default         => 'bg-secondary',
     };
 }
+
+function perfisUsuario(): array
+{
+    return ['Administrador', 'Padrão', 'Solicitante'];
+}
+
+function perfilUsuarioBadgeClass(string $perfil): string
+{
+    return match ($perfil) {
+        'Administrador' => 'bg-primary',
+        'Solicitante'   => 'bg-info text-dark',
+        default         => 'bg-secondary',
+    };
+}

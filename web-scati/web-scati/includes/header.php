@@ -26,11 +26,11 @@ $flash = getFlash();
     <button class="btn btn-link text-white d-md-none" type="button" id="sidebarToggle">
         <i class="bi bi-list fs-3"></i>
     </button>
-    <a class="navbar-brand fw-bold" href="<?= BASE_URL ?>/index.php">
+    <?php $usuarioAtual = usuarioLogado(); ?>
+    <a class="navbar-brand fw-bold" href="<?= BASE_URL ?>/<?= ($usuarioAtual['solicitante'] ?? false) ? 'modules/chamados/index.php' : 'index.php' ?>">
         <i class="bi bi-hdd-network me-2"></i>Web SCATI
     </a>
     <span class="text-white-50 small d-none d-md-inline">Sistema de Controle de Ativos de TI</span>
-    <?php $usuarioAtual = usuarioLogado(); ?>
     <?php if ($usuarioAtual): ?>
         <span class="ms-auto d-flex align-items-center gap-2">
             <span class="text-white-50 small d-none d-sm-inline">

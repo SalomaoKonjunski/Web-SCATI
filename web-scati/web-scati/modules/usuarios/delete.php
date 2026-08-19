@@ -23,8 +23,8 @@ if ($id === $usuarioAtualId) {
     redirect('/modules/usuarios/index.php');
 }
 
-if ($usuario['admin']) {
-    $totalAdmins = (int) $pdo->query('SELECT COUNT(*) FROM usuarios WHERE admin = 1')->fetchColumn();
+if ($usuario['perfil'] === 'Administrador') {
+    $totalAdmins = (int) $pdo->query("SELECT COUNT(*) FROM usuarios WHERE perfil = 'Administrador'")->fetchColumn();
     if ($totalAdmins <= 1) {
         flash('danger', 'Não é possível excluir o único administrador do sistema.');
         redirect('/modules/usuarios/index.php');

@@ -7,7 +7,7 @@ require_once __DIR__ . '/../../includes/auth.php';
 $pdo = db();
 
 if (usuarioLogado() !== null) {
-    redirect('/index.php');
+    redirect(usuarioLogado()['solicitante'] ? '/modules/chamados/index.php' : '/index.php');
 }
 
 $erro = '';
@@ -28,8 +28,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             session_regenerate_id(true);
             $_SESSION['usuario_id'] = (int) $registro['id'];
             $_SESSION['usuario_nome'] = $registro['usuario'];
-            $_SESSION['usuario_admin'] = (int) $registro['admin'];
-            redirect('/index.php');
+            $_SESSION['usuario_perfil'] = $registro['perfil'];
+            redirect($registro['perfil'] === 'Solicitante' ? '/modules/chamados/index.php' : '/index.php');
         } else {
             $erro = 'Usuário ou senha inválidos.';
         }

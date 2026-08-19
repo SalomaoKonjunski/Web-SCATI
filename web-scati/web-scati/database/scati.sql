@@ -13,14 +13,21 @@ CREATE TABLE usuarios (
     id              INT AUTO_INCREMENT PRIMARY KEY,
     usuario         VARCHAR(50)  NOT NULL UNIQUE,
     senha_hash      VARCHAR(255) NOT NULL,
-    admin           TINYINT(1)   NOT NULL DEFAULT 0,
+    perfil          ENUM('Administrador','Padrão','Solicitante') NOT NULL DEFAULT 'Padrão',
     criado_em       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 
+-- Perfis de acesso:
+--   Administrador: acesso completo, inclusive gerenciar outros usuários.
+--   Padrão:        acesso completo ao sistema, exceto gerenciar usuários.
+--   Solicitante:   só acessa a aba de Chamados; pode registrar chamados e
+--                  acompanhar os que ele mesmo abriu, mas não edita/exclui
+--                  chamados nem enxerga o restante do sistema.
+--
 -- Usuário administrador padrão (usuario: Salomao / senha: scati2026).
 -- Recomenda-se trocar a senha após o primeiro acesso.
-INSERT INTO usuarios (usuario, senha_hash, admin) VALUES
-('Salomao', '$2y$12$PgslwwvkfvXprsqnXjYlJu2XD2sQ742Dlmji7mmp9/rOzB8lEE0u.', 1);
+INSERT INTO usuarios (usuario, senha_hash, perfil) VALUES
+('Salomao', '$2y$12$PgslwwvkfvXprsqnXjYlJu2XD2sQ742Dlmji7mmp9/rOzB8lEE0u.', 'Administrador');
 
 -- ---------------------------------------------------------------------
 -- Tabela: redes
@@ -316,6 +323,7 @@ CREATE TABLE chamados (
     titulo              VARCHAR(150) NOT NULL,
     descricao           TEXT NULL,
     solicitante         VARCHAR(100) NULL,
+    criado_por_id       INT NULL,
     equipamento_id      INT NULL,
     prioridade          ENUM('Baixa','Média','Alta','Urgente') NOT NULL DEFAULT 'Média',
     status              ENUM('Aberto','Em andamento','Aguardando','Concluído','Cancelado') NOT NULL DEFAULT 'Aberto',
@@ -327,7 +335,9 @@ CREATE TABLE chamados (
     CONSTRAINT fk_chamado_equipamento
         FOREIGN KEY (equipamento_id) REFERENCES equipamentos(id) ON DELETE SET NULL,
     CONSTRAINT fk_chamado_responsavel
-        FOREIGN KEY (responsavel_id) REFERENCES usuarios(id) ON DELETE SET NULL
+        FOREIGN KEY (responsavel_id) REFERENCES usuarios(id) ON DELETE SET NULL,
+    CONSTRAINT fk_chamado_criado_por
+        FOREIGN KEY (criado_por_id) REFERENCES usuarios(id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
 -- ---------------------------------------------------------------------

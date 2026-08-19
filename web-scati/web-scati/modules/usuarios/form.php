@@ -10,7 +10,7 @@ $id = isset($_GET['id']) ? (int) $_GET['id'] : null;
 $edicao = $id !== null;
 $usuarioAtualId = usuarioLogado()['id'];
 
-$registroUsuario = ['usuario' => '', 'admin' => 0];
+$registroUsuario = ['usuario' => '', 'perfil' => 'Padrão'];
 
 if ($edicao) {
     $stmt = $pdo->prepare('SELECT * FROM usuarios WHERE id = :id');
@@ -23,7 +23,7 @@ if ($edicao) {
     $registroUsuario = array_merge($registroUsuario, $registro);
 }
 
-$totalAdmins = (int) $pdo->query('SELECT COUNT(*) FROM usuarios WHERE admin = 1')->fetchColumn();
+$totalAdmins = (int) $pdo->query("SELECT COUNT(*) FROM usuarios WHERE perfil = 'Administrador'")->fetchColumn();
 
 $erros = [];
 
@@ -31,10 +31,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $registroUsuario['usuario'] = trim($_POST['usuario'] ?? '');
     $senha = (string) ($_POST['senha'] ?? '');
     $confirmarSenha = (string) ($_POST['confirmar_senha'] ?? '');
-    $admin = isset($_POST['admin']) ? 1 : 0;
+    $perfilSubmetido = trim($_POST['perfil'] ?? 'Padrão');
 
     if ($registroUsuario['usuario'] === '') {
         $erros[] = 'O campo Usuário é obrigatório.';
+    }
+    if (!in_array($perfilSubmetido, perfisUsuario(), true)) {
+        $erros[] = 'Perfil de acesso inválido.';
     }
     if (!$edicao && $senha === '') {
         $erros[] = 'A senha é obrigatória para um novo usuário.';
@@ -46,9 +49,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $erros[] = 'A confirmação de senha não confere.';
     }
     // Precisa sobrar sempre pelo menos 1 administrador no sistema.
-    if ($edicao && (int) $id === $usuarioAtualId && (int) $registroUsuario['admin'] && !$admin && $totalAdmins <= 1) {
+    if ($edicao && (int) $id === $usuarioAtualId && $registroUsuario['perfil'] === 'Administrador' && $perfilSubmetido !== 'Administrador' && $totalAdmins <= 1) {
         $erros[] = 'Não é possível remover o único administrador do sistema.';
     }
+
+    $registroUsuario['perfil'] = $perfilSubmetido;
 
     if (empty($erros)) {
         $sqlCheck = 'SELECT id FROM usuarios WHERE usuario = :usuario' . ($edicao ? ' AND id != :id' : '');
@@ -66,29 +71,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (empty($erros)) {
         if ($edicao) {
             if ($senha !== '') {
-                $pdo->prepare('UPDATE usuarios SET usuario = :usuario, senha_hash = :senha_hash, admin = :admin WHERE id = :id')
+                $pdo->prepare('UPDATE usuarios SET usuario = :usuario, senha_hash = :senha_hash, perfil = :perfil WHERE id = :id')
                     ->execute([
                         'usuario' => $registroUsuario['usuario'],
                         'senha_hash' => password_hash($senha, PASSWORD_DEFAULT),
-                        'admin' => $admin,
+                        'perfil' => $perfilSubmetido,
                         'id' => $id,
                     ]);
             } else {
-                $pdo->prepare('UPDATE usuarios SET usuario = :usuario, admin = :admin WHERE id = :id')
-                    ->execute(['usuario' => $registroUsuario['usuario'], 'admin' => $admin, 'id' => $id]);
+                $pdo->prepare('UPDATE usuarios SET usuario = :usuario, perfil = :perfil WHERE id = :id')
+                    ->execute(['usuario' => $registroUsuario['usuario'], 'perfil' => $perfilSubmetido, 'id' => $id]);
             }
             // Se o próprio usuário logado for editado, mantém o nome exibido em sessão atualizado.
             if ((int) $id === $usuarioAtualId) {
                 $_SESSION['usuario_nome'] = $registroUsuario['usuario'];
-                $_SESSION['usuario_admin'] = $admin;
+                $_SESSION['usuario_perfil'] = $perfilSubmetido;
             }
             flash('success', 'Usuário atualizado com sucesso.');
         } else {
-            $pdo->prepare('INSERT INTO usuarios (usuario, senha_hash, admin) VALUES (:usuario, :senha_hash, :admin)')
+            $pdo->prepare('INSERT INTO usuarios (usuario, senha_hash, perfil) VALUES (:usuario, :senha_hash, :perfil)')
                 ->execute([
                     'usuario' => $registroUsuario['usuario'],
                     'senha_hash' => password_hash($senha, PASSWORD_DEFAULT),
-                    'admin' => $admin,
+                    'perfil' => $perfilSubmetido,
                 ]);
             flash('success', 'Usuário cadastrado com sucesso.');
         }
@@ -120,11 +125,16 @@ include __DIR__ . '/../../includes/header.php';
                 <input type="text" name="usuario" class="form-control" required autofocus value="<?= e($registroUsuario['usuario']) ?>">
             </div>
             <div class="col-md-6">
-                <div class="form-check mt-4">
-                    <input class="form-check-input" type="checkbox" name="admin" id="admin" value="1" <?= $registroUsuario['admin'] ? 'checked' : '' ?>>
-                    <label class="form-check-label" for="admin">
-                        Administrador (pode criar, editar e excluir outros usuários)
-                    </label>
+                <label class="form-label">Perfil de acesso *</label>
+                <select name="perfil" class="form-select">
+                    <?php foreach (perfisUsuario() as $perfil): ?>
+                        <option value="<?= e($perfil) ?>" <?= $registroUsuario['perfil'] === $perfil ? 'selected' : '' ?>><?= e($perfil) ?></option>
+                    <?php endforeach; ?>
+                </select>
+                <div class="form-text">
+                    <strong>Administrador</strong>: acesso completo, inclusive gerenciar usuários.<br>
+                    <strong>Padrão</strong>: acesso completo ao sistema, exceto gerenciar usuários.<br>
+                    <strong>Solicitante</strong>: só acessa a aba de Chamados, para registrar e acompanhar os próprios chamados.
                 </div>
             </div>
             <div class="col-md-6">
