@@ -55,6 +55,28 @@ $usuarios = $pdo->query('SELECT id, usuario FROM usuarios ORDER BY usuario')->fe
 
 $totalAbertos = (int) $pdo->query("SELECT COUNT(*) FROM chamados WHERE status NOT IN ('Concluído', 'Cancelado')")->fetchColumn();
 
+// Cartões de resumo (contagens gerais, sem considerar os filtros da tela).
+$totalPorStatus = $pdo->query('SELECT status, COUNT(*) AS total FROM chamados GROUP BY status')->fetchAll(PDO::FETCH_KEY_PAIR);
+$kpiAberto = (int) ($totalPorStatus['Aberto'] ?? 0);
+$kpiAndamento = (int) ($totalPorStatus['Em andamento'] ?? 0);
+$kpiAguardando = (int) ($totalPorStatus['Aguardando'] ?? 0);
+$kpiUrgentes = (int) $pdo->query(
+    "SELECT COUNT(*) FROM chamados WHERE prioridade IN ('Alta', 'Urgente') AND status NOT IN ('Concluído', 'Cancelado')"
+)->fetchColumn();
+
+/**
+ * Retorna "há N dia(s)"/"hoje" a partir de uma data, para indicar o tempo
+ * em aberto (ou tempo desde a conclusão) de um chamado.
+ */
+function tempoDecorrido(string $dataHora): string
+{
+    $dias = (int) floor((strtotime('today') - strtotime(date('Y-m-d', strtotime($dataHora)))) / 86400);
+    if ($dias <= 0) {
+        return 'hoje';
+    }
+    return 'há ' . $dias . ' dia' . ($dias > 1 ? 's' : '');
+}
+
 include __DIR__ . '/../../includes/header.php';
 ?>
 
@@ -65,6 +87,53 @@ include __DIR__ . '/../../includes/header.php';
             <i class="bi bi-person-check"></i> Meus Chamados
         </a>
         <a href="form.php" class="btn btn-primary"><i class="bi bi-plus-lg"></i> Novo Chamado</a>
+    </div>
+</div>
+
+<div class="row g-3 mb-3">
+    <div class="col-6 col-md-3">
+        <div class="card scati-kpi-card border-start border-4 border-primary">
+            <div class="card-body d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="text-muted small">Abertos</div>
+                    <div class="kpi-value"><?= $kpiAberto ?></div>
+                </div>
+                <i class="bi bi-inbox kpi-icon text-primary"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card scati-kpi-card border-start border-4 border-warning">
+            <div class="card-body d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="text-muted small">Em Andamento</div>
+                    <div class="kpi-value"><?= $kpiAndamento ?></div>
+                </div>
+                <i class="bi bi-arrow-repeat kpi-icon text-warning"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card scati-kpi-card border-start border-4 border-secondary">
+            <div class="card-body d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="text-muted small">Aguardando</div>
+                    <div class="kpi-value"><?= $kpiAguardando ?></div>
+                </div>
+                <i class="bi bi-hourglass-split kpi-icon text-secondary"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card scati-kpi-card border-start border-4 border-danger">
+            <div class="card-body d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="text-muted small">Urgentes em Aberto</div>
+                    <div class="kpi-value"><?= $kpiUrgentes ?></div>
+                </div>
+                <i class="bi bi-exclamation-triangle kpi-icon text-danger"></i>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -130,11 +199,27 @@ include __DIR__ . '/../../includes/header.php';
                     <tr><td colspan="7" class="text-center text-muted py-4">Nenhum chamado encontrado.</td></tr>
                 <?php endif; ?>
                 <?php foreach ($chamados as $chamado): ?>
-                    <tr data-href="form.php?id=<?= (int) $chamado['id'] ?>">
+                    <?php
+                        $emAberto = !in_array($chamado['status'], ['Concluído', 'Cancelado'], true);
+                        $classeLinha = '';
+                        if ($emAberto && $chamado['prioridade'] === 'Urgente') {
+                            $classeLinha = 'chamado-urgente';
+                        } elseif ($emAberto && $chamado['prioridade'] === 'Alta') {
+                            $classeLinha = 'chamado-alta';
+                        }
+                        $descricaoResumo = $chamado['descricao'] !== null ? trim($chamado['descricao']) : '';
+                        if (mb_strlen($descricaoResumo) > 90) {
+                            $descricaoResumo = mb_substr($descricaoResumo, 0, 90) . '…';
+                        }
+                    ?>
+                    <tr data-href="form.php?id=<?= (int) $chamado['id'] ?>" class="<?= $classeLinha ?>">
                         <td>
                             <strong><?= e($chamado['titulo']) ?></strong>
+                            <?php if ($descricaoResumo !== ''): ?>
+                                <div class="small text-muted"><?= e($descricaoResumo) ?></div>
+                            <?php endif; ?>
                             <?php if (!empty($chamado['solicitante'])): ?>
-                                <div class="small text-muted">Solicitado por <?= e($chamado['solicitante']) ?></div>
+                                <div class="small text-muted"><i class="bi bi-person"></i> <?= e($chamado['solicitante']) ?></div>
                             <?php endif; ?>
                         </td>
                         <td>
@@ -179,7 +264,14 @@ include __DIR__ . '/../../includes/header.php';
                                 </a>
                             <?php endif; ?>
                         </td>
-                        <td><?= formatDateTime($chamado['criado_em']) ?></td>
+                        <td>
+                            <?= formatDateTime($chamado['criado_em']) ?>
+                            <?php if ($emAberto): ?>
+                                <div class="small text-muted"><?= e(tempoDecorrido($chamado['criado_em'])) ?></div>
+                            <?php elseif (!empty($chamado['concluido_em'])): ?>
+                                <div class="small text-muted">Concluído <?= e(tempoDecorrido($chamado['concluido_em'])) ?></div>
+                            <?php endif; ?>
+                        </td>
                         <td class="text-end">
                             <a href="form.php?id=<?= (int) $chamado['id'] ?>" class="btn btn-sm btn-outline-primary" title="Editar"><i class="bi bi-pencil"></i></a>
                             <a href="delete.php?id=<?= (int) $chamado['id'] ?>" class="btn btn-sm btn-outline-danger js-confirm-delete"

@@ -86,6 +86,14 @@ body {
     background-color: #fdecea !important;
 }
 
+.chamado-urgente {
+    background-color: #fdecea !important;
+}
+
+.chamado-alta {
+    background-color: #fff8e6 !important;
+}
+
 @media (max-width: 767.98px) {
     .scati-sidebar {
         position: fixed;
