@@ -156,6 +156,13 @@ Funcional (v1.0).
    mysql -u root -p scati < database/migration_renomeia_perfil_usuario.sql
    ```
 
+   Se o banco já existia antes do **ramal e telefone do usuário**
+   (a tabela `usuarios` ainda não tem as colunas `ramal`/`telefone`),
+   rode também esta migração incremental **uma única vez**:
+   ```bash
+   mysql -u root -p scati < database/migration_ramal_telefone_usuario.sql
+   ```
+
    > Importante: ao importar qualquer um dos arquivos `.sql` deste projeto,
    > garanta que o cliente MySQL use UTF-8 (ex.: `mysql --default-character-set=utf8mb4 -u root -p < arquivo.sql`),
    > caso contrário os valores acentuados dos campos `ENUM` (como "Disponível")
@@ -427,6 +434,11 @@ web-scati/
     a um chamado. Pensado para quem só precisa abrir solicitações para a
     TI (ex.: recepção, outros setores), sem acesso operacional ao
     sistema.
+
+  Cada usuário pode ter também **ramal** e **telefone** cadastrados
+  (ambos opcionais), exibidos na coluna "Contato" da listagem — útil
+  para saber rapidamente como entrar em contato com quem abriu ou está
+  responsável por um chamado.
 
   O sistema sempre mantém pelo menos um administrador: não é possível
   excluir a própria conta logada, nem excluir ou remover o perfil de
