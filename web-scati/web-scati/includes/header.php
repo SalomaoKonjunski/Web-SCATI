@@ -33,6 +33,13 @@ $flash = getFlash();
     <span class="text-white-50 small d-none d-md-inline">Sistema de Controle de Ativos de TI</span>
     <?php if ($usuarioAtual): ?>
         <span class="ms-auto d-flex align-items-center gap-2">
+            <a href="<?= BASE_URL ?>/modules/chamados/index.php" class="btn btn-sm btn-outline-light position-relative"
+               id="scatiNotificacaoBtn" data-nao-lidas="<?= contarChamadosComRespostaNaoLida($usuarioAtual['id']) ?>"
+               data-url="<?= BASE_URL ?>/modules/chamados/notificacoes.php"
+               title="Chamados com respostas novas">
+                <i class="bi bi-bell"></i>
+                <span class="badge rounded-pill bg-danger position-absolute top-0 start-100 translate-middle d-none" id="scatiNotificacaoBadge">0</span>
+            </a>
             <span class="text-white-50 small d-none d-sm-inline">
                 <i class="bi bi-person-circle"></i> <?= e($usuarioAtual['usuario']) ?>
             </span>

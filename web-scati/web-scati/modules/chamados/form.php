@@ -10,13 +10,6 @@ $id = isset($_GET['id']) ? (int) $_GET['id'] : null;
 $edicao = $id !== null;
 $usuarioAtual = usuarioLogado();
 
-// O perfil Solicitante só pode registrar chamados novos; não pode editar
-// nenhum chamado, nem os que ele mesmo abriu.
-if ($edicao && $usuarioAtual['solicitante']) {
-    flash('danger', 'Seu perfil não pode editar chamados.');
-    redirect('/modules/chamados/index.php');
-}
-
 $chamado = [
     'titulo' => '', 'descricao' => '', 'solicitante' => '',
     'prioridade' => 'Média', 'status' => 'Aberto', 'responsavel_id' => '',
@@ -37,12 +30,21 @@ if ($edicao) {
         flash('danger', 'Chamado não encontrado.');
         redirect('/modules/chamados/index.php');
     }
+    // O perfil Usuário só pode acompanhar (não editar) os próprios chamados.
+    if ($usuarioAtual['solicitante'] && (int) $registro['criado_por_id'] !== (int) $usuarioAtual['id']) {
+        flash('danger', 'Você só pode acompanhar os próprios chamados.');
+        redirect('/modules/chamados/index.php');
+    }
     $chamado = array_merge($chamado, $registro);
+    marcarChamadoVisto($id, $usuarioAtual['id']);
 }
+
+// O perfil Usuário nunca edita os campos do chamado, só acompanha e responde.
+$somenteLeitura = $edicao && $usuarioAtual['solicitante'];
 
 $erros = [];
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$somenteLeitura) {
     foreach ($chamado as $campo => $valorPadrao) {
         $chamado[$campo] = trim((string) ($_POST[$campo] ?? ''));
     }
@@ -118,13 +120,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $usuarios = $pdo->query('SELECT id, usuario FROM usuarios ORDER BY usuario')->fetchAll();
 
-$pageTitle = $edicao ? 'Editar Chamado' : 'Novo Chamado';
+$respostas = [];
+if ($edicao) {
+    $stmtRespostas = $pdo->prepare('SELECT * FROM chamado_respostas WHERE chamado_id = :id ORDER BY criado_em ASC');
+    $stmtRespostas->execute(['id' => $id]);
+    $respostas = $stmtRespostas->fetchAll();
+}
+
+$tituloPagina = $somenteLeitura ? 'Acompanhar Chamado' : ($edicao ? 'Editar Chamado' : 'Novo Chamado');
+$pageTitle = $tituloPagina;
 
 include __DIR__ . '/../../includes/header.php';
 ?>
 
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h1 class="h3 mb-0"><i class="bi bi-life-preserver me-2"></i><?= $edicao ? 'Editar Chamado' : 'Novo Chamado' ?></h1>
+    <h1 class="h3 mb-0"><i class="bi bi-life-preserver me-2"></i><?= e($tituloPagina) ?></h1>
     <a href="index.php" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Voltar</a>
 </div>
 
@@ -134,6 +144,19 @@ include __DIR__ . '/../../includes/header.php';
     </div>
 <?php endif; ?>
 
+<?php if ($somenteLeitura): ?>
+    <div class="card mb-3">
+        <div class="card-body">
+            <h2 class="h5"><?= e($chamado['titulo']) ?></h2>
+            <p class="mb-3" style="white-space: pre-wrap;"><?= e($chamado['descricao']) ?></p>
+            <div class="d-flex flex-wrap gap-2 mb-2">
+                <span class="badge <?= prioridadeChamadoBadgeClass($chamado['prioridade']) ?>">Prioridade: <?= e($chamado['prioridade']) ?></span>
+                <span class="badge <?= statusChamadoBadgeClass($chamado['status']) ?>">Andamento: <?= e($chamado['status']) ?></span>
+            </div>
+            <div class="text-muted small">Aberto em <?= formatDateTime($chamado['criado_em']) ?></div>
+        </div>
+    </div>
+<?php else: ?>
 <form method="post">
     <div class="card mb-3">
         <div class="card-body row g-3">
@@ -190,10 +213,42 @@ include __DIR__ . '/../../includes/header.php';
             <?php endif; ?>
         </div>
     </div>
-    <div class="d-flex gap-2 mb-5">
+    <div class="d-flex gap-2 mb-4">
         <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Salvar</button>
         <a href="index.php" class="btn btn-outline-secondary">Cancelar</a>
     </div>
 </form>
+<?php endif; ?>
+
+<?php if ($edicao): ?>
+    <div class="card mb-5">
+        <div class="card-header bg-white">
+            <i class="bi bi-chat-left-text me-1"></i> Respostas
+        </div>
+        <div class="card-body">
+            <?php if (empty($respostas)): ?>
+                <p class="text-muted small mb-3">Nenhuma resposta ainda.</p>
+            <?php else: ?>
+                <div class="mb-3">
+                    <?php foreach ($respostas as $resposta): ?>
+                        <?php $minhaMensagem = $resposta['usuario_id'] !== null && (int) $resposta['usuario_id'] === (int) $usuarioAtual['id']; ?>
+                        <div class="d-flex <?= $minhaMensagem ? 'justify-content-end' : 'justify-content-start' ?> mb-2">
+                            <div class="p-2 px-3 rounded-3 <?= $minhaMensagem ? 'bg-primary text-white' : 'bg-light border' ?>" style="max-width: 75%;">
+                                <div class="small fw-semibold <?= $minhaMensagem ? '' : 'text-muted' ?>"><?= e($resposta['usuario_nome']) ?></div>
+                                <div style="white-space: pre-wrap;"><?= e($resposta['mensagem']) ?></div>
+                                <div class="small <?= $minhaMensagem ? 'text-white-50' : 'text-muted' ?>"><?= formatDateTime($resposta['criado_em']) ?></div>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            <?php endif; ?>
+            <form method="post" action="responder.php" class="d-flex gap-2">
+                <input type="hidden" name="chamado_id" value="<?= (int) $id ?>">
+                <textarea name="mensagem" class="form-control" rows="2" placeholder="Escreva uma resposta..." required></textarea>
+                <button type="submit" class="btn btn-primary text-nowrap"><i class="bi bi-send"></i> Enviar</button>
+            </form>
+        </div>
+    </div>
+<?php endif; ?>
 
 <?php include __DIR__ . '/../../includes/footer.php'; ?>

@@ -361,3 +361,36 @@ function perfilUsuarioBadgeClass(string $perfil): string
         default         => 'bg-secondary',
     };
 }
+
+/**
+ * Conta em quantos chamados (em que o usuário é o solicitante ou o
+ * responsável) existe pelo menos uma resposta de outra pessoa ainda não
+ * vista por ele. Usado para o sininho de notificação no topo da tela.
+ */
+function contarChamadosComRespostaNaoLida(int $usuarioId): int
+{
+    $stmt = db()->prepare(
+        "SELECT COUNT(DISTINCT c.id)
+         FROM chamados c
+         JOIN chamado_respostas r ON r.chamado_id = c.id
+         LEFT JOIN chamado_visualizacoes v ON v.chamado_id = c.id AND v.usuario_id = :uid1
+         WHERE (c.criado_por_id = :uid2 OR c.responsavel_id = :uid3)
+           AND (r.usuario_id IS NULL OR r.usuario_id != :uid4)
+           AND r.criado_em > COALESCE(v.visto_em, '1970-01-01 00:00:00')"
+    );
+    $stmt->execute(['uid1' => $usuarioId, 'uid2' => $usuarioId, 'uid3' => $usuarioId, 'uid4' => $usuarioId]);
+
+    return (int) $stmt->fetchColumn();
+}
+
+/**
+ * Marca um chamado como visto agora pelo usuário informado (some da
+ * contagem de não lidos até que chegue uma resposta nova).
+ */
+function marcarChamadoVisto(int $chamadoId, int $usuarioId): void
+{
+    db()->prepare(
+        'INSERT INTO chamado_visualizacoes (usuario_id, chamado_id, visto_em) VALUES (:uid, :cid, NOW())
+         ON DUPLICATE KEY UPDATE visto_em = NOW()'
+    )->execute(['uid' => $usuarioId, 'cid' => $chamadoId]);
+}

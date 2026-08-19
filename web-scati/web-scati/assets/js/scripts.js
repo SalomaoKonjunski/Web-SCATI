@@ -150,4 +150,70 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
     }
+
+    // Notificações de chamados: sininho no topo que verifica periodicamente
+    // se chegou resposta nova em algum chamado do usuário e toca um bipe
+    // curto (enquanto a aba do sistema estiver aberta no navegador).
+    const notifBtn = document.getElementById('scatiNotificacaoBtn');
+    const notifBadge = document.getElementById('scatiNotificacaoBadge');
+    if (notifBtn && notifBadge) {
+        let audioCtx = null;
+        document.addEventListener('click', function desbloquearAudio() {
+            if (!audioCtx) {
+                try {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                } catch (e) {
+                    // navegador sem suporte a Web Audio - notificação sonora fica desativada
+                }
+            }
+        }, { once: true });
+
+        function tocarBip() {
+            if (!audioCtx) return;
+            [880, 1108].forEach(function (freq, i) {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.value = freq;
+                const inicio = audioCtx.currentTime + i * 0.18;
+                gain.gain.setValueAtTime(0.0001, inicio);
+                gain.gain.exponentialRampToValueAtTime(0.25, inicio + 0.02);
+                gain.gain.exponentialRampToValueAtTime(0.0001, inicio + 0.3);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(inicio);
+                osc.stop(inicio + 0.3);
+            });
+        }
+
+        function atualizarBadgeNotificacao(qtd) {
+            if (qtd > 0) {
+                notifBadge.textContent = qtd > 9 ? '9+' : String(qtd);
+                notifBadge.classList.remove('d-none');
+            } else {
+                notifBadge.classList.add('d-none');
+            }
+        }
+
+        let ultimaContagem = parseInt(notifBtn.dataset.naoLidas || '0', 10);
+        atualizarBadgeNotificacao(ultimaContagem);
+
+        function verificarNotificacoes() {
+            fetch(notifBtn.dataset.url, { credentials: 'same-origin' })
+                .then(function (resp) { return resp.ok ? resp.json() : null; })
+                .then(function (dados) {
+                    if (!dados) return;
+                    if (dados.nao_lidas > ultimaContagem) {
+                        tocarBip();
+                    }
+                    ultimaContagem = dados.nao_lidas;
+                    atualizarBadgeNotificacao(ultimaContagem);
+                })
+                .catch(function () {
+                    // falha de rede - tenta de novo na próxima checagem
+                });
+        }
+
+        setInterval(verificarNotificacoes, 25000);
+    }
 });
