@@ -18,7 +18,7 @@ if ($edicao && $usuarioAtual['solicitante']) {
 }
 
 $chamado = [
-    'titulo' => '', 'descricao' => '', 'solicitante' => '', 'equipamento_id' => '',
+    'titulo' => '', 'descricao' => '', 'solicitante' => '',
     'prioridade' => 'Média', 'status' => 'Aberto', 'responsavel_id' => '',
 ];
 
@@ -65,7 +65,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if (empty($erros)) {
-        $equipamentoId = $chamado['equipamento_id'] !== '' ? (int) $chamado['equipamento_id'] : null;
         // O Solicitante não escolhe andamento/responsável: todo chamado novo
         // criado por esse perfil nasce "Aberto" e sem responsável atribuído.
         $status = $usuarioAtual['solicitante'] ? 'Aberto' : $chamado['status'];
@@ -83,7 +82,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'titulo' => $chamado['titulo'],
             'descricao' => $chamado['descricao'] ?: null,
             'solicitante' => $chamado['solicitante'] ?: null,
-            'equipamento_id' => $equipamentoId,
             'prioridade' => $chamado['prioridade'],
             'status' => $status,
             'responsavel_id' => $responsavelId,
@@ -94,7 +92,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $dados['id'] = $id;
             $pdo->prepare(
                 'UPDATE chamados SET titulo = :titulo, descricao = :descricao, solicitante = :solicitante,
-                        equipamento_id = :equipamento_id, prioridade = :prioridade, status = :status,
+                        prioridade = :prioridade, status = :status,
                         responsavel_id = :responsavel_id, concluido_em = :concluido_em
                  WHERE id = :id'
             )->execute($dados);
@@ -102,8 +100,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             $dados['criado_por_id'] = $usuarioAtual['id'];
             $pdo->prepare(
-                'INSERT INTO chamados (titulo, descricao, solicitante, criado_por_id, equipamento_id, prioridade, status, responsavel_id, concluido_em)
-                 VALUES (:titulo, :descricao, :solicitante, :criado_por_id, :equipamento_id, :prioridade, :status, :responsavel_id, :concluido_em)'
+                'INSERT INTO chamados (titulo, descricao, solicitante, criado_por_id, prioridade, status, responsavel_id, concluido_em)
+                 VALUES (:titulo, :descricao, :solicitante, :criado_por_id, :prioridade, :status, :responsavel_id, :concluido_em)'
             )->execute($dados);
             flash('success', 'Chamado registrado com sucesso.');
         }
@@ -111,7 +109,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$equipamentos = $pdo->query('SELECT id, nome, patrimonio FROM equipamentos ORDER BY nome, patrimonio')->fetchAll();
 $usuarios = $pdo->query('SELECT id, usuario FROM usuarios ORDER BY usuario')->fetchAll();
 
 $pageTitle = $edicao ? 'Editar Chamado' : 'Novo Chamado';
@@ -138,7 +135,7 @@ include __DIR__ . '/../../includes/header.php';
                 <input type="text" name="titulo" class="form-control" required autofocus placeholder="Ex: Impressora da recepção não imprime" value="<?= e($chamado['titulo']) ?>">
             </div>
             <div class="col-md-4">
-                <label class="form-label">Solicitante</label>
+                <label class="form-label">Usuário</label>
                 <?php if (!$edicao && !$podeEscolherSolicitante): ?>
                     <input type="text" name="solicitante" class="form-control" value="<?= e($chamado['solicitante']) ?>" readonly>
                     <div class="form-text">Definido automaticamente como o seu usuário.</div>
@@ -149,17 +146,6 @@ include __DIR__ . '/../../includes/header.php';
             <div class="col-md-12">
                 <label class="form-label">Descrição (a solicitação) *</label>
                 <textarea name="descricao" class="form-control" rows="3" required placeholder="Detalhes do problema ou solicitação"><?= e($chamado['descricao']) ?></textarea>
-            </div>
-            <div class="col-md-4">
-                <label class="form-label">Equipamento relacionado</label>
-                <select name="equipamento_id" class="form-select">
-                    <option value="">Nenhum</option>
-                    <?php foreach ($equipamentos as $eq): ?>
-                        <option value="<?= (int) $eq['id'] ?>" <?= (string) $chamado['equipamento_id'] === (string) $eq['id'] ? 'selected' : '' ?>>
-                            <?= e(nomeEquipamento($eq['nome'], $eq['patrimonio'])) ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
             </div>
             <div class="col-md-4">
                 <label class="form-label">Prioridade *</label>
@@ -187,9 +173,11 @@ include __DIR__ . '/../../includes/header.php';
                             <option value="<?= (int) $u['id'] ?>" <?= (string) $chamado['responsavel_id'] === (string) $u['id'] ? 'selected' : '' ?>><?= e($u['usuario']) ?></option>
                         <?php endforeach; ?>
                     </select>
+                    <?php if ($usuarioAtual['admin']): ?>
                     <button type="button" class="btn btn-outline-secondary text-nowrap" onclick="document.getElementById('responsavel_id').value = '<?= (int) $usuarioAtual['id'] ?>';">
                         <i class="bi bi-person-plus"></i> Atribuir para mim
                     </button>
+                    <?php endif; ?>
                 </div>
             </div>
             <?php endif; ?>

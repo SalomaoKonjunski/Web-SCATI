@@ -7,7 +7,7 @@ exigirLogin();
 
 $usuarioAtual = usuarioLogado();
 
-if ($usuarioAtual['solicitante']) {
+if (!$usuarioAtual['admin']) {
     flash('danger', 'Seu perfil não pode se atribuir a chamados.');
     redirect('/modules/chamados/index.php');
 }

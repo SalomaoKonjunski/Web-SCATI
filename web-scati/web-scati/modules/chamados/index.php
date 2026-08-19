@@ -10,20 +10,27 @@ $pageTitle = 'Chamados';
 $usuarioAtual = usuarioLogado();
 $souSolicitante = $usuarioAtual['solicitante'];
 
+$aba = ($_GET['aba'] ?? '') === 'resolvidos' ? 'resolvidos' : 'pendentes';
+$statusOpcoes = $aba === 'resolvidos' ? ['Concluído', 'Cancelado'] : ['Aberto', 'Em andamento', 'Aguardando'];
+
 $busca = trim($_GET['busca'] ?? '');
 $filtroStatus = $_GET['status'] ?? '';
 $filtroPrioridade = $_GET['prioridade'] ?? '';
 $filtroResponsavel = $_GET['responsavel_id'] ?? '';
-$filtroDiasParado = trim($_GET['dias_parado'] ?? '');
-$filtroUrgentes = isset($_GET['urgentes']) && $_GET['urgentes'] === '1';
+$filtroDiasParado = $aba === 'pendentes' ? trim($_GET['dias_parado'] ?? '') : '';
+$filtroUrgentes = $aba === 'pendentes' && isset($_GET['urgentes']) && $_GET['urgentes'] === '1';
 
-$sql = "SELECT c.*, e.nome AS equipamento_nome, e.patrimonio AS equipamento_patrimonio, u.usuario AS responsavel_nome
+$sql = "SELECT c.*, u.usuario AS responsavel_nome
         FROM chamados c
-        LEFT JOIN equipamentos e ON e.id = c.equipamento_id
         LEFT JOIN usuarios u ON u.id = c.responsavel_id
         WHERE 1=1";
 $params = [];
 
+if ($aba === 'resolvidos') {
+    $sql .= " AND c.status IN ('Concluído', 'Cancelado')";
+} else {
+    $sql .= " AND c.status NOT IN ('Concluído', 'Cancelado')";
+}
 if ($busca !== '') {
     $sql .= " AND (c.titulo LIKE :busca1 OR c.descricao LIKE :busca2 OR c.solicitante LIKE :busca3)";
     $curingaBusca = '%' . $busca . '%';
@@ -46,16 +53,14 @@ if ($filtroResponsavel === 'nenhum') {
     $params['responsavel_id'] = $filtroResponsavel;
 }
 if ($filtroDiasParado !== '' && is_numeric($filtroDiasParado) && (int) $filtroDiasParado >= 0) {
-    // Só considera chamados ainda em aberto — um chamado concluído há muito
-    // tempo não está "parado", só está resolvido e arquivado.
-    $sql .= " AND c.status NOT IN ('Concluído', 'Cancelado')
-              AND c.criado_em <= DATE_SUB(NOW(), INTERVAL :dias_parado DAY)";
+    // Só se aplica na aba Pendentes (a aba já garante status em aberto).
+    $sql .= " AND c.criado_em <= DATE_SUB(NOW(), INTERVAL :dias_parado DAY)";
     $params['dias_parado'] = (int) $filtroDiasParado;
 }
 if ($filtroUrgentes) {
     // Mesmo critério do cartão "Urgentes em Aberto": prioridade Alta/Urgente
-    // e ainda não encerrado.
-    $sql .= " AND c.prioridade IN ('Alta', 'Urgente') AND c.status NOT IN ('Concluído', 'Cancelado')";
+    // (a aba já garante que está em aberto).
+    $sql .= " AND c.prioridade IN ('Alta', 'Urgente')";
 }
 if ($souSolicitante) {
     // O perfil Solicitante só enxerga os chamados que ele mesmo abriu.
@@ -63,9 +68,14 @@ if ($souSolicitante) {
     $params['meu_id'] = $usuarioAtual['id'];
 }
 
-// Abertos primeiro (respeitando a ordem definida no ENUM: Aberto > Em andamento >
-// Aguardando > Concluído > Cancelado), depois os mais urgentes, depois os mais antigos.
-$sql .= " ORDER BY c.status ASC, c.prioridade DESC, c.criado_em ASC";
+if ($aba === 'resolvidos') {
+    // Resolvidos mais recentes primeiro.
+    $sql .= " ORDER BY COALESCE(c.concluido_em, c.atualizado_em) DESC";
+} else {
+    // Abertos primeiro (respeitando a ordem definida no ENUM: Aberto > Em
+    // andamento > Aguardando), depois os mais urgentes, depois os mais antigos.
+    $sql .= " ORDER BY c.status ASC, c.prioridade DESC, c.criado_em ASC";
+}
 
 $stmt = $pdo->prepare($sql);
 $stmt->execute($params);
@@ -125,6 +135,20 @@ include __DIR__ . '/../../includes/header.php';
     </div>
 </div>
 
+<ul class="nav nav-tabs mb-3">
+    <li class="nav-item">
+        <a class="nav-link <?= $aba === 'pendentes' ? 'active' : '' ?>" href="index.php?aba=pendentes">
+            <i class="bi bi-inbox"></i> Chamados
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link <?= $aba === 'resolvidos' ? 'active' : '' ?>" href="index.php?aba=resolvidos">
+            <i class="bi bi-check-circle"></i> Resolvidos
+        </a>
+    </li>
+</ul>
+
+<?php if ($aba === 'pendentes'): ?>
 <div class="row g-3 mb-3">
     <a href="index.php?status=<?= urlencode('Aberto') ?>" class="col-6 col-md-3 scati-kpi-card-link" title="Ver chamados Abertos">
         <div class="card scati-kpi-card border-start border-4 border-primary <?= ($filtroStatus === 'Aberto' && !$filtroUrgentes) ? 'kpi-ativo' : '' ?>">
@@ -176,19 +200,21 @@ include __DIR__ . '/../../includes/header.php';
         <a href="index.php" class="btn btn-sm btn-outline-secondary"><i class="bi bi-x-lg"></i> Limpar filtro dos cartões</a>
     </div>
 <?php endif; ?>
+<?php endif; ?>
 
 <div class="card mb-3">
     <div class="card-body">
         <form method="get" class="row g-2 align-items-end">
+            <input type="hidden" name="aba" value="<?= e($aba) ?>">
             <div class="col-md-4">
                 <label class="form-label small text-muted mb-1">Pesquisar</label>
-                <input type="text" name="busca" class="form-control" placeholder="Título, descrição ou solicitante..." value="<?= e($busca) ?>">
+                <input type="text" name="busca" class="form-control" placeholder="Título, descrição ou usuário..." value="<?= e($busca) ?>">
             </div>
             <div class="col-md-2">
                 <label class="form-label small text-muted mb-1">Status</label>
                 <select name="status" class="form-select">
                     <option value="">Todos</option>
-                    <?php foreach (statusChamado() as $status): ?>
+                    <?php foreach ($statusOpcoes as $status): ?>
                         <option value="<?= e($status) ?>" <?= $filtroStatus === $status ? 'selected' : '' ?>><?= e($status) ?></option>
                     <?php endforeach; ?>
                 </select>
@@ -214,13 +240,15 @@ include __DIR__ . '/../../includes/header.php';
                 </select>
             </div>
             <?php endif; ?>
+            <?php if ($aba === 'pendentes'): ?>
             <div class="col-md-2">
                 <label class="form-label small text-muted mb-1">Parado há mais de (dias)</label>
                 <input type="number" name="dias_parado" min="0" class="form-control" placeholder="Ex: 5" value="<?= e($filtroDiasParado) ?>">
             </div>
+            <?php endif; ?>
             <div class="col-md-3 d-flex gap-2">
                 <button type="submit" class="btn btn-outline-primary w-100"><i class="bi bi-search"></i> Filtrar</button>
-                <a href="index.php" class="btn btn-outline-secondary" title="Limpar filtros"><i class="bi bi-x-lg"></i></a>
+                <a href="index.php?aba=<?= e($aba) ?>" class="btn btn-outline-secondary" title="Limpar filtros"><i class="bi bi-x-lg"></i></a>
             </div>
         </form>
         <?php if ($filtroDiasParado !== '' && is_numeric($filtroDiasParado)): ?>
@@ -237,17 +265,24 @@ include __DIR__ . '/../../includes/header.php';
             <thead class="table-light">
                 <tr>
                     <th>Título</th>
-                    <th>Equipamento</th>
                     <th>Prioridade</th>
                     <th>Andamento</th>
                     <th>Responsável</th>
-                    <th>Aberto em</th>
+                    <?php if ($aba === 'resolvidos'): ?>
+                        <th>Solicitado em</th>
+                        <th>Concluído em</th>
+                    <?php else: ?>
+                        <th>Aberto em</th>
+                    <?php endif; ?>
                     <?php if (!$souSolicitante): ?><th class="text-end">Ações</th><?php endif; ?>
                 </tr>
             </thead>
             <tbody>
+                <?php
+                    $totalColunas = 4 + ($aba === 'resolvidos' ? 2 : 1) + ($souSolicitante ? 0 : 1);
+                ?>
                 <?php if (empty($chamados)): ?>
-                    <tr><td colspan="<?= $souSolicitante ? 6 : 7 ?>" class="text-center text-muted py-4">Nenhum chamado encontrado.</td></tr>
+                    <tr><td colspan="<?= $totalColunas ?>" class="text-center text-muted py-4">Nenhum chamado encontrado.</td></tr>
                 <?php endif; ?>
                 <?php foreach ($chamados as $chamado): ?>
                     <?php
@@ -271,13 +306,6 @@ include __DIR__ . '/../../includes/header.php';
                             <?php endif; ?>
                             <?php if (!empty($chamado['solicitante'])): ?>
                                 <div class="small text-muted"><i class="bi bi-person"></i> <?= e($chamado['solicitante']) ?></div>
-                            <?php endif; ?>
-                        </td>
-                        <td>
-                            <?php if ($chamado['equipamento_id']): ?>
-                                <?= e(nomeEquipamento($chamado['equipamento_nome'], $chamado['equipamento_patrimonio'])) ?>
-                            <?php else: ?>
-                                <span class="text-muted">-</span>
                             <?php endif; ?>
                         </td>
                         <td>
@@ -317,22 +345,29 @@ include __DIR__ . '/../../includes/header.php';
                                 <?php else: ?>
                                     <?= e($chamado['responsavel_nome']) ?>
                                 <?php endif; ?>
-                            <?php elseif ($souSolicitante): ?>
-                                <span class="text-muted">Não atribuído</span>
-                            <?php else: ?>
+                            <?php elseif (!$souSolicitante && $usuarioAtual['admin']): ?>
                                 <a href="atribuir.php?id=<?= (int) $chamado['id'] ?>" class="btn btn-sm btn-outline-primary">
                                     <i class="bi bi-person-plus"></i> Atribuir para mim
                                 </a>
+                            <?php else: ?>
+                                <span class="text-muted">Não atribuído</span>
                             <?php endif; ?>
                         </td>
-                        <td>
-                            <?= formatDateTime($chamado['criado_em']) ?>
-                            <?php if ($emAberto): ?>
+                        <?php if ($aba === 'resolvidos'): ?>
+                            <?php $dataConclusao = $chamado['concluido_em'] ?? $chamado['atualizado_em']; ?>
+                            <td><?= formatDateTime($chamado['criado_em']) ?></td>
+                            <td>
+                                <?= formatDateTime($dataConclusao) ?>
+                                <div class="small text-muted">
+                                    <?= e(tempoDecorrido($dataConclusao)) ?><?= $chamado['status'] === 'Cancelado' ? ' · cancelado' : '' ?>
+                                </div>
+                            </td>
+                        <?php else: ?>
+                            <td>
+                                <?= formatDateTime($chamado['criado_em']) ?>
                                 <div class="small text-muted"><?= e(tempoDecorrido($chamado['criado_em'])) ?></div>
-                            <?php elseif (!empty($chamado['concluido_em'])): ?>
-                                <div class="small text-muted">Concluído <?= e(tempoDecorrido($chamado['concluido_em'])) ?></div>
-                            <?php endif; ?>
-                        </td>
+                            </td>
+                        <?php endif; ?>
                         <?php if (!$souSolicitante): ?>
                         <td class="text-end">
                             <a href="form.php?id=<?= (int) $chamado['id'] ?>" class="btn btn-sm btn-outline-primary" title="Editar"><i class="bi bi-pencil"></i></a>
