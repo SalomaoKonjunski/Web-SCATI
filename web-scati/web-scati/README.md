@@ -280,8 +280,9 @@ web-scati/
   está vinculado, visível na coluna "Vinculado a" da listagem de
   Estoque. A coluna **Observações** na mesma listagem mostra as anotações
   cadastradas em cada item (com um ícone, quando preenchida) — o texto
-  completo aparece ao passar o mouse, sem precisar abrir a edição do item
-  para conferir.
+  completo aparece ao passar o mouse. A linha inteira do item também é
+  clicável (como em Equipamentos) para abrir seu cadastro completo, onde
+  as observações ficam visíveis no campo correspondente.
 - **Itens Vinculados**: aba na ficha do equipamento para vincular itens já
   cadastrados no Estoque (periféricos, cabos, etc.) diretamente a ele, sem
   duplicar o cadastro. Cada vínculo consome 1 unidade da quantidade
@@ -296,7 +297,11 @@ web-scati/
   Asus e outro Acer), aparece uma única linha com o total somado na
   coluna "Qtd. Itens", e a coluna Marca/Modelo lista cada marca/modelo
   em sua própria linha com a respectiva quantidade vinculada (ex.:
-  "Asus VP32AQ — 2" e "Acer V227Q — 1"). "Desvincular" sempre remove 1
+  "Asus VP32AQ — 2" e "Acer V227Q — 1"). Cada linha de marca/modelo tem um
+  ícone de observação (com o texto completo ao passar o mouse, quando o
+  item tem alguma anotação) e um link para abrir o cadastro completo
+  daquele item no Estoque — sem precisar sair da ficha do equipamento
+  para conferir os detalhes. "Desvincular" sempre remove 1
   unidade por vez. Ao desvincular (ou ao
   excluir o equipamento), a unidade volta automaticamente para a
   quantidade disponível do item. Se o item ainda não existir no Estoque,
