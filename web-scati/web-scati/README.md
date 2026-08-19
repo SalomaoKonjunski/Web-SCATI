@@ -424,7 +424,10 @@ web-scati/
   trecho da descrição e o solicitante em cada linha, o tempo em aberto
   (ex.: "há 3 dias") ou o tempo desde a conclusão, e destaca com um
   fundo suave as linhas de chamados urgentes ou de alta prioridade
-  ainda em aberto.
+  ainda em aberto. Os filtros incluem um campo **"Parado há mais de
+  (dias)"**, que mostra apenas chamados em aberto (não concluídos/
+  cancelados) criados há mais dias do que o valor informado — útil
+  para encontrar rapidamente solicitações esquecidas.
 
 ## Notas de projeto
 
