@@ -27,13 +27,14 @@ include __DIR__ . '/../../includes/header.php';
                 <tr>
                     <th>Usuário</th>
                     <th>Perfil</th>
+                    <th>Contato</th>
                     <th>Criado em</th>
                     <th class="text-end">Ações</th>
                 </tr>
             </thead>
             <tbody>
                 <?php if (empty($usuarios)): ?>
-                    <tr><td colspan="4" class="text-center text-muted py-4">Nenhum usuário cadastrado.</td></tr>
+                    <tr><td colspan="5" class="text-center text-muted py-4">Nenhum usuário cadastrado.</td></tr>
                 <?php endif; ?>
                 <?php foreach ($usuarios as $u): ?>
                     <tr>
@@ -45,6 +46,17 @@ include __DIR__ . '/../../includes/header.php';
                         </td>
                         <td>
                             <span class="badge <?= perfilUsuarioBadgeClass($u['perfil']) ?>"><?= e($u['perfil']) ?></span>
+                        </td>
+                        <td>
+                            <?php if (!empty($u['ramal'])): ?>
+                                <div class="small"><i class="bi bi-telephone-inbound"></i> Ramal <?= e($u['ramal']) ?></div>
+                            <?php endif; ?>
+                            <?php if (!empty($u['telefone'])): ?>
+                                <div class="small"><i class="bi bi-telephone"></i> <?= e($u['telefone']) ?></div>
+                            <?php endif; ?>
+                            <?php if (empty($u['ramal']) && empty($u['telefone'])): ?>
+                                <span class="text-muted">-</span>
+                            <?php endif; ?>
                         </td>
                         <td><?= formatDateTime($u['criado_em']) ?></td>
                         <td class="text-end">

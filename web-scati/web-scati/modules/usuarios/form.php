@@ -10,7 +10,7 @@ $id = isset($_GET['id']) ? (int) $_GET['id'] : null;
 $edicao = $id !== null;
 $usuarioAtualId = usuarioLogado()['id'];
 
-$registroUsuario = ['usuario' => '', 'perfil' => 'Padrão'];
+$registroUsuario = ['usuario' => '', 'perfil' => 'Padrão', 'ramal' => '', 'telefone' => ''];
 
 if ($edicao) {
     $stmt = $pdo->prepare('SELECT * FROM usuarios WHERE id = :id');
@@ -29,6 +29,8 @@ $erros = [];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $registroUsuario['usuario'] = trim($_POST['usuario'] ?? '');
+    $registroUsuario['ramal'] = trim($_POST['ramal'] ?? '');
+    $registroUsuario['telefone'] = trim($_POST['telefone'] ?? '');
     $senha = (string) ($_POST['senha'] ?? '');
     $confirmarSenha = (string) ($_POST['confirmar_senha'] ?? '');
     $perfilSubmetido = trim($_POST['perfil'] ?? 'Padrão');
@@ -69,18 +71,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if (empty($erros)) {
+        $ramal = $registroUsuario['ramal'] ?: null;
+        $telefone = $registroUsuario['telefone'] ?: null;
+
         if ($edicao) {
             if ($senha !== '') {
-                $pdo->prepare('UPDATE usuarios SET usuario = :usuario, senha_hash = :senha_hash, perfil = :perfil WHERE id = :id')
+                $pdo->prepare('UPDATE usuarios SET usuario = :usuario, senha_hash = :senha_hash, perfil = :perfil, ramal = :ramal, telefone = :telefone WHERE id = :id')
                     ->execute([
                         'usuario' => $registroUsuario['usuario'],
                         'senha_hash' => password_hash($senha, PASSWORD_DEFAULT),
                         'perfil' => $perfilSubmetido,
+                        'ramal' => $ramal,
+                        'telefone' => $telefone,
                         'id' => $id,
                     ]);
             } else {
-                $pdo->prepare('UPDATE usuarios SET usuario = :usuario, perfil = :perfil WHERE id = :id')
-                    ->execute(['usuario' => $registroUsuario['usuario'], 'perfil' => $perfilSubmetido, 'id' => $id]);
+                $pdo->prepare('UPDATE usuarios SET usuario = :usuario, perfil = :perfil, ramal = :ramal, telefone = :telefone WHERE id = :id')
+                    ->execute([
+                        'usuario' => $registroUsuario['usuario'],
+                        'perfil' => $perfilSubmetido,
+                        'ramal' => $ramal,
+                        'telefone' => $telefone,
+                        'id' => $id,
+                    ]);
             }
             // Se o próprio usuário logado for editado, mantém o nome exibido em sessão atualizado.
             if ((int) $id === $usuarioAtualId) {
@@ -89,11 +102,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             flash('success', 'Usuário atualizado com sucesso.');
         } else {
-            $pdo->prepare('INSERT INTO usuarios (usuario, senha_hash, perfil) VALUES (:usuario, :senha_hash, :perfil)')
+            $pdo->prepare('INSERT INTO usuarios (usuario, senha_hash, perfil, ramal, telefone) VALUES (:usuario, :senha_hash, :perfil, :ramal, :telefone)')
                 ->execute([
                     'usuario' => $registroUsuario['usuario'],
                     'senha_hash' => password_hash($senha, PASSWORD_DEFAULT),
                     'perfil' => $perfilSubmetido,
+                    'ramal' => $ramal,
+                    'telefone' => $telefone,
                 ]);
             flash('success', 'Usuário cadastrado com sucesso.');
         }
@@ -147,6 +162,14 @@ include __DIR__ . '/../../includes/header.php';
             <div class="col-md-6">
                 <label class="form-label">Confirmar Senha <?= $edicao ? '' : '*' ?></label>
                 <input type="password" name="confirmar_senha" class="form-control" <?= $edicao ? '' : 'required' ?>>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Ramal</label>
+                <input type="text" name="ramal" class="form-control" placeholder="Ex: 1234" value="<?= e($registroUsuario['ramal']) ?>">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Telefone</label>
+                <input type="text" name="telefone" class="form-control" placeholder="Ex: (11) 98888-7777" value="<?= e($registroUsuario['telefone']) ?>">
             </div>
         </div>
     </div>

@@ -17,6 +17,8 @@ CREATE TABLE IF NOT EXISTS usuarios (
     usuario         VARCHAR(50)  NOT NULL UNIQUE,
     senha_hash      VARCHAR(255) NOT NULL,
     perfil          ENUM('Administrador','Padrão','Usuário') NOT NULL DEFAULT 'Padrão',
+    ramal           VARCHAR(20)  NULL,
+    telefone        VARCHAR(20)  NULL,
     criado_em       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 
