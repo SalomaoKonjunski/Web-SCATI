@@ -428,7 +428,13 @@ web-scati/
   administrador e excluir o padrão.
 - **Chamados**: aba própria no menu lateral funcionando como uma tabela
   de pendências de TI. Cada chamado tem título, **descrição** (a
-  solicitação em si — campo obrigatório), solicitante (texto livre),
+  solicitação em si — campo obrigatório) e solicitante. Ao abrir um
+  chamado, o campo **Solicitante** já vem preenchido com o próprio
+  usuário logado e fica bloqueado (só leitura); apenas o perfil
+  **Administrador** pode digitar livremente quem é o solicitante (por
+  exemplo, ao registrar um chamado em nome de alguém que ligou ou pediu
+  pessoalmente) — os demais perfis sempre abrem o chamado em seu
+  próprio nome. Cada chamado também tem
   equipamento relacionado (opcional, escolhido entre os já cadastrados),
   **prioridade** (Baixa/Média/Alta/Urgente — campo obrigatório) e
   **andamento** (Aberto/Em andamento/Aguardando/Concluído/Cancelado). O
