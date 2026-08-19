@@ -448,7 +448,11 @@ web-scati/
   concluídos/cancelados), e chamados de prioridade Alta ou Urgente ainda
   em aberto aparecem na Central de Alertas do Dashboard. A listagem tem
   cartões de resumo no topo
-  (Abertos, Em Andamento, Aguardando, Urgentes em Aberto), mostra um
+  (Abertos, Em Andamento, Aguardando, Urgentes em Aberto) — **clicar em
+  um cartão filtra a lista** pelo status correspondente (o cartão
+  Urgentes em Aberto filtra por prioridade Alta/Urgente entre os ainda
+  não encerrados), com o cartão ativo destacado e um atalho para limpar
+  o filtro. A listagem também mostra um
   trecho da descrição e o solicitante em cada linha, o tempo em aberto
   (ex.: "há 3 dias") ou o tempo desde a conclusão, e destaca com um
   fundo suave as linhas de chamados urgentes ou de alta prioridade
