@@ -22,6 +22,13 @@ $chamado = [
     'prioridade' => 'Média', 'status' => 'Aberto', 'responsavel_id' => '',
 ];
 
+// Só o Administrador pode escolher quem é o solicitante ao abrir um chamado;
+// para os demais perfis, o solicitante é sempre o próprio usuário logado.
+$podeEscolherSolicitante = $usuarioAtual['admin'];
+if (!$edicao && !$podeEscolherSolicitante) {
+    $chamado['solicitante'] = $usuarioAtual['usuario'];
+}
+
 if ($edicao) {
     $stmt = $pdo->prepare('SELECT * FROM chamados WHERE id = :id');
     $stmt->execute(['id' => $id]);
@@ -38,6 +45,10 @@ $erros = [];
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     foreach ($chamado as $campo => $valorPadrao) {
         $chamado[$campo] = trim((string) ($_POST[$campo] ?? ''));
+    }
+
+    if (!$edicao && !$podeEscolherSolicitante) {
+        $chamado['solicitante'] = $usuarioAtual['usuario'];
     }
 
     if ($chamado['titulo'] === '') {
@@ -128,7 +139,12 @@ include __DIR__ . '/../../includes/header.php';
             </div>
             <div class="col-md-4">
                 <label class="form-label">Solicitante</label>
-                <input type="text" name="solicitante" class="form-control" placeholder="Quem pediu / nome, setor..." value="<?= e($chamado['solicitante']) ?>">
+                <?php if (!$edicao && !$podeEscolherSolicitante): ?>
+                    <input type="text" name="solicitante" class="form-control" value="<?= e($chamado['solicitante']) ?>" readonly>
+                    <div class="form-text">Definido automaticamente como o seu usuário.</div>
+                <?php else: ?>
+                    <input type="text" name="solicitante" class="form-control" placeholder="Quem pediu / nome, setor..." value="<?= e($chamado['solicitante']) ?>">
+                <?php endif; ?>
             </div>
             <div class="col-md-12">
                 <label class="form-label">Descrição (a solicitação) *</label>
