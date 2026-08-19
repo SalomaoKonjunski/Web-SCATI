@@ -394,3 +394,21 @@ function marcarChamadoVisto(int $chamadoId, int $usuarioId): void
          ON DUPLICATE KEY UPDATE visto_em = NOW()'
     )->execute(['uid' => $usuarioId, 'cid' => $chamadoId]);
 }
+
+/**
+ * Registra um evento no histórico automático do chamado (aberto, mudança
+ * de andamento/prioridade/responsável), com o usuário logado no momento.
+ */
+function registrarHistoricoChamado(int $chamadoId, string $evento, string $descricao): void
+{
+    $stmt = db()->prepare(
+        'INSERT INTO historico_chamados (chamado_id, evento, descricao, usuario_nome)
+         VALUES (:chamado_id, :evento, :descricao, :usuario_nome)'
+    );
+    $stmt->execute([
+        'chamado_id'   => $chamadoId,
+        'evento'       => $evento,
+        'descricao'    => mb_substr($descricao, 0, 255),
+        'usuario_nome' => usuarioLogado()['usuario'] ?? null,
+    ]);
+}

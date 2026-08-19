@@ -362,6 +362,24 @@ CREATE TABLE chamado_respostas (
 CREATE INDEX idx_resposta_chamado ON chamado_respostas(chamado_id);
 
 -- ---------------------------------------------------------------------
+-- Tabela: historico_chamados (registro automático de eventos do chamado:
+-- aberto, mudança de andamento/prioridade/responsável)
+-- ---------------------------------------------------------------------
+CREATE TABLE historico_chamados (
+    id              INT AUTO_INCREMENT PRIMARY KEY,
+    chamado_id      INT NOT NULL,
+    data_hora       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    evento          VARCHAR(60) NOT NULL,
+    descricao       VARCHAR(255) NOT NULL,
+    usuario_nome    VARCHAR(50) NULL,
+
+    CONSTRAINT fk_historico_chamado
+        FOREIGN KEY (chamado_id) REFERENCES chamados(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE INDEX idx_historico_chamado ON historico_chamados(chamado_id);
+
+-- ---------------------------------------------------------------------
 -- Tabela: chamado_visualizacoes (controle de "visto" por usuário, para
 -- saber quais chamados têm resposta não lida)
 -- ---------------------------------------------------------------------

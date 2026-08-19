@@ -27,5 +27,7 @@ if (!$chamado) {
 $pdo->prepare('UPDATE chamados SET responsavel_id = :responsavel_id WHERE id = :id')
     ->execute(['responsavel_id' => $usuarioAtual['id'], 'id' => $id]);
 
+registrarHistoricoChamado($id, 'Responsável', 'Atribuído a "' . $usuarioAtual['usuario'] . '"');
+
 flash('success', 'Chamado "' . $chamado['titulo'] . '" atribuído a você.');
 redirect('/modules/chamados/index.php');

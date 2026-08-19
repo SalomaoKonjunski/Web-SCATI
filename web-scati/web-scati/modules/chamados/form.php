@@ -42,6 +42,8 @@ if ($edicao) {
 // O perfil Usuário nunca edita os campos do chamado, só acompanha e responde.
 $somenteLeitura = $edicao && $usuarioAtual['solicitante'];
 
+$usuarios = $pdo->query('SELECT id, usuario FROM usuarios ORDER BY usuario')->fetchAll();
+
 $erros = [];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$somenteLeitura) {
@@ -98,6 +100,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$somenteLeitura) {
         ];
 
         if ($edicao) {
+            // Monta a lista de mudanças de estado antes de salvar, para
+            // registrar no histórico automático do chamado.
+            $mudancas = [];
+            if ((string) $registro['prioridade'] !== (string) $chamado['prioridade']) {
+                $mudancas[] = ['Prioridade', 'Prioridade alterada de "' . $registro['prioridade'] . '" para "' . $chamado['prioridade'] . '"'];
+            }
+            if ((string) $registro['status'] !== (string) $status) {
+                $mudancas[] = ['Andamento', $status === 'Concluído'
+                    ? 'Chamado marcado como concluído'
+                    : 'Andamento alterado de "' . $registro['status'] . '" para "' . $status . '"'];
+            }
+            $responsavelAntigo = $registro['responsavel_id'] !== null ? (int) $registro['responsavel_id'] : null;
+            if ($responsavelAntigo !== $responsavelId) {
+                if ($responsavelId === null) {
+                    $mudancas[] = ['Responsável', 'Responsável removido'];
+                } else {
+                    $nomeResponsavel = '';
+                    foreach ($usuarios as $u) {
+                        if ((int) $u['id'] === $responsavelId) {
+                            $nomeResponsavel = $u['usuario'];
+                            break;
+                        }
+                    }
+                    $mudancas[] = ['Responsável', 'Atribuído a "' . $nomeResponsavel . '"'];
+                }
+            }
+
             $dados['id'] = $id;
             $pdo->prepare(
                 'UPDATE chamados SET titulo = :titulo, descricao = :descricao, solicitante = :solicitante,
@@ -105,6 +134,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$somenteLeitura) {
                         responsavel_id = :responsavel_id, concluido_em = :concluido_em
                  WHERE id = :id'
             )->execute($dados);
+
+            foreach ($mudancas as [$evento, $descricaoEvento]) {
+                registrarHistoricoChamado($id, $evento, $descricaoEvento);
+            }
+
             flash('success', 'Chamado atualizado com sucesso.');
         } else {
             $dados['criado_por_id'] = $usuarioAtual['id'];
@@ -112,19 +146,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$somenteLeitura) {
                 'INSERT INTO chamados (titulo, descricao, solicitante, criado_por_id, prioridade, status, responsavel_id, concluido_em)
                  VALUES (:titulo, :descricao, :solicitante, :criado_por_id, :prioridade, :status, :responsavel_id, :concluido_em)'
             )->execute($dados);
+            $novoId = (int) $pdo->lastInsertId();
+            registrarHistoricoChamado($novoId, 'Aberto', $chamado['descricao']);
             flash('success', 'Chamado registrado com sucesso.');
         }
         redirect('/modules/chamados/index.php');
     }
 }
 
-$usuarios = $pdo->query('SELECT id, usuario FROM usuarios ORDER BY usuario')->fetchAll();
-
 $respostas = [];
+$historico = [];
 if ($edicao) {
     $stmtRespostas = $pdo->prepare('SELECT * FROM chamado_respostas WHERE chamado_id = :id ORDER BY criado_em ASC');
     $stmtRespostas->execute(['id' => $id]);
     $respostas = $stmtRespostas->fetchAll();
+
+    $stmtHistorico = $pdo->prepare('SELECT * FROM historico_chamados WHERE chamado_id = :id ORDER BY data_hora DESC');
+    $stmtHistorico->execute(['id' => $id]);
+    $historico = $stmtHistorico->fetchAll();
 }
 
 $tituloPagina = $somenteLeitura ? 'Acompanhar Chamado' : ($edicao ? 'Editar Chamado' : 'Novo Chamado');
@@ -221,6 +260,40 @@ include __DIR__ . '/../../includes/header.php';
 <?php endif; ?>
 
 <?php if ($edicao): ?>
+    <div class="card mb-3">
+        <div class="card-header bg-white">
+            <i class="bi bi-clock-history me-1"></i> Histórico
+        </div>
+        <div class="card-body">
+            <?php if (empty($historico)): ?>
+                <p class="text-muted small mb-0">Nenhum evento registrado.</p>
+            <?php else: ?>
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width:160px">Data / Hora</th>
+                                <th style="width:140px">Evento</th>
+                                <th>Descrição</th>
+                                <th style="width:140px">Usuário</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($historico as $h): ?>
+                                <tr>
+                                    <td><?= formatDateTime($h['data_hora']) ?></td>
+                                    <td><span class="badge bg-light text-dark border"><?= e($h['evento']) ?></span></td>
+                                    <td><?= e($h['descricao']) ?></td>
+                                    <td><?= $h['usuario_nome'] !== null ? e($h['usuario_nome']) : '<span class="text-muted">-</span>' ?></td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            <?php endif; ?>
+        </div>
+    </div>
+
     <div class="card mb-5">
         <div class="card-header bg-white">
             <i class="bi bi-chat-left-text me-1"></i> Respostas

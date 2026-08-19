@@ -30,7 +30,7 @@ if ($id <= 0 || !array_key_exists($campo, $camposPermitidos) || !$camposPermitid
     redirect('/modules/chamados/index.php');
 }
 
-$stmt = $pdo->prepare('SELECT titulo, status, concluido_em FROM chamados WHERE id = :id');
+$stmt = $pdo->prepare('SELECT titulo, status, prioridade, concluido_em FROM chamados WHERE id = :id');
 $stmt->execute(['id' => $id]);
 $chamado = $stmt->fetch();
 
@@ -49,10 +49,18 @@ if ($campo === 'status') {
     }
     $pdo->prepare('UPDATE chamados SET status = :valor, concluido_em = :concluido_em WHERE id = :id')
         ->execute(['valor' => $valor, 'concluido_em' => $concluidoEm, 'id' => $id]);
+    if ($valor !== $chamado['status']) {
+        registrarHistoricoChamado($id, 'Andamento', $valor === 'Concluído'
+            ? 'Chamado marcado como concluído'
+            : 'Andamento alterado de "' . $chamado['status'] . '" para "' . $valor . '"');
+    }
     flash('success', 'Andamento de "' . $chamado['titulo'] . '" atualizado para "' . $valor . '".');
 } else {
     $pdo->prepare('UPDATE chamados SET prioridade = :valor WHERE id = :id')
         ->execute(['valor' => $valor, 'id' => $id]);
+    if ($valor !== $chamado['prioridade']) {
+        registrarHistoricoChamado($id, 'Prioridade', 'Prioridade alterada de "' . $chamado['prioridade'] . '" para "' . $valor . '"');
+    }
     flash('success', 'Prioridade de "' . $chamado['titulo'] . '" atualizada para "' . $valor . '".');
 }
 
