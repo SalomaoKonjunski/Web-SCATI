@@ -134,6 +134,20 @@ Funcional (v1.0).
    mysql -u root -p scati < database/migration_chamados.sql
    ```
 
+   Se o banco já existia antes do **perfil de usuário Solicitante**
+   (a tabela `usuarios` ainda tem a antiga coluna `admin` em vez de
+   `perfil`), rode também esta migração incremental **uma única vez**:
+   ```bash
+   mysql -u root -p scati < database/migration_perfil_usuario.sql
+   ```
+
+   Se o banco já existia antes do **autor do chamado** (a tabela
+   `chamados` ainda não tem a coluna `criado_por_id`), rode também esta
+   migração incremental **uma única vez** (depois da migração acima):
+   ```bash
+   mysql -u root -p scati < database/migration_chamados_solicitante.sql
+   ```
+
    > Importante: ao importar qualquer um dos arquivos `.sql` deste projeto,
    > garanta que o cliente MySQL use UTF-8 (ex.: `mysql --default-character-set=utf8mb4 -u root -p < arquivo.sql`),
    > caso contrário os valores acentuados dos campos `ENUM` (como "Disponível")
@@ -392,34 +406,48 @@ web-scati/
     Alertas do Dashboard (padrão: 7 dias).
 - **Login e usuários**: todas as páginas do sistema exigem autenticação
   (usuário e senha, com a senha armazenada com hash bcrypt via
-  `password_hash()`). Qualquer usuário logado pode realizar normalmente
-  todas as operações do sistema (cadastros, edições, exclusões em
-  qualquer módulo) — não há permissões diferentes por módulo. Apenas
-  usuários **administradores** têm acesso à tela **Usuários** (menu
-  lateral), onde é possível criar, editar (inclusive redefinir senha) e
-  excluir outras contas, e marcar/desmarcar o perfil de administrador. O
-  sistema sempre mantém pelo menos um administrador: não é possível
+  `password_hash()`). Cada usuário tem um **perfil de acesso**, definido
+  na tela **Usuários** (menu lateral, restrita a administradores):
+  - **Administrador**: acesso completo, inclusive à tela Usuários (criar,
+    editar, redefinir senha e excluir outras contas).
+  - **Padrão**: acesso completo ao sistema (cadastros, edições e
+    exclusões em qualquer módulo), exceto gerenciar usuários.
+  - **Solicitante**: só acessa a aba **Chamados** — pode registrar
+    chamados e acompanhar os que ele mesmo abriu, mas não enxerga o
+    restante do sistema (Equipamentos, Estoque, Dashboard etc.) nem pode
+    editar/excluir chamados, alterar prioridade/andamento ou se atribuir
+    a um chamado. Pensado para quem só precisa abrir solicitações para a
+    TI (ex.: recepção, outros setores), sem acesso operacional ao
+    sistema.
+
+  O sistema sempre mantém pelo menos um administrador: não é possível
   excluir a própria conta logada, nem excluir ou remover o perfil de
   administrador do único administrador restante. A instalação já vem com
   um usuário administrador padrão (usuário `Salomao`) — recomenda-se
   trocar a senha após o primeiro acesso, ou cadastrar um novo
   administrador e excluir o padrão.
 - **Chamados**: aba própria no menu lateral funcionando como uma tabela
-  de pendências de TI. Cada chamado tem título, descrição, solicitante
-  (texto livre), equipamento relacionado (opcional, escolhido entre os
-  já cadastrados), **prioridade** (Baixa/Média/Alta/Urgente) e
-  **andamento** (Aberto/Em andamento/Aguardando/Concluído/Cancelado).
-  Prioridade e andamento podem ser alterados direto na listagem, através
-  de um seletor colorido em cada linha, sem precisar abrir o cadastro —
-  a mudança é salva assim que a opção é escolhida. Um botão "Atribuir
-  para mim" (na listagem e no formulário) atribui o chamado ao usuário
-  logado com um clique; o atalho "Meus Chamados" filtra só os chamados
-  já atribuídos a você. Ao marcar um chamado como "Concluído", a data de
-  conclusão é registrada automaticamente; reabrir o chamado (mudar para
-  qualquer outro andamento) limpa essa data. A barra lateral mostra a
-  contagem de chamados em aberto (não concluídos/cancelados), e chamados
-  de prioridade Alta ou Urgente ainda em aberto aparecem na Central de
-  Alertas do Dashboard. A listagem tem cartões de resumo no topo
+  de pendências de TI. Cada chamado tem título, **descrição** (a
+  solicitação em si — campo obrigatório), solicitante (texto livre),
+  equipamento relacionado (opcional, escolhido entre os já cadastrados),
+  **prioridade** (Baixa/Média/Alta/Urgente — campo obrigatório) e
+  **andamento** (Aberto/Em andamento/Aguardando/Concluído/Cancelado). O
+  sistema também registra automaticamente qual usuário abriu cada
+  chamado. Prioridade e andamento podem ser alterados direto na
+  listagem, através de um seletor colorido em cada linha, sem precisar
+  abrir o cadastro — a mudança é salva assim que a opção é escolhida. Um
+  botão "Atribuir para mim" (na listagem e no formulário) atribui o
+  chamado ao usuário logado com um clique; o atalho "Meus Chamados"
+  filtra só os chamados já atribuídos a você. Ao marcar um chamado como
+  "Concluído", a data de conclusão é registrada automaticamente; reabrir
+  o chamado (mudar para qualquer outro andamento) limpa essa data. Por
+  segurança, **nenhum chamado em aberto pode ser excluído** (nem por
+  administrador) — só depois de marcado como Concluído ou Cancelado; o
+  botão de excluir aparece desabilitado enquanto o chamado estiver
+  aberto. A barra lateral mostra a contagem de chamados em aberto (não
+  concluídos/cancelados), e chamados de prioridade Alta ou Urgente ainda
+  em aberto aparecem na Central de Alertas do Dashboard. A listagem tem
+  cartões de resumo no topo
   (Abertos, Em Andamento, Aguardando, Urgentes em Aberto), mostra um
   trecho da descrição e o solicitante em cada linha, o tempo em aberto
   (ex.: "há 3 dias") ou o tempo desde a conclusão, e destaca com um
