@@ -170,6 +170,13 @@ Funcional (v1.0).
    mysql -u root -p scati < database/migration_chamado_respostas.sql
    ```
 
+   Se o banco já existia antes do **histórico automático do chamado**
+   (ainda não tem a tabela `historico_chamados`), rode também esta
+   migração incremental **uma única vez**:
+   ```bash
+   mysql -u root -p scati < database/migration_historico_chamados.sql
+   ```
+
    > Importante: ao importar qualquer um dos arquivos `.sql` deste projeto,
    > garanta que o cliente MySQL use UTF-8 (ex.: `mysql --default-character-set=utf8mb4 -u root -p < arquivo.sql`),
    > caso contrário os valores acentuados dos campos `ENUM` (como "Disponível")
@@ -518,6 +525,14 @@ web-scati/
   > navegador estiver fechado. Notificações push de verdade (que
   > funcionam mesmo com o navegador fechado) exigem HTTPS, que uma
   > instalação via XAMPP em rede local normalmente não tem.
+
+  A ficha do chamado também tem uma seção **Histórico**, no mesmo
+  formato usado em Equipamentos/Estoque, registrando automaticamente
+  cada evento com quem fez e quando: abertura (com a descrição da
+  solicitação), mudanças de andamento (destacando quando o chamado é
+  marcado como concluído), de prioridade e de responsável — capturado
+  tanto ao editar a ficha quanto pelos atalhos rápidos da listagem
+  (seletores inline e "Atribuir para mim").
 
 ## Notas de projeto
 
