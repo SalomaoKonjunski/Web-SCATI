@@ -309,6 +309,28 @@ INSERT INTO configuracoes (chave, valor) VALUES
 ('dias_alerta_toner', '7');
 
 -- ---------------------------------------------------------------------
+-- Tabela: chamados (pendências/solicitações de TI)
+-- ---------------------------------------------------------------------
+CREATE TABLE chamados (
+    id                  INT AUTO_INCREMENT PRIMARY KEY,
+    titulo              VARCHAR(150) NOT NULL,
+    descricao           TEXT NULL,
+    solicitante         VARCHAR(100) NULL,
+    equipamento_id      INT NULL,
+    prioridade          ENUM('Baixa','Média','Alta','Urgente') NOT NULL DEFAULT 'Média',
+    status              ENUM('Aberto','Em andamento','Aguardando','Concluído','Cancelado') NOT NULL DEFAULT 'Aberto',
+    responsavel_id      INT NULL,
+    criado_em           DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    atualizado_em       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    concluido_em        DATETIME NULL,
+
+    CONSTRAINT fk_chamado_equipamento
+        FOREIGN KEY (equipamento_id) REFERENCES equipamentos(id) ON DELETE SET NULL,
+    CONSTRAINT fk_chamado_responsavel
+        FOREIGN KEY (responsavel_id) REFERENCES usuarios(id) ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+-- ---------------------------------------------------------------------
 -- Índices auxiliares para pesquisa (seção 13 da documentação)
 -- ---------------------------------------------------------------------
 CREATE INDEX idx_equip_hostname   ON equipamentos(hostname);
@@ -322,4 +344,7 @@ CREATE INDEX idx_itemvinc_estoque ON itens_vinculados(estoque_id);
 CREATE INDEX idx_itemvinc_equipamento ON itens_vinculados(equipamento_id);
 CREATE INDEX idx_historico_estoque_item ON historico_estoque(estoque_id);
 CREATE INDEX idx_historico_estoque_data ON historico_estoque(data_hora);
+CREATE INDEX idx_chamado_status ON chamados(status);
+CREATE INDEX idx_chamado_prioridade ON chamados(prioridade);
+CREATE INDEX idx_chamado_responsavel ON chamados(responsavel_id);
 CREATE INDEX idx_anexo_equipamento ON anexos_equipamentos(equipamento_id);

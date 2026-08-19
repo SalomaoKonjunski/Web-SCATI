@@ -92,7 +92,15 @@ $stmtTonerVencendo->bindValue('dias', $diasAlertaToner, PDO::PARAM_INT);
 $stmtTonerVencendo->execute();
 $impressorasTonerVencendo = $stmtTonerVencendo->fetchAll();
 
-$totalAlertas = count($licencasVencendo) + count($itensEstoqueBaixo) + count($impressorasSemToner) + count($impressorasTonerVencendo);
+// Chamados de prioridade Alta ou Urgente que ainda estão em aberto (não concluídos/cancelados).
+$chamadosUrgentes = $pdo->query(
+    "SELECT id, titulo, prioridade
+     FROM chamados
+     WHERE prioridade IN ('Alta', 'Urgente') AND status NOT IN ('Concluído', 'Cancelado')
+     ORDER BY prioridade DESC, criado_em ASC"
+)->fetchAll();
+
+$totalAlertas = count($licencasVencendo) + count($itensEstoqueBaixo) + count($impressorasSemToner) + count($impressorasTonerVencendo) + count($chamadosUrgentes);
 
 // --- Itens de estoque por categoria (gráfico) -----------------------------
 $itensPorCategoriaRaw = $pdo->query(
@@ -214,6 +222,13 @@ include __DIR__ . '/includes/header.php';
                         <?= $tocaVencida
                             ? 'troca de toner atrasada desde ' . formatDate($imp['proxima_troca'])
                             : 'troca de toner prevista para ' . formatDate($imp['proxima_troca']) . ' (' . $diasParaTroca . ' dia(s))' ?>
+                    </a>
+                <?php endforeach; ?>
+
+                <?php foreach ($chamadosUrgentes as $ch): ?>
+                    <a href="<?= BASE_URL ?>/modules/chamados/form.php?id=<?= (int) $ch['id'] ?>" class="list-group-item list-group-item-action">
+                        <span class="badge <?= prioridadeChamadoBadgeClass($ch['prioridade']) ?> me-2">Chamado</span>
+                        <?= e($ch['titulo']) ?> — prioridade <?= e($ch['prioridade']) ?>
                     </a>
                 <?php endforeach; ?>
             </div>

@@ -5,12 +5,21 @@ function isActive(string $needle, string $currentPath): string
 {
     return str_contains($currentPath, $needle) ? 'active' : '';
 }
+$totalChamadosAbertos = (int) db()->query("SELECT COUNT(*) FROM chamados WHERE status NOT IN ('Concluído', 'Cancelado')")->fetchColumn();
 ?>
 <aside class="scati-sidebar" id="scatiSidebar">
     <ul class="nav flex-column">
         <li class="nav-item">
             <a class="nav-link <?= $currentPath === BASE_URL . '/index.php' ? 'active' : '' ?>" href="<?= BASE_URL ?>/index.php">
                 <i class="bi bi-speedometer2"></i> Dashboard
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link <?= isActive('/modules/chamados/', $currentPath) ?>" href="<?= BASE_URL ?>/modules/chamados/index.php">
+                <i class="bi bi-life-preserver"></i> Chamados
+                <?php if ($totalChamadosAbertos > 0): ?>
+                    <span class="badge bg-danger ms-1"><?= $totalChamadosAbertos ?></span>
+                <?php endif; ?>
             </a>
         </li>
         <li class="nav-item">

@@ -14,8 +14,8 @@ document.addEventListener('DOMContentLoaded', function () {
     // Torna linhas de tabela com data-href clicáveis (navegação para a ficha)
     document.querySelectorAll('tr[data-href]').forEach(function (row) {
         row.addEventListener('click', function (e) {
-            // Ignora o clique se foi em um botão/link dentro da linha
-            if (e.target.closest('a, button, input')) return;
+            // Ignora o clique se foi em um botão/link/campo dentro da linha
+            if (e.target.closest('a, button, input, select, label')) return;
             window.location = row.dataset.href;
         });
     });
@@ -27,6 +27,17 @@ document.addEventListener('DOMContentLoaded', function () {
             if (!confirm(msg)) {
                 e.preventDefault();
             }
+        });
+    });
+
+    // Envia automaticamente formulários marcados com .js-auto-submit assim que
+    // um campo (select/input) dentro deles muda de valor (ex: trocar o status
+    // de um chamado direto na listagem, sem precisar de um botão "Salvar").
+    document.querySelectorAll('.js-auto-submit').forEach(function (form) {
+        form.querySelectorAll('select, input').forEach(function (field) {
+            field.addEventListener('change', function () {
+                form.submit();
+            });
         });
     });
 

@@ -302,3 +302,48 @@ function registrarHistoricoEstoque(?int $estoqueId, string $itemNome, ?string $c
         'usuario_nome' => usuarioLogado()['usuario'] ?? null,
     ]);
 }
+
+/**
+ * Lista fixa das prioridades aceitas para um chamado (deve refletir o ENUM do banco).
+ */
+function prioridadesChamado(): array
+{
+    return ['Baixa', 'Média', 'Alta', 'Urgente'];
+}
+
+/**
+ * Lista fixa dos status aceitos para o andamento de um chamado (deve refletir o ENUM do banco).
+ */
+function statusChamado(): array
+{
+    return ['Aberto', 'Em andamento', 'Aguardando', 'Concluído', 'Cancelado'];
+}
+
+/**
+ * Retorna a classe de badge Bootstrap correspondente à prioridade do chamado.
+ */
+function prioridadeChamadoBadgeClass(string $prioridade): string
+{
+    return match ($prioridade) {
+        'Baixa'   => 'bg-secondary',
+        'Média'   => 'bg-info text-dark',
+        'Alta'    => 'bg-warning text-dark',
+        'Urgente' => 'bg-danger',
+        default   => 'bg-secondary',
+    };
+}
+
+/**
+ * Retorna a classe de badge Bootstrap correspondente ao status (andamento) do chamado.
+ */
+function statusChamadoBadgeClass(string $status): string
+{
+    return match ($status) {
+        'Aberto'        => 'bg-primary',
+        'Em andamento'  => 'bg-warning text-dark',
+        'Aguardando'    => 'bg-secondary',
+        'Concluído'     => 'bg-success',
+        'Cancelado'     => 'bg-dark',
+        default         => 'bg-secondary',
+    };
+}
