@@ -13,6 +13,7 @@ $busca = trim($_GET['busca'] ?? '');
 $filtroStatus = $_GET['status'] ?? '';
 $filtroPrioridade = $_GET['prioridade'] ?? '';
 $filtroResponsavel = $_GET['responsavel_id'] ?? '';
+$filtroDiasParado = trim($_GET['dias_parado'] ?? '');
 
 $sql = "SELECT c.*, e.nome AS equipamento_nome, e.patrimonio AS equipamento_patrimonio, u.usuario AS responsavel_nome
         FROM chamados c
@@ -41,6 +42,13 @@ if ($filtroResponsavel === 'nenhum') {
 } elseif ($filtroResponsavel !== '') {
     $sql .= " AND c.responsavel_id = :responsavel_id";
     $params['responsavel_id'] = $filtroResponsavel;
+}
+if ($filtroDiasParado !== '' && is_numeric($filtroDiasParado) && (int) $filtroDiasParado >= 0) {
+    // Só considera chamados ainda em aberto — um chamado concluído há muito
+    // tempo não está "parado", só está resolvido e arquivado.
+    $sql .= " AND c.status NOT IN ('Concluído', 'Cancelado')
+              AND c.criado_em <= DATE_SUB(NOW(), INTERVAL :dias_parado DAY)";
+    $params['dias_parado'] = (int) $filtroDiasParado;
 }
 
 // Abertos primeiro (respeitando a ordem definida no ENUM: Aberto > Em andamento >
@@ -172,11 +180,20 @@ include __DIR__ . '/../../includes/header.php';
                     <?php endforeach; ?>
                 </select>
             </div>
-            <div class="col-md-2 d-flex gap-2">
+            <div class="col-md-2">
+                <label class="form-label small text-muted mb-1">Parado há mais de (dias)</label>
+                <input type="number" name="dias_parado" min="0" class="form-control" placeholder="Ex: 5" value="<?= e($filtroDiasParado) ?>">
+            </div>
+            <div class="col-md-3 d-flex gap-2">
                 <button type="submit" class="btn btn-outline-primary w-100"><i class="bi bi-search"></i> Filtrar</button>
                 <a href="index.php" class="btn btn-outline-secondary" title="Limpar filtros"><i class="bi bi-x-lg"></i></a>
             </div>
         </form>
+        <?php if ($filtroDiasParado !== '' && is_numeric($filtroDiasParado)): ?>
+            <div class="form-text mt-2 mb-0">
+                <i class="bi bi-info-circle"></i> Mostrando chamados em aberto (não concluídos/cancelados) criados há mais de <?= (int) $filtroDiasParado ?> dia(s).
+            </div>
+        <?php endif; ?>
     </div>
 </div>
 
