@@ -10,6 +10,13 @@ $id = isset($_GET['id']) ? (int) $_GET['id'] : null;
 $edicao = $id !== null;
 $usuarioAtual = usuarioLogado();
 
+// O perfil Solicitante só pode registrar chamados novos; não pode editar
+// nenhum chamado, nem os que ele mesmo abriu.
+if ($edicao && $usuarioAtual['solicitante']) {
+    flash('danger', 'Seu perfil não pode editar chamados.');
+    redirect('/modules/chamados/index.php');
+}
+
 $chamado = [
     'titulo' => '', 'descricao' => '', 'solicitante' => '', 'equipamento_id' => '',
     'prioridade' => 'Média', 'status' => 'Aberto', 'responsavel_id' => '',
@@ -36,6 +43,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($chamado['titulo'] === '') {
         $erros[] = 'O campo Título é obrigatório.';
     }
+    if ($chamado['descricao'] === '') {
+        $erros[] = 'O campo Descrição (a solicitação) é obrigatório.';
+    }
     if (!in_array($chamado['prioridade'], prioridadesChamado(), true)) {
         $erros[] = 'Prioridade inválida.';
     }
@@ -45,11 +55,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (empty($erros)) {
         $equipamentoId = $chamado['equipamento_id'] !== '' ? (int) $chamado['equipamento_id'] : null;
-        $responsavelId = $chamado['responsavel_id'] !== '' ? (int) $chamado['responsavel_id'] : null;
+        // O Solicitante não escolhe andamento/responsável: todo chamado novo
+        // criado por esse perfil nasce "Aberto" e sem responsável atribuído.
+        $status = $usuarioAtual['solicitante'] ? 'Aberto' : $chamado['status'];
+        $responsavelId = $usuarioAtual['solicitante']
+            ? null
+            : ($chamado['responsavel_id'] !== '' ? (int) $chamado['responsavel_id'] : null);
         $concluidoEm = ($edicao ? $registro['concluido_em'] : null);
-        if ($chamado['status'] === 'Concluído' && $concluidoEm === null) {
+        if ($status === 'Concluído' && $concluidoEm === null) {
             $concluidoEm = date('Y-m-d H:i:s');
-        } elseif ($chamado['status'] !== 'Concluído') {
+        } elseif ($status !== 'Concluído') {
             $concluidoEm = null;
         }
 
@@ -59,7 +74,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'solicitante' => $chamado['solicitante'] ?: null,
             'equipamento_id' => $equipamentoId,
             'prioridade' => $chamado['prioridade'],
-            'status' => $chamado['status'],
+            'status' => $status,
             'responsavel_id' => $responsavelId,
             'concluido_em' => $concluidoEm,
         ];
@@ -74,9 +89,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             )->execute($dados);
             flash('success', 'Chamado atualizado com sucesso.');
         } else {
+            $dados['criado_por_id'] = $usuarioAtual['id'];
             $pdo->prepare(
-                'INSERT INTO chamados (titulo, descricao, solicitante, equipamento_id, prioridade, status, responsavel_id, concluido_em)
-                 VALUES (:titulo, :descricao, :solicitante, :equipamento_id, :prioridade, :status, :responsavel_id, :concluido_em)'
+                'INSERT INTO chamados (titulo, descricao, solicitante, criado_por_id, equipamento_id, prioridade, status, responsavel_id, concluido_em)
+                 VALUES (:titulo, :descricao, :solicitante, :criado_por_id, :equipamento_id, :prioridade, :status, :responsavel_id, :concluido_em)'
             )->execute($dados);
             flash('success', 'Chamado registrado com sucesso.');
         }
@@ -115,8 +131,8 @@ include __DIR__ . '/../../includes/header.php';
                 <input type="text" name="solicitante" class="form-control" placeholder="Quem pediu / nome, setor..." value="<?= e($chamado['solicitante']) ?>">
             </div>
             <div class="col-md-12">
-                <label class="form-label">Descrição</label>
-                <textarea name="descricao" class="form-control" rows="3" placeholder="Detalhes do problema ou solicitação"><?= e($chamado['descricao']) ?></textarea>
+                <label class="form-label">Descrição (a solicitação) *</label>
+                <textarea name="descricao" class="form-control" rows="3" required placeholder="Detalhes do problema ou solicitação"><?= e($chamado['descricao']) ?></textarea>
             </div>
             <div class="col-md-4">
                 <label class="form-label">Equipamento relacionado</label>
@@ -130,13 +146,14 @@ include __DIR__ . '/../../includes/header.php';
                 </select>
             </div>
             <div class="col-md-4">
-                <label class="form-label">Prioridade</label>
-                <select name="prioridade" class="form-select">
+                <label class="form-label">Prioridade *</label>
+                <select name="prioridade" class="form-select" required>
                     <?php foreach (prioridadesChamado() as $prioridade): ?>
                         <option value="<?= e($prioridade) ?>" <?= $chamado['prioridade'] === $prioridade ? 'selected' : '' ?>><?= e($prioridade) ?></option>
                     <?php endforeach; ?>
                 </select>
             </div>
+            <?php if (!$usuarioAtual['solicitante']): ?>
             <div class="col-md-4">
                 <label class="form-label">Andamento</label>
                 <select name="status" class="form-select">
@@ -159,6 +176,7 @@ include __DIR__ . '/../../includes/header.php';
                     </button>
                 </div>
             </div>
+            <?php endif; ?>
         </div>
     </div>
     <div class="d-flex gap-2 mb-5">

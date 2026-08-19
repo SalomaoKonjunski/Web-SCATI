@@ -5,6 +5,11 @@ require_once __DIR__ . '/../../includes/functions.php';
 require_once __DIR__ . '/../../includes/auth.php';
 exigirLogin();
 
+if (usuarioLogado()['solicitante']) {
+    flash('danger', 'Seu perfil não pode alterar chamados.');
+    redirect('/modules/chamados/index.php');
+}
+
 $pdo = db();
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {

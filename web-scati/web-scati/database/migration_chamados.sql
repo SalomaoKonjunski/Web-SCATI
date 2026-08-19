@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS chamados (
     titulo              VARCHAR(150) NOT NULL,
     descricao           TEXT NULL,
     solicitante         VARCHAR(100) NULL,
+    criado_por_id       INT NULL,
     equipamento_id      INT NULL,
     prioridade          ENUM('Baixa','Média','Alta','Urgente') NOT NULL DEFAULT 'Média',
     status              ENUM('Aberto','Em andamento','Aguardando','Concluído','Cancelado') NOT NULL DEFAULT 'Aberto',
@@ -28,7 +29,9 @@ CREATE TABLE IF NOT EXISTS chamados (
     CONSTRAINT fk_chamado_equipamento
         FOREIGN KEY (equipamento_id) REFERENCES equipamentos(id) ON DELETE SET NULL,
     CONSTRAINT fk_chamado_responsavel
-        FOREIGN KEY (responsavel_id) REFERENCES usuarios(id) ON DELETE SET NULL
+        FOREIGN KEY (responsavel_id) REFERENCES usuarios(id) ON DELETE SET NULL,
+    CONSTRAINT fk_chamado_criado_por
+        FOREIGN KEY (criado_por_id) REFERENCES usuarios(id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
 CREATE INDEX idx_chamado_status ON chamados(status);

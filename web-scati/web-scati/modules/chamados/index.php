@@ -8,6 +8,7 @@ exigirLogin();
 $pdo = db();
 $pageTitle = 'Chamados';
 $usuarioAtual = usuarioLogado();
+$souSolicitante = $usuarioAtual['solicitante'];
 
 $busca = trim($_GET['busca'] ?? '');
 $filtroStatus = $_GET['status'] ?? '';
@@ -50,6 +51,11 @@ if ($filtroDiasParado !== '' && is_numeric($filtroDiasParado) && (int) $filtroDi
               AND c.criado_em <= DATE_SUB(NOW(), INTERVAL :dias_parado DAY)";
     $params['dias_parado'] = (int) $filtroDiasParado;
 }
+if ($souSolicitante) {
+    // O perfil Solicitante só enxerga os chamados que ele mesmo abriu.
+    $sql .= " AND c.criado_por_id = :meu_id";
+    $params['meu_id'] = $usuarioAtual['id'];
+}
 
 // Abertos primeiro (respeitando a ordem definida no ENUM: Aberto > Em andamento >
 // Aguardando > Concluído > Cancelado), depois os mais urgentes, depois os mais antigos.
@@ -61,16 +67,29 @@ $chamados = $stmt->fetchAll();
 
 $usuarios = $pdo->query('SELECT id, usuario FROM usuarios ORDER BY usuario')->fetchAll();
 
-$totalAbertos = (int) $pdo->query("SELECT COUNT(*) FROM chamados WHERE status NOT IN ('Concluído', 'Cancelado')")->fetchColumn();
+// Cartões de resumo e contagem do rodapé: para o perfil Solicitante,
+// consideram apenas os chamados abertos por ele mesmo; para os demais,
+// consideram o sistema todo (sem levar em conta os filtros da tela).
+$condicaoMeus = $souSolicitante ? ' WHERE criado_por_id = :meu_id' : '';
+$paramsMeus = $souSolicitante ? ['meu_id' => $usuarioAtual['id']] : [];
 
-// Cartões de resumo (contagens gerais, sem considerar os filtros da tela).
-$totalPorStatus = $pdo->query('SELECT status, COUNT(*) AS total FROM chamados GROUP BY status')->fetchAll(PDO::FETCH_KEY_PAIR);
+$stmtTotalAbertos = $pdo->prepare("SELECT COUNT(*) FROM chamados WHERE status NOT IN ('Concluído', 'Cancelado')" . ($souSolicitante ? ' AND criado_por_id = :meu_id' : ''));
+$stmtTotalAbertos->execute($paramsMeus);
+$totalAbertos = (int) $stmtTotalAbertos->fetchColumn();
+
+$stmtPorStatus = $pdo->prepare('SELECT status, COUNT(*) AS total FROM chamados' . $condicaoMeus . ' GROUP BY status');
+$stmtPorStatus->execute($paramsMeus);
+$totalPorStatus = $stmtPorStatus->fetchAll(PDO::FETCH_KEY_PAIR);
 $kpiAberto = (int) ($totalPorStatus['Aberto'] ?? 0);
 $kpiAndamento = (int) ($totalPorStatus['Em andamento'] ?? 0);
 $kpiAguardando = (int) ($totalPorStatus['Aguardando'] ?? 0);
-$kpiUrgentes = (int) $pdo->query(
+
+$stmtUrgentes = $pdo->prepare(
     "SELECT COUNT(*) FROM chamados WHERE prioridade IN ('Alta', 'Urgente') AND status NOT IN ('Concluído', 'Cancelado')"
-)->fetchColumn();
+    . ($souSolicitante ? ' AND criado_por_id = :meu_id' : '')
+);
+$stmtUrgentes->execute($paramsMeus);
+$kpiUrgentes = (int) $stmtUrgentes->fetchColumn();
 
 /**
  * Retorna "há N dia(s)"/"hoje" a partir de uma data, para indicar o tempo
@@ -91,9 +110,11 @@ include __DIR__ . '/../../includes/header.php';
 <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
     <h1 class="h3 mb-0"><i class="bi bi-life-preserver me-2"></i>Chamados</h1>
     <div class="d-flex gap-2">
+        <?php if (!$souSolicitante): ?>
         <a href="index.php?responsavel_id=<?= (int) $usuarioAtual['id'] ?>" class="btn btn-outline-secondary">
             <i class="bi bi-person-check"></i> Meus Chamados
         </a>
+        <?php endif; ?>
         <a href="form.php" class="btn btn-primary"><i class="bi bi-plus-lg"></i> Novo Chamado</a>
     </div>
 </div>
@@ -170,6 +191,7 @@ include __DIR__ . '/../../includes/header.php';
                     <?php endforeach; ?>
                 </select>
             </div>
+            <?php if (!$souSolicitante): ?>
             <div class="col-md-2">
                 <label class="form-label small text-muted mb-1">Responsável</label>
                 <select name="responsavel_id" class="form-select">
@@ -180,6 +202,7 @@ include __DIR__ . '/../../includes/header.php';
                     <?php endforeach; ?>
                 </select>
             </div>
+            <?php endif; ?>
             <div class="col-md-2">
                 <label class="form-label small text-muted mb-1">Parado há mais de (dias)</label>
                 <input type="number" name="dias_parado" min="0" class="form-control" placeholder="Ex: 5" value="<?= e($filtroDiasParado) ?>">
@@ -208,12 +231,12 @@ include __DIR__ . '/../../includes/header.php';
                     <th>Andamento</th>
                     <th>Responsável</th>
                     <th>Aberto em</th>
-                    <th class="text-end">Ações</th>
+                    <?php if (!$souSolicitante): ?><th class="text-end">Ações</th><?php endif; ?>
                 </tr>
             </thead>
             <tbody>
                 <?php if (empty($chamados)): ?>
-                    <tr><td colspan="7" class="text-center text-muted py-4">Nenhum chamado encontrado.</td></tr>
+                    <tr><td colspan="<?= $souSolicitante ? 6 : 7 ?>" class="text-center text-muted py-4">Nenhum chamado encontrado.</td></tr>
                 <?php endif; ?>
                 <?php foreach ($chamados as $chamado): ?>
                     <?php
@@ -229,7 +252,7 @@ include __DIR__ . '/../../includes/header.php';
                             $descricaoResumo = mb_substr($descricaoResumo, 0, 90) . '…';
                         }
                     ?>
-                    <tr data-href="form.php?id=<?= (int) $chamado['id'] ?>" class="<?= $classeLinha ?>">
+                    <tr <?= $souSolicitante ? '' : 'data-href="form.php?id=' . (int) $chamado['id'] . '"' ?> class="<?= $classeLinha ?>">
                         <td>
                             <strong><?= e($chamado['titulo']) ?></strong>
                             <?php if ($descricaoResumo !== ''): ?>
@@ -247,26 +270,34 @@ include __DIR__ . '/../../includes/header.php';
                             <?php endif; ?>
                         </td>
                         <td>
-                            <form method="post" action="atualizar_campo.php" class="js-auto-submit">
-                                <input type="hidden" name="id" value="<?= (int) $chamado['id'] ?>">
-                                <input type="hidden" name="campo" value="prioridade">
-                                <select name="valor" class="form-select form-select-sm border-0 fw-semibold <?= prioridadeChamadoBadgeClass($chamado['prioridade']) ?>" style="min-width: 100px;">
-                                    <?php foreach (prioridadesChamado() as $prioridade): ?>
-                                        <option value="<?= e($prioridade) ?>" <?= $chamado['prioridade'] === $prioridade ? 'selected' : '' ?>><?= e($prioridade) ?></option>
-                                    <?php endforeach; ?>
-                                </select>
-                            </form>
+                            <?php if ($souSolicitante): ?>
+                                <span class="badge <?= prioridadeChamadoBadgeClass($chamado['prioridade']) ?>"><?= e($chamado['prioridade']) ?></span>
+                            <?php else: ?>
+                                <form method="post" action="atualizar_campo.php" class="js-auto-submit">
+                                    <input type="hidden" name="id" value="<?= (int) $chamado['id'] ?>">
+                                    <input type="hidden" name="campo" value="prioridade">
+                                    <select name="valor" class="form-select form-select-sm border-0 fw-semibold <?= prioridadeChamadoBadgeClass($chamado['prioridade']) ?>" style="min-width: 100px;">
+                                        <?php foreach (prioridadesChamado() as $prioridade): ?>
+                                            <option value="<?= e($prioridade) ?>" <?= $chamado['prioridade'] === $prioridade ? 'selected' : '' ?>><?= e($prioridade) ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </form>
+                            <?php endif; ?>
                         </td>
                         <td>
-                            <form method="post" action="atualizar_campo.php" class="js-auto-submit">
-                                <input type="hidden" name="id" value="<?= (int) $chamado['id'] ?>">
-                                <input type="hidden" name="campo" value="status">
-                                <select name="valor" class="form-select form-select-sm border-0 fw-semibold <?= statusChamadoBadgeClass($chamado['status']) ?>" style="min-width: 130px;">
-                                    <?php foreach (statusChamado() as $status): ?>
-                                        <option value="<?= e($status) ?>" <?= $chamado['status'] === $status ? 'selected' : '' ?>><?= e($status) ?></option>
-                                    <?php endforeach; ?>
-                                </select>
-                            </form>
+                            <?php if ($souSolicitante): ?>
+                                <span class="badge <?= statusChamadoBadgeClass($chamado['status']) ?>"><?= e($chamado['status']) ?></span>
+                            <?php else: ?>
+                                <form method="post" action="atualizar_campo.php" class="js-auto-submit">
+                                    <input type="hidden" name="id" value="<?= (int) $chamado['id'] ?>">
+                                    <input type="hidden" name="campo" value="status">
+                                    <select name="valor" class="form-select form-select-sm border-0 fw-semibold <?= statusChamadoBadgeClass($chamado['status']) ?>" style="min-width: 130px;">
+                                        <?php foreach (statusChamado() as $status): ?>
+                                            <option value="<?= e($status) ?>" <?= $chamado['status'] === $status ? 'selected' : '' ?>><?= e($status) ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </form>
+                            <?php endif; ?>
                         </td>
                         <td>
                             <?php if ($chamado['responsavel_id']): ?>
@@ -275,6 +306,8 @@ include __DIR__ . '/../../includes/header.php';
                                 <?php else: ?>
                                     <?= e($chamado['responsavel_nome']) ?>
                                 <?php endif; ?>
+                            <?php elseif ($souSolicitante): ?>
+                                <span class="text-muted">Não atribuído</span>
                             <?php else: ?>
                                 <a href="atribuir.php?id=<?= (int) $chamado['id'] ?>" class="btn btn-sm btn-outline-primary">
                                     <i class="bi bi-person-plus"></i> Atribuir para mim
@@ -289,13 +322,21 @@ include __DIR__ . '/../../includes/header.php';
                                 <div class="small text-muted">Concluído <?= e(tempoDecorrido($chamado['concluido_em'])) ?></div>
                             <?php endif; ?>
                         </td>
+                        <?php if (!$souSolicitante): ?>
                         <td class="text-end">
                             <a href="form.php?id=<?= (int) $chamado['id'] ?>" class="btn btn-sm btn-outline-primary" title="Editar"><i class="bi bi-pencil"></i></a>
-                            <a href="delete.php?id=<?= (int) $chamado['id'] ?>" class="btn btn-sm btn-outline-danger js-confirm-delete"
-                               data-confirm-msg="Excluir o chamado &quot;<?= e($chamado['titulo']) ?>&quot;? Esta ação não pode ser desfeita." title="Excluir">
-                                <i class="bi bi-trash"></i>
-                            </a>
+                            <?php if ($emAberto): ?>
+                                <button type="button" class="btn btn-sm btn-outline-danger" disabled title="Não é possível excluir um chamado em aberto. Marque como Concluído ou Cancelado primeiro.">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            <?php else: ?>
+                                <a href="delete.php?id=<?= (int) $chamado['id'] ?>" class="btn btn-sm btn-outline-danger js-confirm-delete"
+                                   data-confirm-msg="Excluir o chamado &quot;<?= e($chamado['titulo']) ?>&quot;? Esta ação não pode ser desfeita." title="Excluir">
+                                    <i class="bi bi-trash"></i>
+                                </a>
+                            <?php endif; ?>
                         </td>
+                        <?php endif; ?>
                     </tr>
                 <?php endforeach; ?>
             </tbody>
