@@ -68,6 +68,25 @@ body {
     height: 100%;
 }
 
+a.scati-kpi-card-link {
+    display: block;
+    color: inherit;
+    text-decoration: none;
+}
+
+a.scati-kpi-card-link .scati-kpi-card {
+    transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+a.scati-kpi-card-link:hover .scati-kpi-card {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transform: translateY(-2px);
+}
+
+a.scati-kpi-card-link .scati-kpi-card.kpi-ativo {
+    box-shadow: 0 0 0 2px var(--scati-primary), 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
 .scati-kpi-card .kpi-value {
     font-size: 1.8rem;
     font-weight: 700;

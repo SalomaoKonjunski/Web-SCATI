@@ -15,6 +15,7 @@ $filtroStatus = $_GET['status'] ?? '';
 $filtroPrioridade = $_GET['prioridade'] ?? '';
 $filtroResponsavel = $_GET['responsavel_id'] ?? '';
 $filtroDiasParado = trim($_GET['dias_parado'] ?? '');
+$filtroUrgentes = isset($_GET['urgentes']) && $_GET['urgentes'] === '1';
 
 $sql = "SELECT c.*, e.nome AS equipamento_nome, e.patrimonio AS equipamento_patrimonio, u.usuario AS responsavel_nome
         FROM chamados c
@@ -50,6 +51,11 @@ if ($filtroDiasParado !== '' && is_numeric($filtroDiasParado) && (int) $filtroDi
     $sql .= " AND c.status NOT IN ('Concluído', 'Cancelado')
               AND c.criado_em <= DATE_SUB(NOW(), INTERVAL :dias_parado DAY)";
     $params['dias_parado'] = (int) $filtroDiasParado;
+}
+if ($filtroUrgentes) {
+    // Mesmo critério do cartão "Urgentes em Aberto": prioridade Alta/Urgente
+    // e ainda não encerrado.
+    $sql .= " AND c.prioridade IN ('Alta', 'Urgente') AND c.status NOT IN ('Concluído', 'Cancelado')";
 }
 if ($souSolicitante) {
     // O perfil Solicitante só enxerga os chamados que ele mesmo abriu.
@@ -120,8 +126,8 @@ include __DIR__ . '/../../includes/header.php';
 </div>
 
 <div class="row g-3 mb-3">
-    <div class="col-6 col-md-3">
-        <div class="card scati-kpi-card border-start border-4 border-primary">
+    <a href="index.php?status=<?= urlencode('Aberto') ?>" class="col-6 col-md-3 scati-kpi-card-link" title="Ver chamados Abertos">
+        <div class="card scati-kpi-card border-start border-4 border-primary <?= ($filtroStatus === 'Aberto' && !$filtroUrgentes) ? 'kpi-ativo' : '' ?>">
             <div class="card-body d-flex justify-content-between align-items-center">
                 <div>
                     <div class="text-muted small">Abertos</div>
@@ -130,9 +136,9 @@ include __DIR__ . '/../../includes/header.php';
                 <i class="bi bi-inbox kpi-icon text-primary"></i>
             </div>
         </div>
-    </div>
-    <div class="col-6 col-md-3">
-        <div class="card scati-kpi-card border-start border-4 border-warning">
+    </a>
+    <a href="index.php?status=<?= urlencode('Em andamento') ?>" class="col-6 col-md-3 scati-kpi-card-link" title="Ver chamados Em Andamento">
+        <div class="card scati-kpi-card border-start border-4 border-warning <?= ($filtroStatus === 'Em andamento' && !$filtroUrgentes) ? 'kpi-ativo' : '' ?>">
             <div class="card-body d-flex justify-content-between align-items-center">
                 <div>
                     <div class="text-muted small">Em Andamento</div>
@@ -141,9 +147,9 @@ include __DIR__ . '/../../includes/header.php';
                 <i class="bi bi-arrow-repeat kpi-icon text-warning"></i>
             </div>
         </div>
-    </div>
-    <div class="col-6 col-md-3">
-        <div class="card scati-kpi-card border-start border-4 border-secondary">
+    </a>
+    <a href="index.php?status=<?= urlencode('Aguardando') ?>" class="col-6 col-md-3 scati-kpi-card-link" title="Ver chamados Aguardando">
+        <div class="card scati-kpi-card border-start border-4 border-secondary <?= ($filtroStatus === 'Aguardando' && !$filtroUrgentes) ? 'kpi-ativo' : '' ?>">
             <div class="card-body d-flex justify-content-between align-items-center">
                 <div>
                     <div class="text-muted small">Aguardando</div>
@@ -152,9 +158,9 @@ include __DIR__ . '/../../includes/header.php';
                 <i class="bi bi-hourglass-split kpi-icon text-secondary"></i>
             </div>
         </div>
-    </div>
-    <div class="col-6 col-md-3">
-        <div class="card scati-kpi-card border-start border-4 border-danger">
+    </a>
+    <a href="index.php?urgentes=1" class="col-6 col-md-3 scati-kpi-card-link" title="Ver chamados Urgentes em Aberto">
+        <div class="card scati-kpi-card border-start border-4 border-danger <?= $filtroUrgentes ? 'kpi-ativo' : '' ?>">
             <div class="card-body d-flex justify-content-between align-items-center">
                 <div>
                     <div class="text-muted small">Urgentes em Aberto</div>
@@ -163,8 +169,13 @@ include __DIR__ . '/../../includes/header.php';
                 <i class="bi bi-exclamation-triangle kpi-icon text-danger"></i>
             </div>
         </div>
-    </div>
+    </a>
 </div>
+<?php if ($filtroStatus !== '' || $filtroUrgentes): ?>
+    <div class="mb-3">
+        <a href="index.php" class="btn btn-sm btn-outline-secondary"><i class="bi bi-x-lg"></i> Limpar filtro dos cartões</a>
+    </div>
+<?php endif; ?>
 
 <div class="card mb-3">
     <div class="card-body">
