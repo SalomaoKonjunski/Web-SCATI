@@ -163,6 +163,13 @@ Funcional (v1.0).
    mysql -u root -p scati < database/migration_ramal_telefone_usuario.sql
    ```
 
+   Se o banco já existia antes das **respostas do chamado** (ainda não
+   tem as tabelas `chamado_respostas` e `chamado_visualizacoes`), rode
+   também esta migração incremental **uma única vez**:
+   ```bash
+   mysql -u root -p scati < database/migration_chamado_respostas.sql
+   ```
+
    > Importante: ao importar qualquer um dos arquivos `.sql` deste projeto,
    > garanta que o cliente MySQL use UTF-8 (ex.: `mysql --default-character-set=utf8mb4 -u root -p < arquivo.sql`),
    > caso contrário os valores acentuados dos campos `ENUM` (como "Disponível")
@@ -490,6 +497,27 @@ web-scati/
   da descrição e o usuário em cada linha, o tempo em aberto (ex.: "há 3
   dias"), e destaca com um fundo suave as linhas de chamados urgentes
   ou de alta prioridade ainda em aberto.
+
+  Ao abrir a ficha de um chamado existente, aparece uma seção
+  **Respostas** em formato de conversa: quem estiver envolvido no
+  chamado (quem abriu, o responsável, ou qualquer Administrador/
+  Padrão) pode escrever uma atualização, que fica registrada com nome
+  e data/hora. O perfil **Usuário** também ganha acesso à ficha dos
+  próprios chamados para acompanhar e responder — só não pode alterar
+  título, descrição, prioridade, andamento ou responsável. Um sininho
+  no topo da tela mostra quantos chamados têm resposta não lida (com
+  base em quem é o solicitante ou responsável de cada um) e toca um
+  bipe curto quando chega uma resposta nova, enquanto o sistema
+  estiver aberto em alguma aba do navegador — a verificação é feita a
+  cada 25 segundos. Abrir a ficha do chamado marca a conversa como
+  lida.
+
+  > Nota técnica: a notificação sonora funciona enquanto o navegador
+  > estiver aberto com alguma página do sistema carregada (mesmo em
+  > segundo plano) — ela não "acorda" o computador/celular se o
+  > navegador estiver fechado. Notificações push de verdade (que
+  > funcionam mesmo com o navegador fechado) exigem HTTPS, que uma
+  > instalação via XAMPP em rede local normalmente não tem.
 
 ## Notas de projeto
 
