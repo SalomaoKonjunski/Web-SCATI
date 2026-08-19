@@ -427,45 +427,49 @@ web-scati/
   trocar a senha após o primeiro acesso, ou cadastrar um novo
   administrador e excluir o padrão.
 - **Chamados**: aba própria no menu lateral funcionando como uma tabela
-  de pendências de TI. Cada chamado tem título, **descrição** (a
-  solicitação em si — campo obrigatório) e solicitante. Ao abrir um
-  chamado, o campo **Solicitante** já vem preenchido com o próprio
-  usuário logado e fica bloqueado (só leitura); apenas o perfil
-  **Administrador** pode digitar livremente quem é o solicitante (por
-  exemplo, ao registrar um chamado em nome de alguém que ligou ou pediu
-  pessoalmente) — os demais perfis sempre abrem o chamado em seu
-  próprio nome. Cada chamado também tem
-  equipamento relacionado (opcional, escolhido entre os já cadastrados),
-  **prioridade** (Baixa/Média/Alta/Urgente — campo obrigatório) e
-  **andamento** (Aberto/Em andamento/Aguardando/Concluído/Cancelado). O
-  sistema também registra automaticamente qual usuário abriu cada
-  chamado. Prioridade e andamento podem ser alterados direto na
-  listagem, através de um seletor colorido em cada linha, sem precisar
-  abrir o cadastro — a mudança é salva assim que a opção é escolhida. Um
-  botão "Atribuir para mim" (na listagem e no formulário) atribui o
-  chamado ao usuário logado com um clique; o atalho "Meus Chamados"
-  filtra só os chamados já atribuídos a você. Ao marcar um chamado como
-  "Concluído", a data de conclusão é registrada automaticamente; reabrir
-  o chamado (mudar para qualquer outro andamento) limpa essa data. Por
-  segurança, **nenhum chamado em aberto pode ser excluído** (nem por
-  administrador) — só depois de marcado como Concluído ou Cancelado; o
-  botão de excluir aparece desabilitado enquanto o chamado estiver
-  aberto. A barra lateral mostra a contagem de chamados em aberto (não
-  concluídos/cancelados), e chamados de prioridade Alta ou Urgente ainda
-  em aberto aparecem na Central de Alertas do Dashboard. A listagem tem
-  cartões de resumo no topo
-  (Abertos, Em Andamento, Aguardando, Urgentes em Aberto) — **clicar em
-  um cartão filtra a lista** pelo status correspondente (o cartão
-  Urgentes em Aberto filtra por prioridade Alta/Urgente entre os ainda
-  não encerrados), com o cartão ativo destacado e um atalho para limpar
-  o filtro. A listagem também mostra um
-  trecho da descrição e o solicitante em cada linha, o tempo em aberto
-  (ex.: "há 3 dias") ou o tempo desde a conclusão, e destaca com um
-  fundo suave as linhas de chamados urgentes ou de alta prioridade
-  ainda em aberto. Os filtros incluem um campo **"Parado há mais de
-  (dias)"**, que mostra apenas chamados em aberto (não concluídos/
-  cancelados) criados há mais dias do que o valor informado — útil
-  para encontrar rapidamente solicitações esquecidas.
+  de pendências de TI, dividida em duas sub-abas:
+  - **Chamados**: lista só os chamados em aberto (Aberto/Em
+    andamento/Aguardando) — a pendência ativa do dia a dia. Mostra
+    cartões de resumo no topo (Abertos, Em Andamento, Aguardando,
+    Urgentes em Aberto), clicáveis para filtrar a lista pelo status
+    correspondente (o cartão ativo fica destacado, com um atalho para
+    limpar o filtro), e um filtro **"Parado há mais de (dias)"** para
+    achar solicitações esquecidas.
+  - **Resolvidos**: lista os chamados Concluídos/Cancelados, com as
+    colunas **Solicitado em** e **Concluído em** (para os cancelados,
+    mostra a data da última alteração com a marcação "cancelado", já
+    que não têm data de conclusão). É também onde dá para efetivamente
+    excluir um chamado antigo, já que a exclusão só é permitida depois
+    de encerrado.
+
+  Cada chamado tem título, **descrição** (a solicitação em si — campo
+  obrigatório), o campo **Usuário** (quem pediu) e **prioridade**
+  (Baixa/Média/Alta/Urgente — campo obrigatório). O campo Usuário já
+  vem preenchido com o próprio usuário logado e fica bloqueado (só
+  leitura); apenas o perfil **Administrador** pode digitar livremente
+  quem é o usuário (por exemplo, ao registrar um chamado em nome de
+  alguém que ligou ou pediu pessoalmente) — os demais perfis sempre
+  abrem o chamado em seu próprio nome. O sistema também registra
+  automaticamente qual usuário abriu cada chamado (usado para o perfil
+  Solicitante enxergar só os próprios). Prioridade e andamento podem
+  ser alterados direto na listagem, através de um seletor colorido em
+  cada linha, sem precisar abrir o cadastro — a mudança é salva assim
+  que a opção é escolhida. Um botão **"Atribuir para mim"** (na
+  listagem e no formulário), disponível apenas para o perfil
+  Administrador, atribui o chamado a ele com um clique; o atalho "Meus
+  Chamados" filtra só os chamados já atribuídos ao usuário logado. Ao
+  marcar um chamado como "Concluído", a data de conclusão é registrada
+  automaticamente; reabrir o chamado (mudar para qualquer outro
+  andamento) limpa essa data. Por segurança, **nenhum chamado em
+  aberto pode ser excluído** (nem por administrador) — só depois de
+  marcado como Concluído ou Cancelado; o botão de excluir aparece
+  desabilitado enquanto o chamado estiver aberto. A barra lateral
+  mostra a contagem de chamados em aberto (não concluídos/cancelados),
+  e chamados de prioridade Alta ou Urgente ainda em aberto aparecem na
+  Central de Alertas do Dashboard. A listagem também mostra um trecho
+  da descrição e o usuário em cada linha, o tempo em aberto (ex.: "há 3
+  dias"), e destaca com um fundo suave as linhas de chamados urgentes
+  ou de alta prioridade ainda em aberto.
 
 ## Notas de projeto
 
