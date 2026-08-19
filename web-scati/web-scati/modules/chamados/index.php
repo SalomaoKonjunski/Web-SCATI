@@ -298,7 +298,7 @@ include __DIR__ . '/../../includes/header.php';
                             $descricaoResumo = mb_substr($descricaoResumo, 0, 90) . '…';
                         }
                     ?>
-                    <tr <?= $souSolicitante ? '' : 'data-href="form.php?id=' . (int) $chamado['id'] . '"' ?> class="<?= $classeLinha ?>">
+                    <tr data-href="form.php?id=<?= (int) $chamado['id'] ?>" class="<?= $classeLinha ?>">
                         <td>
                             <strong><?= e($chamado['titulo']) ?></strong>
                             <?php if ($descricaoResumo !== ''): ?>
