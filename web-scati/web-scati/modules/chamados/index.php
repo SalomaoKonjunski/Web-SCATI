@@ -20,11 +20,15 @@ $filtroResponsavel = $_GET['responsavel_id'] ?? '';
 $filtroDiasParado = $aba === 'pendentes' ? trim($_GET['dias_parado'] ?? '') : '';
 $filtroUrgentes = $aba === 'pendentes' && isset($_GET['urgentes']) && $_GET['urgentes'] === '1';
 
-$sql = "SELECT c.*, u.usuario AS responsavel_nome
+$sql = "SELECT c.*, u.usuario AS responsavel_nome,
+               v.visto_em AS meu_visto_em,
+               (SELECT MAX(r.criado_em) FROM chamado_respostas r
+                WHERE r.chamado_id = c.id AND (r.usuario_id IS NULL OR r.usuario_id != :uid_notif2)) AS ultima_resposta_outro
         FROM chamados c
         LEFT JOIN usuarios u ON u.id = c.responsavel_id
+        LEFT JOIN chamado_visualizacoes v ON v.chamado_id = c.id AND v.usuario_id = :uid_notif1
         WHERE 1=1";
-$params = [];
+$params = ['uid_notif1' => $usuarioAtual['id'], 'uid_notif2' => $usuarioAtual['id']];
 
 if ($aba === 'resolvidos') {
     $sql .= " AND c.status IN ('Concluído', 'Cancelado')";
@@ -297,10 +301,21 @@ include __DIR__ . '/../../includes/header.php';
                         if (mb_strlen($descricaoResumo) > 90) {
                             $descricaoResumo = mb_substr($descricaoResumo, 0, 90) . '…';
                         }
+                        // Mesmo critério de "novidade" do sininho: solicitação nunca
+                        // aberta por mim, ou resposta de outra pessoa mais recente
+                        // que a última vez que eu vi este chamado.
+                        $ehSolicitacaoNova = $chamado['meu_visto_em'] === null
+                            && (int) ($chamado['criado_por_id'] ?? 0) !== (int) $usuarioAtual['id'];
+                        $temMensagemNova = $chamado['ultima_resposta_outro'] !== null
+                            && ($chamado['meu_visto_em'] === null || $chamado['ultima_resposta_outro'] > $chamado['meu_visto_em']);
+                        $chamadoNaoLido = $ehSolicitacaoNova || $temMensagemNova;
                     ?>
                     <tr data-href="form.php?id=<?= (int) $chamado['id'] ?>" class="<?= $classeLinha ?>">
                         <td>
                             <strong><?= e($chamado['titulo']) ?></strong>
+                            <?php if ($chamadoNaoLido): ?>
+                                <span class="badge bg-danger ms-1"><?= $ehSolicitacaoNova ? 'Nova solicitação' : 'Nova mensagem' ?></span>
+                            <?php endif; ?>
                             <?php if ($descricaoResumo !== ''): ?>
                                 <div class="small text-muted"><?= e($descricaoResumo) ?></div>
                             <?php endif; ?>

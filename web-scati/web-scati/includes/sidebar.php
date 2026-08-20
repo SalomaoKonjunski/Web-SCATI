@@ -5,15 +5,12 @@ function isActive(string $needle, string $currentPath): string
 {
     return str_contains($currentPath, $needle) ? 'active' : '';
 }
-$souSolicitante = usuarioLogado()['solicitante'] ?? false;
-$sqlChamadosAbertos = "SELECT COUNT(*) FROM chamados WHERE status NOT IN ('Concluído', 'Cancelado')";
-if ($souSolicitante) {
-    $stmtChamadosAbertos = db()->prepare($sqlChamadosAbertos . ' AND criado_por_id = :id');
-    $stmtChamadosAbertos->execute(['id' => usuarioLogado()['id']]);
-    $totalChamadosAbertos = (int) $stmtChamadosAbertos->fetchColumn();
-} else {
-    $totalChamadosAbertos = (int) db()->query($sqlChamadosAbertos)->fetchColumn();
-}
+$usuarioAtualSidebar = usuarioLogado();
+$souSolicitante = $usuarioAtualSidebar['solicitante'] ?? false;
+// O número em vermelho ao lado de "Chamados" só aparece quando existe
+// solicitação ou mensagem nova ainda não vista por este usuário (mesmo
+// critério do sininho de notificações no topo da tela).
+$totalChamadosNaoLidos = contarChamadosNaoLidos((int) $usuarioAtualSidebar['id'], !$souSolicitante);
 ?>
 <aside class="scati-sidebar" id="scatiSidebar">
     <ul class="nav flex-column">
@@ -27,8 +24,8 @@ if ($souSolicitante) {
         <li class="nav-item">
             <a class="nav-link <?= isActive('/modules/chamados/', $currentPath) ?>" href="<?= BASE_URL ?>/modules/chamados/index.php">
                 <i class="bi bi-life-preserver"></i> Chamados
-                <?php if ($totalChamadosAbertos > 0): ?>
-                    <span class="badge bg-danger ms-1"><?= $totalChamadosAbertos ?></span>
+                <?php if ($totalChamadosNaoLidos > 0): ?>
+                    <span class="badge bg-danger ms-1" title="Solicitação ou mensagem nova"><?= $totalChamadosNaoLidos ?></span>
                 <?php endif; ?>
             </a>
         </li>

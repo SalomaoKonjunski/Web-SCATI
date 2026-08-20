@@ -156,6 +156,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$somenteLeitura) {
             )->execute($dados);
             $novoId = (int) $pdo->lastInsertId();
             registrarHistoricoChamado($novoId, 'Aberto', $chamado['descricao']);
+            // Quem abriu o chamado já sabe que ele existe, então não deve
+            // aparecer como "nova solicitação" não lida para o próprio criador.
+            marcarChamadoVisto($novoId, $usuarioAtual['id']);
             flash('success', 'Chamado registrado com sucesso.');
         }
         redirect('/modules/chamados/index.php');

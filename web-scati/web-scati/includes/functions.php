@@ -363,28 +363,35 @@ function perfilUsuarioBadgeClass(string $perfil): string
 }
 
 /**
- * Conta em quantos chamados existe pelo menos uma resposta de outra
- * pessoa ainda não vista pelo usuário informado. Usado para o sininho de
- * notificação no topo da tela.
+ * Conta em quantos chamados existe uma "novidade" ainda não vista pelo
+ * usuário informado: ou uma resposta de outra pessoa, ou o próprio chamado
+ * (uma solicitação nova que ele nunca abriu). Usado para o sininho de
+ * notificação e para o aviso em vermelho do menu lateral.
  *
  * $verTodos = true considera todos os chamados do sistema (usado para
  * Administrador/Padrão, que enxergam a listagem inteira); false restringe
  * aos chamados em que o usuário é o solicitante ou o responsável (usado
  * para o perfil Usuário, que só vê os próprios chamados).
  */
-function contarChamadosComRespostaNaoLida(int $usuarioId, bool $verTodos = false): int
+function contarChamadosNaoLidos(int $usuarioId, bool $verTodos = false): int
 {
     $condicaoVisibilidade = $verTodos ? '1=1' : '(c.criado_por_id = :uid2 OR c.responsavel_id = :uid3)';
     $stmt = db()->prepare(
         "SELECT COUNT(DISTINCT c.id)
          FROM chamados c
-         JOIN chamado_respostas r ON r.chamado_id = c.id
          LEFT JOIN chamado_visualizacoes v ON v.chamado_id = c.id AND v.usuario_id = :uid1
          WHERE $condicaoVisibilidade
-           AND (r.usuario_id IS NULL OR r.usuario_id != :uid4)
-           AND r.criado_em > COALESCE(v.visto_em, '1970-01-01 00:00:00')"
+           AND (
+               (v.visto_em IS NULL AND (c.criado_por_id IS NULL OR c.criado_por_id != :uid5))
+               OR EXISTS (
+                   SELECT 1 FROM chamado_respostas r
+                   WHERE r.chamado_id = c.id
+                     AND (r.usuario_id IS NULL OR r.usuario_id != :uid4)
+                     AND r.criado_em > COALESCE(v.visto_em, '1970-01-01 00:00:00')
+               )
+           )"
     );
-    $params = ['uid1' => $usuarioId, 'uid4' => $usuarioId];
+    $params = ['uid1' => $usuarioId, 'uid4' => $usuarioId, 'uid5' => $usuarioId];
     if (!$verTodos) {
         $params['uid2'] = $usuarioId;
         $params['uid3'] = $usuarioId;
@@ -395,32 +402,39 @@ function contarChamadosComRespostaNaoLida(int $usuarioId, bool $verTodos = false
 }
 
 /**
- * Lista (no máximo 10, mais recentes primeiro) os chamados com resposta
- * não lida pelo usuário informado, junto com a última mensagem de cada
- * um — usado para preencher o menu de notificações. Mesmo critério de
- * visibilidade de contarChamadosComRespostaNaoLida().
+ * Lista (no máximo 10, mais recentes primeiro) os chamados com alguma
+ * novidade não vista pelo usuário informado — nova solicitação (chamado
+ * nunca aberto por ele) ou resposta nova — usado para preencher o menu de
+ * notificações. Mesmo critério de visibilidade de contarChamadosNaoLidos().
+ * Cada item vem com 'tipo' = 'solicitacao' ou 'mensagem'.
  */
-function listarChamadosComRespostaNaoLida(int $usuarioId, bool $verTodos = false): array
+function listarChamadosNaoLidos(int $usuarioId, bool $verTodos = false): array
 {
     $condicaoVisibilidade = $verTodos ? '1=1' : '(c.criado_por_id = :uid2 OR c.responsavel_id = :uid3)';
     $stmt = db()->prepare(
-        "SELECT c.id AS chamado_id, c.titulo, ultima.mensagem, ultima.usuario_nome, ultima.criado_em
+        "SELECT c.id AS chamado_id, c.titulo, c.descricao, c.solicitante, c.criado_em,
+                CASE WHEN v.visto_em IS NULL THEN 'solicitacao' ELSE 'mensagem' END AS tipo,
+                ultima.mensagem AS ultima_mensagem, ultima.usuario_nome AS ultima_usuario_nome,
+                ultima.criado_em AS ultima_criado_em
          FROM chamados c
-         JOIN chamado_respostas ultima ON ultima.id = (
+         LEFT JOIN chamado_visualizacoes v ON v.chamado_id = c.id AND v.usuario_id = :uid1
+         LEFT JOIN chamado_respostas ultima ON ultima.id = (
              SELECT MAX(r.id) FROM chamado_respostas r WHERE r.chamado_id = c.id
          )
-         LEFT JOIN chamado_visualizacoes v ON v.chamado_id = c.id AND v.usuario_id = :uid1
          WHERE $condicaoVisibilidade
-           AND EXISTS (
-               SELECT 1 FROM chamado_respostas r2
-               WHERE r2.chamado_id = c.id
-                 AND (r2.usuario_id IS NULL OR r2.usuario_id != :uid4)
-                 AND r2.criado_em > COALESCE(v.visto_em, '1970-01-01 00:00:00')
+           AND (
+               (v.visto_em IS NULL AND (c.criado_por_id IS NULL OR c.criado_por_id != :uid5))
+               OR EXISTS (
+                   SELECT 1 FROM chamado_respostas r2
+                   WHERE r2.chamado_id = c.id
+                     AND (r2.usuario_id IS NULL OR r2.usuario_id != :uid4)
+                     AND r2.criado_em > COALESCE(v.visto_em, '1970-01-01 00:00:00')
+               )
            )
-         ORDER BY ultima.criado_em DESC
+         ORDER BY COALESCE(ultima.criado_em, c.criado_em) DESC
          LIMIT 10"
     );
-    $params = ['uid1' => $usuarioId, 'uid4' => $usuarioId];
+    $params = ['uid1' => $usuarioId, 'uid4' => $usuarioId, 'uid5' => $usuarioId];
     if (!$verTodos) {
         $params['uid2'] = $usuarioId;
         $params['uid3'] = $usuarioId;

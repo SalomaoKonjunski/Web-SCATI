@@ -36,10 +36,10 @@ $flash = getFlash();
         <span class="ms-auto d-flex align-items-center gap-2">
             <div class="dropdown">
                 <button type="button" class="btn btn-sm btn-outline-light position-relative" id="scatiNotificacaoBtn"
-                        data-nao-lidas="<?= contarChamadosComRespostaNaoLida($usuarioAtual['id'], $verTodasNotificacoes) ?>"
+                        data-nao-lidas="<?= contarChamadosNaoLidos($usuarioAtual['id'], $verTodasNotificacoes) ?>"
                         data-url="<?= BASE_URL ?>/modules/chamados/notificacoes.php"
                         data-form-url="<?= BASE_URL ?>/modules/chamados/form.php"
-                        data-bs-toggle="dropdown" aria-expanded="false" title="Chamados com respostas novas">
+                        data-bs-toggle="dropdown" aria-expanded="false" title="Chamados com solicitação ou mensagem nova">
                     <i class="bi bi-bell"></i>
                     <span class="badge rounded-pill bg-danger position-absolute top-0 start-100 translate-middle d-none" id="scatiNotificacaoBadge">0</span>
                 </button>

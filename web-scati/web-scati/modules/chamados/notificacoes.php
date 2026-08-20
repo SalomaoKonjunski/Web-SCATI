@@ -11,21 +11,23 @@ $usuarioAtual = usuarioLogado();
 // notificado sobre os próprios (solicitante ou responsável).
 $verTodos = !$usuarioAtual['solicitante'];
 
-$itens = listarChamadosComRespostaNaoLida($usuarioAtual['id'], $verTodos);
+$itens = listarChamadosNaoLidos($usuarioAtual['id'], $verTodos);
 
 header('Content-Type: application/json');
 echo json_encode([
-    'nao_lidas' => contarChamadosComRespostaNaoLida($usuarioAtual['id'], $verTodos),
+    'nao_lidas' => contarChamadosNaoLidos($usuarioAtual['id'], $verTodos),
     'itens' => array_map(function (array $item): array {
-        $resumo = trim($item['mensagem']);
+        $ehSolicitacao = $item['tipo'] === 'solicitacao';
+        $resumo = trim((string) ($ehSolicitacao ? $item['descricao'] : $item['ultima_mensagem']));
         if (mb_strlen($resumo) > 80) {
             $resumo = mb_substr($resumo, 0, 80) . '…';
         }
         return [
             'chamado_id'   => (int) $item['chamado_id'],
             'titulo'       => $item['titulo'],
+            'tipo'         => $item['tipo'],
             'mensagem'     => $resumo,
-            'usuario_nome' => $item['usuario_nome'],
+            'usuario_nome' => $ehSolicitacao ? $item['solicitante'] : $item['ultima_usuario_nome'],
         ];
     }, $itens),
 ]);

@@ -222,11 +222,16 @@ document.addEventListener('DOMContentLoaded', function () {
                 titulo.className = 'fw-semibold small';
                 titulo.textContent = item.titulo;
 
+                const rotulo = document.createElement('span');
+                rotulo.className = 'badge ' + (item.tipo === 'solicitacao' ? 'bg-danger' : 'bg-primary') + ' me-1';
+                rotulo.textContent = item.tipo === 'solicitacao' ? 'Nova solicitação' : 'Nova mensagem';
+
                 const mensagem = document.createElement('div');
                 mensagem.className = 'small text-muted text-truncate';
                 mensagem.textContent = (item.usuario_nome ? item.usuario_nome + ': ' : '') + item.mensagem;
 
                 link.appendChild(titulo);
+                link.appendChild(rotulo);
                 link.appendChild(mensagem);
                 notifMenu.appendChild(link);
             });
