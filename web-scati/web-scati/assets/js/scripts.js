@@ -195,6 +195,43 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         }
 
+        // Preenche o menu suspenso com um item por chamado (título + prévia
+        // da última mensagem + quem escreveu), cada um linkando para a ficha.
+        const notifMenu = document.getElementById('scatiNotificacaoMenu');
+        function renderizarMenuNotificacao(itens) {
+            if (!notifMenu) return;
+            notifMenu.querySelectorAll('.scati-notif-item, .scati-notif-vazio').forEach(function (el) {
+                el.remove();
+            });
+
+            if (!itens || itens.length === 0) {
+                const vazio = document.createElement('div');
+                vazio.className = 'px-3 py-4 text-muted small text-center scati-notif-vazio';
+                vazio.textContent = 'Nenhuma notificação.';
+                notifMenu.appendChild(vazio);
+                return;
+            }
+
+            itens.forEach(function (item) {
+                const link = document.createElement('a');
+                link.className = 'dropdown-item scati-notif-item py-2 border-bottom';
+                link.style.whiteSpace = 'normal';
+                link.href = notifBtn.dataset.formUrl + '?id=' + item.chamado_id;
+
+                const titulo = document.createElement('div');
+                titulo.className = 'fw-semibold small';
+                titulo.textContent = item.titulo;
+
+                const mensagem = document.createElement('div');
+                mensagem.className = 'small text-muted text-truncate';
+                mensagem.textContent = (item.usuario_nome ? item.usuario_nome + ': ' : '') + item.mensagem;
+
+                link.appendChild(titulo);
+                link.appendChild(mensagem);
+                notifMenu.appendChild(link);
+            });
+        }
+
         let ultimaContagem = parseInt(notifBtn.dataset.naoLidas || '0', 10);
         atualizarBadgeNotificacao(ultimaContagem);
 
@@ -208,12 +245,14 @@ document.addEventListener('DOMContentLoaded', function () {
                     }
                     ultimaContagem = dados.nao_lidas;
                     atualizarBadgeNotificacao(ultimaContagem);
+                    renderizarMenuNotificacao(dados.itens);
                 })
                 .catch(function () {
                     // falha de rede - tenta de novo na próxima checagem
                 });
         }
 
+        verificarNotificacoes();
         setInterval(verificarNotificacoes, 25000);
     }
 });

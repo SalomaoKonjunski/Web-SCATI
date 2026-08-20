@@ -32,14 +32,22 @@ $flash = getFlash();
     </a>
     <span class="text-white-50 small d-none d-md-inline">Sistema de Controle de Ativos de TI</span>
     <?php if ($usuarioAtual): ?>
+        <?php $verTodasNotificacoes = !$usuarioAtual['solicitante']; ?>
         <span class="ms-auto d-flex align-items-center gap-2">
-            <a href="<?= BASE_URL ?>/modules/chamados/index.php" class="btn btn-sm btn-outline-light position-relative"
-               id="scatiNotificacaoBtn" data-nao-lidas="<?= contarChamadosComRespostaNaoLida($usuarioAtual['id']) ?>"
-               data-url="<?= BASE_URL ?>/modules/chamados/notificacoes.php"
-               title="Chamados com respostas novas">
-                <i class="bi bi-bell"></i>
-                <span class="badge rounded-pill bg-danger position-absolute top-0 start-100 translate-middle d-none" id="scatiNotificacaoBadge">0</span>
-            </a>
+            <div class="dropdown">
+                <button type="button" class="btn btn-sm btn-outline-light position-relative" id="scatiNotificacaoBtn"
+                        data-nao-lidas="<?= contarChamadosComRespostaNaoLida($usuarioAtual['id'], $verTodasNotificacoes) ?>"
+                        data-url="<?= BASE_URL ?>/modules/chamados/notificacoes.php"
+                        data-form-url="<?= BASE_URL ?>/modules/chamados/form.php"
+                        data-bs-toggle="dropdown" aria-expanded="false" title="Chamados com respostas novas">
+                    <i class="bi bi-bell"></i>
+                    <span class="badge rounded-pill bg-danger position-absolute top-0 start-100 translate-middle d-none" id="scatiNotificacaoBadge">0</span>
+                </button>
+                <div class="dropdown-menu dropdown-menu-end p-0 shadow" id="scatiNotificacaoMenu" style="width: 340px; max-height: 420px; overflow-y: auto;">
+                    <div class="px-3 py-2 border-bottom fw-semibold small text-uppercase text-muted">Notificações</div>
+                    <div class="px-3 py-4 text-muted small text-center scati-notif-vazio">Nenhuma notificação.</div>
+                </div>
+            </div>
             <span class="text-white-50 small d-none d-sm-inline">
                 <i class="bi bi-person-circle"></i> <?= e($usuarioAtual['usuario']) ?>
             </span>

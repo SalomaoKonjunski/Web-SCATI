@@ -5,7 +5,27 @@ require_once __DIR__ . '/../../includes/functions.php';
 require_once __DIR__ . '/../../includes/auth.php';
 exigirLogin();
 
+$usuarioAtual = usuarioLogado();
+// Administrador e Padrão enxergam a listagem de chamados inteira, então
+// são notificados sobre qualquer chamado; o perfil Usuário só é
+// notificado sobre os próprios (solicitante ou responsável).
+$verTodos = !$usuarioAtual['solicitante'];
+
+$itens = listarChamadosComRespostaNaoLida($usuarioAtual['id'], $verTodos);
+
 header('Content-Type: application/json');
 echo json_encode([
-    'nao_lidas' => contarChamadosComRespostaNaoLida(usuarioLogado()['id']),
+    'nao_lidas' => contarChamadosComRespostaNaoLida($usuarioAtual['id'], $verTodos),
+    'itens' => array_map(function (array $item): array {
+        $resumo = trim($item['mensagem']);
+        if (mb_strlen($resumo) > 80) {
+            $resumo = mb_substr($resumo, 0, 80) . '…';
+        }
+        return [
+            'chamado_id'   => (int) $item['chamado_id'],
+            'titulo'       => $item['titulo'],
+            'mensagem'     => $resumo,
+            'usuario_nome' => $item['usuario_nome'],
+        ];
+    }, $itens),
 ]);
