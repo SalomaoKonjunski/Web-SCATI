@@ -509,11 +509,10 @@ web-scati/
   andamento) limpa essa data. Por segurança, **nenhum chamado em
   aberto pode ser excluído** (nem por administrador) — só depois de
   marcado como Concluído ou Cancelado; o botão de excluir aparece
-  desabilitado enquanto o chamado estiver aberto. A barra lateral
-  mostra a contagem de chamados em aberto (não concluídos/cancelados),
-  e chamados de prioridade Alta ou Urgente ainda em aberto aparecem na
-  Central de Alertas do Dashboard. A listagem também mostra um trecho
-  da descrição e o usuário em cada linha, o tempo em aberto (ex.: "há 3
+  desabilitado enquanto o chamado estiver aberto. E chamados de
+  prioridade Alta ou Urgente ainda em aberto aparecem na Central de
+  Alertas do Dashboard. A listagem também mostra um trecho da
+  descrição e o usuário em cada linha, o tempo em aberto (ex.: "há 3
   dias"), e destaca com um fundo suave as linhas de chamados urgentes
   ou de alta prioridade ainda em aberto.
 
@@ -523,18 +522,26 @@ web-scati/
   Padrão) pode escrever uma atualização, que fica registrada com nome
   e data/hora. O perfil **Usuário** também ganha acesso à ficha dos
   próprios chamados para acompanhar e responder — só não pode alterar
-  título, descrição, prioridade, andamento ou responsável. Um sininho
-  no topo da tela mostra quantos chamados têm resposta não lida e toca
-  um bipe curto quando chega uma resposta nova, enquanto o sistema
-  estiver aberto em alguma aba do navegador — a verificação é feita a
-  cada 25 segundos. Clicar no sininho abre um menu suspenso listando
-  cada chamado com resposta não lida (título, quem escreveu e uma
-  prévia da mensagem), e cada item leva direto para a ficha
-  correspondente; abrir a ficha do chamado marca a conversa como
-  lida. Administrador e Padrão são avisados sobre qualquer chamado do
-  sistema com resposta nova (já que enxergam a listagem inteira); o
+  título, descrição, prioridade, andamento ou responsável.
+
+  O sistema de notificação é unificado: tanto a **contagem em
+  vermelho ao lado de "Chamados" no menu lateral** quanto o **sininho**
+  no topo da tela só aparecem quando existe uma novidade que o usuário
+  logado ainda não viu — uma solicitação nova (chamado que ele nunca
+  abriu) ou uma resposta nova em algum chamado — e tocam um bipe curto
+  quando a novidade chega, enquanto o sistema estiver aberto em alguma
+  aba do navegador (a verificação é feita a cada 25 segundos). Clicar
+  no sininho abre um menu suspenso listando cada chamado com novidade,
+  com um rótulo indicando o tipo ("Nova solicitação" ou "Nova
+  mensagem"), quem escreveu e uma prévia; o mesmo rótulo também aparece
+  ao lado do título na própria listagem de chamados, então dá para ver
+  de cara qual chamado tem novidade sem precisar abrir o menu. Abrir a
+  ficha do chamado marca tudo como lido — some da contagem, do sininho
+  e do rótulo na listagem. Administrador e Padrão são avisados sobre
+  qualquer chamado do sistema (já que enxergam a listagem inteira); o
   perfil Usuário só é avisado sobre os próprios chamados (como
-  solicitante ou responsável).
+  solicitante ou responsável) — e nunca sobre a própria solicitação que
+  acabou de abrir, já que ele sabe que ela existe.
 
   > Nota técnica: a notificação sonora funciona enquanto o navegador
   > estiver aberto com alguma página do sistema carregada (mesmo em
