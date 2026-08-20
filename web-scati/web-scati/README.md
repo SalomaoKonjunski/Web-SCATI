@@ -177,6 +177,13 @@ Funcional (v1.0).
    mysql -u root -p scati < database/migration_historico_chamados.sql
    ```
 
+   Se o banco já existia antes das **observações privadas do chamado**
+   (ainda não tem a tabela `chamado_observacoes`), rode também esta
+   migração incremental **uma única vez**:
+   ```bash
+   mysql -u root -p scati < database/migration_chamado_observacoes.sql
+   ```
+
    > Importante: ao importar qualquer um dos arquivos `.sql` deste projeto,
    > garanta que o cliente MySQL use UTF-8 (ex.: `mysql --default-character-set=utf8mb4 -u root -p < arquivo.sql`),
    > caso contrário os valores acentuados dos campos `ENUM` (como "Disponível")
@@ -485,7 +492,12 @@ web-scati/
   alguém que ligou ou pediu pessoalmente) — os demais perfis sempre
   abrem o chamado em seu próprio nome. O sistema também registra
   automaticamente qual usuário abriu cada chamado (usado para o perfil
-  Usuário enxergar só os próprios). Prioridade e andamento podem
+  Usuário enxergar só os próprios).
+
+  **Depois de criado, título, descrição e usuário não podem mais ser
+  alterados por ninguém** — nem pelo Administrador — para preservar o
+  pedido original; qualquer atualização a partir daí é feita pelas
+  respostas. Prioridade e andamento podem
   ser alterados direto na listagem, através de um seletor colorido em
   cada linha, sem precisar abrir o cadastro — a mudança é salva assim
   que a opção é escolhida. Um botão **"Atribuir para mim"** (na
@@ -538,6 +550,12 @@ web-scati/
   marcado como concluído), de prioridade e de responsável — capturado
   tanto ao editar a ficha quanto pelos atalhos rápidos da listagem
   (seletores inline e "Atribuir para mim").
+
+  Também tem uma seção **Observações**, para anotações privadas: cada
+  observação só aparece para quem escreveu — nem outros administradores,
+  nem o solicitante do chamado conseguem ver. Útil para lembretes
+  pessoais sobre o andamento de um chamado que não fazem sentido no
+  histórico público de respostas.
 
 ## Notas de projeto
 
