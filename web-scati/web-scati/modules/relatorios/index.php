@@ -42,6 +42,8 @@ $eventosHistorico = $pdo->query(
         SELECT evento FROM historico_equipamentos
         UNION
         SELECT evento FROM historico_estoque
+        UNION
+        SELECT evento FROM historico_chamados
     ) t ORDER BY evento"
 )->fetchAll(PDO::FETCH_COLUMN);
 $categoriasHistorico = $pdo->query('SELECT nome FROM categorias_estoque ORDER BY nome')->fetchAll(PDO::FETCH_COLUMN);
@@ -125,7 +127,7 @@ if ($relatorio !== '' && isset($titulosRelatorios[$relatorio])) {
             break;
 
         case 'historico_alteracoes':
-            $colunas = ['Data/Hora', 'Origem', 'Patrimônio/Item', 'Categoria', 'Evento', 'Descrição', 'Usuário'];
+            $colunas = ['Data/Hora', 'Origem', 'Patrimônio/Item/Chamado', 'Categoria', 'Evento', 'Descrição', 'Usuário'];
 
             $sql = "SELECT * FROM (
                         SELECT h.data_hora, 'Equipamento' AS origem, COALESCE(e.patrimonio, 'Indefinido') AS identificacao, NULL AS categoria, h.evento, h.descricao, h.usuario_nome
@@ -133,6 +135,9 @@ if ($relatorio !== '' && isset($titulosRelatorios[$relatorio])) {
                         UNION ALL
                         SELECT he.data_hora, 'Item de Estoque' AS origem, he.item_nome AS identificacao, he.categoria_nome AS categoria, he.evento, he.descricao, he.usuario_nome
                         FROM historico_estoque he
+                        UNION ALL
+                        SELECT hc.data_hora, 'Chamado' AS origem, c.titulo AS identificacao, NULL AS categoria, hc.evento, hc.descricao, hc.usuario_nome
+                        FROM historico_chamados hc JOIN chamados c ON c.id = hc.chamado_id
                     ) AS combinado WHERE 1=1";
             $params = [];
 
@@ -247,7 +252,7 @@ include __DIR__ . '/../../includes/header.php';
                             <input type="date" name="h_data_fim" class="form-control form-control-sm" value="<?= e($filtroHistDataFim) ?>">
                         </div>
                         <div class="col-md-2">
-                            <label class="form-label small text-muted mb-1">Patrimônio / Item</label>
+                            <label class="form-label small text-muted mb-1">Patrimônio / Item / Chamado</label>
                             <input type="text" name="h_busca" class="form-control form-control-sm" value="<?= e($filtroHistBusca) ?>">
                         </div>
                         <div class="col-md-2 d-flex gap-2">

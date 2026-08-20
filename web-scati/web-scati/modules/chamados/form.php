@@ -163,16 +163,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$somenteLeitura) {
 }
 
 $respostas = [];
-$historico = [];
 $observacoesPrivadas = [];
 if ($edicao) {
     $stmtRespostas = $pdo->prepare('SELECT * FROM chamado_respostas WHERE chamado_id = :id ORDER BY criado_em ASC');
     $stmtRespostas->execute(['id' => $id]);
     $respostas = $stmtRespostas->fetchAll();
-
-    $stmtHistorico = $pdo->prepare('SELECT * FROM historico_chamados WHERE chamado_id = :id ORDER BY data_hora DESC');
-    $stmtHistorico->execute(['id' => $id]);
-    $historico = $stmtHistorico->fetchAll();
 
     // Observações privadas: só aparecem para quem escreveu cada uma.
     $stmtObs = $pdo->prepare('SELECT * FROM chamado_observacoes WHERE chamado_id = :id AND usuario_id = :uid ORDER BY criado_em DESC');
@@ -325,40 +320,6 @@ include __DIR__ . '/../../includes/header.php';
 <?php endif; ?>
 
 <?php if ($edicao): ?>
-    <div class="card mb-3">
-        <div class="card-header bg-white">
-            <i class="bi bi-clock-history me-1"></i> Histórico
-        </div>
-        <div class="card-body">
-            <?php if (empty($historico)): ?>
-                <p class="text-muted small mb-0">Nenhum evento registrado.</p>
-            <?php else: ?>
-                <div class="table-responsive">
-                    <table class="table table-sm table-hover mb-0">
-                        <thead class="table-light">
-                            <tr>
-                                <th style="width:160px">Data / Hora</th>
-                                <th style="width:140px">Evento</th>
-                                <th>Descrição</th>
-                                <th style="width:140px">Usuário</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php foreach ($historico as $h): ?>
-                                <tr>
-                                    <td><?= formatDateTime($h['data_hora']) ?></td>
-                                    <td><span class="badge bg-light text-dark border"><?= e($h['evento']) ?></span></td>
-                                    <td><?= e($h['descricao']) ?></td>
-                                    <td><?= $h['usuario_nome'] !== null ? e($h['usuario_nome']) : '<span class="text-muted">-</span>' ?></td>
-                                </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                </div>
-            <?php endif; ?>
-        </div>
-    </div>
-
     <div class="card mb-3">
         <div class="card-header bg-white d-flex align-items-center gap-2">
             <i class="bi bi-eye-slash me-1"></i> Observações
