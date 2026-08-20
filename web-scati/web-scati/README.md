@@ -417,9 +417,9 @@ web-scati/
   (equipamentos, estoque, licenças e financeiro), com opção de impressão em
   layout limpo (sem navbar/menu lateral), pronto para impressão ou
   exportação em PDF pelo próprio diálogo de impressão do navegador. O
-  relatório "Histórico de alterações" reúne o histórico de equipamentos e
-  de itens de estoque numa lista só, com filtros por tipo de ação,
-  categoria, período e patrimônio/item.
+  relatório "Histórico de alterações" reúne o histórico de equipamentos,
+  de itens de estoque e de chamados numa lista só, com filtros por tipo de
+  ação, categoria, período e patrimônio/item/chamado.
 - **Interface responsiva** com Bootstrap 5, menu lateral recolhível em
   telas pequenas.
 - **Configurações**: tela central (menu lateral) com três ajustes do
@@ -543,13 +543,15 @@ web-scati/
   > funcionam mesmo com o navegador fechado) exigem HTTPS, que uma
   > instalação via XAMPP em rede local normalmente não tem.
 
-  A ficha do chamado também tem uma seção **Histórico**, no mesmo
-  formato usado em Equipamentos/Estoque, registrando automaticamente
-  cada evento com quem fez e quando: abertura (com a descrição da
-  solicitação), mudanças de andamento (destacando quando o chamado é
-  marcado como concluído), de prioridade e de responsável — capturado
-  tanto ao editar a ficha quanto pelos atalhos rápidos da listagem
-  (seletores inline e "Atribuir para mim").
+  Cada chamado tem um histórico automático, registrando quem fez e
+  quando: abertura (com a descrição da solicitação), mudanças de
+  andamento (destacando quando o chamado é marcado como concluído), de
+  prioridade e de responsável — capturado tanto ao editar a ficha
+  quanto pelos atalhos rápidos da listagem (seletores inline e
+  "Atribuir para mim"). Esse histórico não aparece mais na própria
+  ficha do chamado; ele fica disponível apenas no relatório
+  "Histórico de alterações" (aba **Relatórios**), junto com o
+  histórico de equipamentos e estoque.
 
   Também tem uma seção **Observações**, para anotações privadas: cada
   observação só aparece para quem escreveu — nem outros administradores,
