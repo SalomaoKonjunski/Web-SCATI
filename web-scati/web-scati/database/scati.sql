@@ -396,6 +396,25 @@ CREATE TABLE chamado_visualizacoes (
 ) ENGINE=InnoDB;
 
 -- ---------------------------------------------------------------------
+-- Tabela: chamado_observacoes (anotações privadas — cada uma só
+-- aparece para o próprio usuário que a escreveu)
+-- ---------------------------------------------------------------------
+CREATE TABLE chamado_observacoes (
+    id              INT AUTO_INCREMENT PRIMARY KEY,
+    chamado_id      INT NOT NULL,
+    usuario_id      INT NOT NULL,
+    texto           TEXT NOT NULL,
+    criado_em       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_obs_chamado_chamado
+        FOREIGN KEY (chamado_id) REFERENCES chamados(id) ON DELETE CASCADE,
+    CONSTRAINT fk_obs_chamado_usuario
+        FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE INDEX idx_obs_chamado ON chamado_observacoes(chamado_id, usuario_id);
+
+-- ---------------------------------------------------------------------
 -- Índices auxiliares para pesquisa (seção 13 da documentação)
 -- ---------------------------------------------------------------------
 CREATE INDEX idx_equip_hostname   ON equipamentos(hostname);

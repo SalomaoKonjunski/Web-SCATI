@@ -46,8 +46,16 @@ $usuarios = $pdo->query('SELECT id, usuario FROM usuarios ORDER BY usuario')->fe
 
 $erros = [];
 
+// Depois de criado, o pedido original (título/descrição/usuário) não pode
+// mais ser alterado por ninguém — só prioridade, andamento e responsável
+// continuam editáveis, e a comunicação passa a ser pelas respostas.
+$camposTravadosNaEdicao = ['titulo', 'descricao', 'solicitante'];
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$somenteLeitura) {
     foreach ($chamado as $campo => $valorPadrao) {
+        if ($edicao && in_array($campo, $camposTravadosNaEdicao, true)) {
+            continue;
+        }
         $chamado[$campo] = trim((string) ($_POST[$campo] ?? ''));
     }
 
@@ -156,6 +164,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$somenteLeitura) {
 
 $respostas = [];
 $historico = [];
+$observacoesPrivadas = [];
 if ($edicao) {
     $stmtRespostas = $pdo->prepare('SELECT * FROM chamado_respostas WHERE chamado_id = :id ORDER BY criado_em ASC');
     $stmtRespostas->execute(['id' => $id]);
@@ -164,6 +173,11 @@ if ($edicao) {
     $stmtHistorico = $pdo->prepare('SELECT * FROM historico_chamados WHERE chamado_id = :id ORDER BY data_hora DESC');
     $stmtHistorico->execute(['id' => $id]);
     $historico = $stmtHistorico->fetchAll();
+
+    // Observações privadas: só aparecem para quem escreveu cada uma.
+    $stmtObs = $pdo->prepare('SELECT * FROM chamado_observacoes WHERE chamado_id = :id AND usuario_id = :uid ORDER BY criado_em DESC');
+    $stmtObs->execute(['id' => $id, 'uid' => $usuarioAtual['id']]);
+    $observacoesPrivadas = $stmtObs->fetchAll();
 }
 
 $tituloPagina = $somenteLeitura ? 'Acompanhar Chamado' : ($edicao ? 'Editar Chamado' : 'Novo Chamado');
@@ -183,18 +197,69 @@ include __DIR__ . '/../../includes/header.php';
     </div>
 <?php endif; ?>
 
-<?php if ($somenteLeitura): ?>
+<?php if ($edicao): ?>
     <div class="card mb-3">
         <div class="card-body">
             <h2 class="h5"><?= e($chamado['titulo']) ?></h2>
-            <p class="mb-3" style="white-space: pre-wrap;"><?= e($chamado['descricao']) ?></p>
-            <div class="d-flex flex-wrap gap-2 mb-2">
-                <span class="badge <?= prioridadeChamadoBadgeClass($chamado['prioridade']) ?>">Prioridade: <?= e($chamado['prioridade']) ?></span>
-                <span class="badge <?= statusChamadoBadgeClass($chamado['status']) ?>">Andamento: <?= e($chamado['status']) ?></span>
-            </div>
+            <p class="mb-2" style="white-space: pre-wrap;"><?= e($chamado['descricao']) ?></p>
+            <?php if (!empty($chamado['solicitante'])): ?>
+                <div class="small text-muted mb-2"><i class="bi bi-person"></i> <?= e($chamado['solicitante']) ?></div>
+            <?php endif; ?>
+            <?php if ($somenteLeitura): ?>
+                <div class="d-flex flex-wrap gap-2 mb-2">
+                    <span class="badge <?= prioridadeChamadoBadgeClass($chamado['prioridade']) ?>">Prioridade: <?= e($chamado['prioridade']) ?></span>
+                    <span class="badge <?= statusChamadoBadgeClass($chamado['status']) ?>">Andamento: <?= e($chamado['status']) ?></span>
+                </div>
+            <?php endif; ?>
             <div class="text-muted small">Aberto em <?= formatDateTime($chamado['criado_em']) ?></div>
+            <div class="form-text mt-2 mb-0"><i class="bi bi-lock"></i> Título, descrição e usuário não podem mais ser alterados depois de criado.</div>
         </div>
     </div>
+
+    <?php if (!$somenteLeitura): ?>
+    <form method="post">
+        <div class="card mb-3">
+            <div class="card-body row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">Prioridade *</label>
+                    <select name="prioridade" class="form-select" required>
+                        <?php foreach (prioridadesChamado() as $prioridade): ?>
+                            <option value="<?= e($prioridade) ?>" <?= $chamado['prioridade'] === $prioridade ? 'selected' : '' ?>><?= e($prioridade) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Andamento</label>
+                    <select name="status" class="form-select">
+                        <?php foreach (statusChamado() as $status): ?>
+                            <option value="<?= e($status) ?>" <?= $chamado['status'] === $status ? 'selected' : '' ?>><?= e($status) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Responsável</label>
+                    <div class="d-flex gap-2">
+                        <select name="responsavel_id" id="responsavel_id" class="form-select">
+                            <option value="">Não atribuído</option>
+                            <?php foreach ($usuarios as $u): ?>
+                                <option value="<?= (int) $u['id'] ?>" <?= (string) $chamado['responsavel_id'] === (string) $u['id'] ? 'selected' : '' ?>><?= e($u['usuario']) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                        <?php if ($usuarioAtual['admin']): ?>
+                        <button type="button" class="btn btn-outline-secondary text-nowrap" onclick="document.getElementById('responsavel_id').value = '<?= (int) $usuarioAtual['id'] ?>';">
+                            <i class="bi bi-person-plus"></i> Atribuir para mim
+                        </button>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="d-flex gap-2 mb-4">
+            <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Salvar</button>
+            <a href="index.php" class="btn btn-outline-secondary">Cancelar</a>
+        </div>
+    </form>
+    <?php endif; ?>
 <?php else: ?>
 <form method="post">
     <div class="card mb-3">
@@ -205,7 +270,7 @@ include __DIR__ . '/../../includes/header.php';
             </div>
             <div class="col-md-4">
                 <label class="form-label">Usuário</label>
-                <?php if (!$edicao && !$podeEscolherSolicitante): ?>
+                <?php if (!$podeEscolherSolicitante): ?>
                     <input type="text" name="solicitante" class="form-control" value="<?= e($chamado['solicitante']) ?>" readonly>
                     <div class="form-text">Definido automaticamente como o seu usuário.</div>
                 <?php else: ?>
@@ -291,6 +356,32 @@ include __DIR__ . '/../../includes/header.php';
                     </table>
                 </div>
             <?php endif; ?>
+        </div>
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-header bg-white d-flex align-items-center gap-2">
+            <i class="bi bi-eye-slash me-1"></i> Observações
+            <span class="badge bg-secondary">só você vê</span>
+        </div>
+        <div class="card-body">
+            <?php if (empty($observacoesPrivadas)): ?>
+                <p class="text-muted small mb-3">Nenhuma observação sua ainda.</p>
+            <?php else: ?>
+                <ul class="list-group mb-3">
+                    <?php foreach ($observacoesPrivadas as $obs): ?>
+                        <li class="list-group-item">
+                            <div class="small text-muted"><?= formatDateTime($obs['criado_em']) ?></div>
+                            <div style="white-space: pre-wrap;"><?= e($obs['texto']) ?></div>
+                        </li>
+                    <?php endforeach; ?>
+                </ul>
+            <?php endif; ?>
+            <form method="post" action="observar.php" class="d-flex gap-2">
+                <input type="hidden" name="chamado_id" value="<?= (int) $id ?>">
+                <textarea name="texto" class="form-control" rows="2" placeholder="Escreva uma observação só sua..." required></textarea>
+                <button type="submit" class="btn btn-outline-secondary text-nowrap"><i class="bi bi-plus-lg"></i> Adicionar</button>
+            </form>
         </div>
     </div>
 
