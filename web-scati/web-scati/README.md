@@ -512,12 +512,17 @@ web-scati/
   e data/hora. O perfil **Usuário** também ganha acesso à ficha dos
   próprios chamados para acompanhar e responder — só não pode alterar
   título, descrição, prioridade, andamento ou responsável. Um sininho
-  no topo da tela mostra quantos chamados têm resposta não lida (com
-  base em quem é o solicitante ou responsável de cada um) e toca um
-  bipe curto quando chega uma resposta nova, enquanto o sistema
+  no topo da tela mostra quantos chamados têm resposta não lida e toca
+  um bipe curto quando chega uma resposta nova, enquanto o sistema
   estiver aberto em alguma aba do navegador — a verificação é feita a
-  cada 25 segundos. Abrir a ficha do chamado marca a conversa como
-  lida.
+  cada 25 segundos. Clicar no sininho abre um menu suspenso listando
+  cada chamado com resposta não lida (título, quem escreveu e uma
+  prévia da mensagem), e cada item leva direto para a ficha
+  correspondente; abrir a ficha do chamado marca a conversa como
+  lida. Administrador e Padrão são avisados sobre qualquer chamado do
+  sistema com resposta nova (já que enxergam a listagem inteira); o
+  perfil Usuário só é avisado sobre os próprios chamados (como
+  solicitante ou responsável).
 
   > Nota técnica: a notificação sonora funciona enquanto o navegador
   > estiver aberto com alguma página do sistema carregada (mesmo em
