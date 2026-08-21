@@ -101,16 +101,32 @@ a.scati-kpi-card-link .scati-kpi-card.kpi-ativo {
     cursor: pointer;
 }
 
+/* No Bootstrap 5, cada célula da tabela pinta o próprio fundo com
+   var(--bs-table-bg) — então só dá para colorir a linha inteira via essa
+   variável (definir background-color direto na <tr> fica escondido atrás
+   das células). */
 .estoque-baixo {
-    background-color: #fdecea !important;
+    --bs-table-bg: #fdecea;
 }
 
 .chamado-urgente {
-    background-color: #fdecea !important;
+    --bs-table-bg: #fdecea;
 }
 
 .chamado-alta {
-    background-color: #fff8e6 !important;
+    --bs-table-bg: #fff8e6;
+}
+
+/* Chamado com solicitação nova (nunca aberto pelo usuário logado) — a
+   linha inteira da listagem, e a caixa inteira do item no menu do
+   sininho, ficam pintadas para chamar atenção. Tem prioridade sobre as
+   cores de urgência acima. */
+.chamado-novo {
+    --bs-table-bg: #e7f1ff;
+}
+
+.scati-notif-solicitacao {
+    background-color: #e7f1ff !important;
 }
 
 @media (max-width: 767.98px) {

@@ -214,25 +214,40 @@ document.addEventListener('DOMContentLoaded', function () {
 
             itens.forEach(function (item) {
                 const link = document.createElement('a');
-                link.className = 'dropdown-item scati-notif-item py-2 border-bottom';
+                // Solicitação nova: a caixa inteira do item fica pintada
+                // (classe scati-notif-solicitacao). Mensagem nova: mostra um
+                // contador com a quantidade de respostas não lidas.
+                link.className = 'dropdown-item scati-notif-item py-2 border-bottom d-flex justify-content-between align-items-start gap-2'
+                    + (item.tipo === 'solicitacao' ? ' scati-notif-solicitacao' : '');
                 link.style.whiteSpace = 'normal';
                 link.href = notifBtn.dataset.formUrl + '?id=' + item.chamado_id;
+
+                const corpo = document.createElement('div');
+                // min-width: 0 é necessário para o text-truncate funcionar
+                // dentro de um item flex — sem isso o texto empurra o
+                // contador para fora da caixa em vez de truncar.
+                corpo.className = 'flex-grow-1';
+                corpo.style.minWidth = '0';
 
                 const titulo = document.createElement('div');
                 titulo.className = 'fw-semibold small';
                 titulo.textContent = item.titulo;
 
-                const rotulo = document.createElement('span');
-                rotulo.className = 'badge ' + (item.tipo === 'solicitacao' ? 'bg-danger' : 'bg-primary') + ' me-1';
-                rotulo.textContent = item.tipo === 'solicitacao' ? 'Nova solicitação' : 'Nova mensagem';
-
                 const mensagem = document.createElement('div');
                 mensagem.className = 'small text-muted text-truncate';
                 mensagem.textContent = (item.usuario_nome ? item.usuario_nome + ': ' : '') + item.mensagem;
 
-                link.appendChild(titulo);
-                link.appendChild(rotulo);
-                link.appendChild(mensagem);
+                corpo.appendChild(titulo);
+                corpo.appendChild(mensagem);
+                link.appendChild(corpo);
+
+                if (item.tipo === 'mensagem' && item.qtd_mensagens_novas > 0) {
+                    const contador = document.createElement('span');
+                    contador.className = 'badge rounded-pill bg-primary flex-shrink-0';
+                    contador.textContent = item.qtd_mensagens_novas > 9 ? '9+' : String(item.qtd_mensagens_novas);
+                    link.appendChild(contador);
+                }
+
                 notifMenu.appendChild(link);
             });
         }
