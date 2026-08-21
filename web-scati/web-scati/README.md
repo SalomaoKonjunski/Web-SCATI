@@ -184,13 +184,15 @@ Funcional (v1.0).
    mysql -u root -p scati < database/migration_chamado_observacoes.sql
    ```
 
-   Se o banco já existia antes de dar para **escolher quem mais vê uma
-   observação** (ainda não tem a tabela
-   `chamado_observacao_visualizadores`), rode também esta migração
-   incremental **uma única vez** (exige que `chamado_observacoes` já
-   exista):
+   Se você chegou a rodar uma versão anterior deste projeto em que o
+   autor de uma observação escolhia individualmente quem mais podia
+   vê-la (e por isso seu banco ainda tem a tabela
+   `chamado_observacao_visualizadores`), esse recurso foi substituído
+   por uma regra fixa — toda observação é visível para qualquer
+   Administrador — então rode esta migração para remover a tabela que
+   não é mais usada:
    ```bash
-   mysql -u root -p scati < database/migration_chamado_observacao_visualizadores.sql
+   mysql -u root -p scati < database/migration_remove_chamado_observacao_visualizadores.sql
    ```
 
    > Importante: ao importar qualquer um dos arquivos `.sql` deste projeto,
@@ -571,12 +573,11 @@ web-scati/
   "Histórico de alterações" (aba **Relatórios**), junto com o
   histórico de equipamentos e estoque.
 
-  Também tem uma seção **Observações**, para anotações internas: por
-  padrão, uma observação só aparece para quem escreveu, mas o autor
-  pode escolher outros cadastros do sistema para também verem aquela
-  nota específica (um checkbox por usuário, ao escrever a observação).
-  Cada observação mostra de quem é (quando não é sua) e a lista de
-  quem tem acesso a ela. Útil para lembretes ou combinados internos
+  Também tem uma seção **Observações**, visível só para o perfil
+  Administrador (nem o solicitante, nem Padrão/Usuário veem essa
+  seção): qualquer Administrador pode escrever uma anotação interna, e
+  todos os outros Administradores conseguem ver — cada nota mostra
+  quem escreveu e quando. Útil para lembretes ou combinados internos
   sobre o andamento de um chamado que não fazem sentido no histórico
   público de respostas.
 
