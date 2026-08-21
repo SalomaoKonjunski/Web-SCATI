@@ -172,28 +172,19 @@ if ($edicao) {
     $stmtRespostas->execute(['id' => $id]);
     $respostas = $stmtRespostas->fetchAll();
 
-    // Observações: por padrão só aparecem para quem escreveu, mas o autor
-    // pode compartilhar com outros cadastros (chamado_observacao_visualizadores).
-    $stmtObs = $pdo->prepare(
-        'SELECT o.id, o.texto, o.criado_em, o.usuario_id AS autor_id, autor.usuario AS autor_nome,
-                GROUP_CONCAT(DISTINCT vis.usuario ORDER BY vis.usuario SEPARATOR ", ") AS compartilhado_com
-         FROM chamado_observacoes o
-         JOIN usuarios autor ON autor.id = o.usuario_id
-         LEFT JOIN chamado_observacao_visualizadores v ON v.observacao_id = o.id
-         LEFT JOIN usuarios vis ON vis.id = v.usuario_id
-         WHERE o.chamado_id = :id
-           AND (
-               o.usuario_id = :uid1
-               OR EXISTS (
-                   SELECT 1 FROM chamado_observacao_visualizadores v2
-                   WHERE v2.observacao_id = o.id AND v2.usuario_id = :uid2
-               )
-           )
-         GROUP BY o.id, o.texto, o.criado_em, o.usuario_id, autor.usuario
-         ORDER BY o.criado_em DESC'
-    );
-    $stmtObs->execute(['id' => $id, 'uid1' => $usuarioAtual['id'], 'uid2' => $usuarioAtual['id']]);
-    $observacoes = $stmtObs->fetchAll();
+    // Observações: anotação interna, visível só para administradores
+    // (qualquer um deles vê as observações de todos, não só as próprias).
+    if ($usuarioAtual['admin']) {
+        $stmtObs = $pdo->prepare(
+            'SELECT o.id, o.texto, o.criado_em, o.usuario_id AS autor_id, autor.usuario AS autor_nome
+             FROM chamado_observacoes o
+             JOIN usuarios autor ON autor.id = o.usuario_id
+             WHERE o.chamado_id = :id
+             ORDER BY o.criado_em DESC'
+        );
+        $stmtObs->execute(['id' => $id]);
+        $observacoes = $stmtObs->fetchAll();
+    }
 }
 
 $tituloPagina = $somenteLeitura ? 'Acompanhar Chamado' : ($edicao ? 'Editar Chamado' : 'Novo Chamado');
@@ -339,56 +330,36 @@ include __DIR__ . '/../../includes/header.php';
 </form>
 <?php endif; ?>
 
-<?php if ($edicao): ?>
+<?php if ($edicao && $usuarioAtual['admin']): ?>
     <div class="card mb-3">
         <div class="card-header bg-white d-flex align-items-center gap-2">
             <i class="bi bi-eye-slash me-1"></i> Observações
+            <span class="badge bg-secondary">só administradores veem</span>
         </div>
         <div class="card-body">
-            <p class="text-muted small">Por padrão, uma observação só aparece para quem escreveu — escolha abaixo outros cadastros para também poderem ver.</p>
+            <p class="text-muted small">Anotação interna — visível para qualquer Administrador, mas não para o solicitante nem para o perfil Padrão/Usuário.</p>
             <?php if (empty($observacoes)): ?>
-                <p class="text-muted small mb-3">Nenhuma observação visível para você ainda.</p>
+                <p class="text-muted small mb-3">Nenhuma observação ainda.</p>
             <?php else: ?>
                 <ul class="list-group mb-3">
                     <?php foreach ($observacoes as $obs): ?>
                         <li class="list-group-item">
-                            <div class="small text-muted d-flex justify-content-between flex-wrap gap-1">
-                                <span>
-                                    <?php if ((int) $obs['autor_id'] !== (int) $usuarioAtual['id']): ?>
-                                        <i class="bi bi-person"></i> <?= e($obs['autor_nome']) ?> ·
-                                    <?php endif; ?>
-                                    <?= formatDateTime($obs['criado_em']) ?>
-                                </span>
-                                <span>
-                                    <i class="bi bi-eye"></i>
-                                    Visível para: <?= e($obs['autor_nome']) ?><?= $obs['compartilhado_com'] ? ', ' . e($obs['compartilhado_com']) : '' ?>
-                                </span>
-                            </div>
+                            <div class="small text-muted"><i class="bi bi-person"></i> <?= e($obs['autor_nome']) ?> · <?= formatDateTime($obs['criado_em']) ?></div>
                             <div style="white-space: pre-wrap;"><?= e($obs['texto']) ?></div>
                         </li>
                     <?php endforeach; ?>
                 </ul>
             <?php endif; ?>
-            <form method="post" action="observar.php">
+            <form method="post" action="observar.php" class="d-flex gap-2">
                 <input type="hidden" name="chamado_id" value="<?= (int) $id ?>">
-                <textarea name="texto" class="form-control mb-2" rows="2" placeholder="Escreva uma observação..." required></textarea>
-                <div class="mb-2">
-                    <div class="form-label small text-muted mb-1">Também visível para (opcional):</div>
-                    <div class="d-flex flex-wrap gap-3">
-                        <?php foreach ($usuarios as $u): ?>
-                            <?php if ((int) $u['id'] === (int) $usuarioAtual['id']) continue; ?>
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" name="visualizadores[]" value="<?= (int) $u['id'] ?>" id="obsVis<?= (int) $u['id'] ?>">
-                                <label class="form-check-label small" for="obsVis<?= (int) $u['id'] ?>"><?= e($u['usuario']) ?></label>
-                            </div>
-                        <?php endforeach; ?>
-                    </div>
-                </div>
-                <button type="submit" class="btn btn-outline-secondary"><i class="bi bi-plus-lg"></i> Adicionar</button>
+                <textarea name="texto" class="form-control" rows="2" placeholder="Escreva uma observação..." required></textarea>
+                <button type="submit" class="btn btn-outline-secondary text-nowrap"><i class="bi bi-plus-lg"></i> Adicionar</button>
             </form>
         </div>
     </div>
+<?php endif; ?>
 
+<?php if ($edicao): ?>
     <div class="card mb-5">
         <div class="card-header bg-white">
             <i class="bi bi-chat-left-text me-1"></i> Respostas

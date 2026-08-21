@@ -396,9 +396,9 @@ CREATE TABLE chamado_visualizacoes (
 ) ENGINE=InnoDB;
 
 -- ---------------------------------------------------------------------
--- Tabela: chamado_observacoes (anotações — por padrão só aparecem para
--- quem escreveu, mas o autor pode escolher outros cadastros que também
--- podem ver, através de chamado_observacao_visualizadores)
+-- Tabela: chamado_observacoes (anotações internas — visíveis só para
+-- administradores, não para o solicitante nem para os perfis
+-- Padrão/Usuário)
 -- ---------------------------------------------------------------------
 CREATE TABLE chamado_observacoes (
     id              INT AUTO_INCREMENT PRIMARY KEY,
@@ -414,21 +414,6 @@ CREATE TABLE chamado_observacoes (
 ) ENGINE=InnoDB;
 
 CREATE INDEX idx_obs_chamado ON chamado_observacoes(chamado_id, usuario_id);
-
--- ---------------------------------------------------------------------
--- Tabela: chamado_observacao_visualizadores (cadastros extras
--- escolhidos pelo autor para também verem uma observação)
--- ---------------------------------------------------------------------
-CREATE TABLE chamado_observacao_visualizadores (
-    observacao_id   INT NOT NULL,
-    usuario_id      INT NOT NULL,
-
-    PRIMARY KEY (observacao_id, usuario_id),
-    CONSTRAINT fk_obsvis_observacao
-        FOREIGN KEY (observacao_id) REFERENCES chamado_observacoes(id) ON DELETE CASCADE,
-    CONSTRAINT fk_obsvis_usuario
-        FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
-) ENGINE=InnoDB;
 
 -- ---------------------------------------------------------------------
 -- Índices auxiliares para pesquisa (seção 13 da documentação)
