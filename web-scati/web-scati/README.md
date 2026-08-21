@@ -530,14 +530,15 @@ web-scati/
   logado ainda não viu — uma solicitação nova (chamado que ele nunca
   abriu) ou uma resposta nova em algum chamado — e tocam um bipe curto
   quando a novidade chega, enquanto o sistema estiver aberto em alguma
-  aba do navegador (a verificação é feita a cada 25 segundos). Clicar
-  no sininho abre um menu suspenso listando cada chamado com novidade,
-  com um rótulo indicando o tipo ("Nova solicitação" ou "Nova
-  mensagem"), quem escreveu e uma prévia; o mesmo rótulo também aparece
-  ao lado do título na própria listagem de chamados, então dá para ver
-  de cara qual chamado tem novidade sem precisar abrir o menu. Abrir a
-  ficha do chamado marca tudo como lido — some da contagem, do sininho
-  e do rótulo na listagem. Administrador e Padrão são avisados sobre
+  aba do navegador (a verificação é feita a cada 25 segundos). As duas
+  situações são destacadas de um jeito diferente, tanto na listagem de
+  chamados quanto no menu do sininho: uma **solicitação nova** pinta a
+  linha inteira (ou a caixa inteira do item, no sininho) de azul claro;
+  uma **mensagem nova** mostra um contador com a quantidade de
+  respostas ainda não lidas naquele chamado. O sininho também mostra
+  quem escreveu e uma prévia da última mensagem. Abrir a ficha do
+  chamado marca tudo como lido — some a cor, o contador, a contagem do
+  menu lateral e do sininho. Administrador e Padrão são avisados sobre
   qualquer chamado do sistema (já que enxergam a listagem inteira); o
   perfil Usuário só é avisado sobre os próprios chamados (como
   solicitante ou responsável) — e nunca sobre a própria solicitação que
