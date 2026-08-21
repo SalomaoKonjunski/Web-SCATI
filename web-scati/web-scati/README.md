@@ -481,12 +481,14 @@ web-scati/
 - **Chamados**: aba própria no menu lateral funcionando como uma tabela
   de pendências de TI, dividida em duas sub-abas:
   - **Chamados**: lista só os chamados em aberto (Aberto/Em
-    andamento/Aguardando) — a pendência ativa do dia a dia. Mostra
-    cartões de resumo no topo (Abertos, Em Andamento, Aguardando,
-    Urgentes em Aberto), clicáveis para filtrar a lista pelo status
-    correspondente (o cartão ativo fica destacado, com um atalho para
-    limpar o filtro), e um filtro **"Parado há mais de (dias)"** para
-    achar solicitações esquecidas.
+    andamento/Aguardando) — a pendência ativa do dia a dia. Chamados
+    novos (que o usuário logado nunca abriu) sempre aparecem primeiro
+    na lista, ordenados por prioridade entre eles; os demais mantêm a
+    ordem de sempre. Mostra cartões de resumo no topo (Abertos, Em
+    Andamento, Aguardando, Urgentes em Aberto), clicáveis para filtrar
+    a lista pelo status correspondente (o cartão ativo fica destacado,
+    com um atalho para limpar o filtro), e um filtro **"Parado há mais
+    de (dias)"** para achar solicitações esquecidas.
   - **Resolvidos**: lista os chamados Concluídos/Cancelados, com as
     colunas **Solicitado em** e **Concluído em** (para os cancelados,
     mostra a data da última alteração com a marcação "cancelado", já
@@ -546,10 +548,13 @@ web-scati/
   chamados quanto no menu do sininho: uma **solicitação nova** pinta a
   linha inteira (ou a caixa inteira do item, no sininho) de azul vivo;
   uma **mensagem nova** mostra um contador com a quantidade de
-  respostas ainda não lidas naquele chamado. O sininho também mostra
-  quem escreveu e uma prévia da última mensagem. Abrir a ficha do
-  chamado marca tudo como lido — some a cor, o contador, a contagem do
-  menu lateral e do sininho. Administrador e Padrão são avisados sobre
+  respostas ainda não lidas naquele chamado — e quando as duas coisas
+  acontecem ao mesmo tempo (uma solicitação nova que já recebeu
+  resposta antes de ser aberta), aparecem as duas juntas: a linha
+  pintada de azul **e** o contador. O sininho também mostra quem
+  escreveu e uma prévia da última mensagem. Abrir a ficha do chamado
+  marca tudo como lido — some a cor, o contador, a contagem do menu
+  lateral e do sininho. Administrador e Padrão são avisados sobre
   qualquer chamado do sistema (já que
   enxergam a listagem inteira); o perfil Usuário só é avisado sobre os
   próprios chamados (como solicitante ou responsável) — e nunca sobre
