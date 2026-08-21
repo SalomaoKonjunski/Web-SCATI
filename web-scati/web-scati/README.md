@@ -533,7 +533,7 @@ web-scati/
   aba do navegador (a verificação é feita a cada 25 segundos). As duas
   situações são destacadas de um jeito diferente, tanto na listagem de
   chamados quanto no menu do sininho: uma **solicitação nova** pinta a
-  linha inteira (ou a caixa inteira do item, no sininho) de azul claro;
+  linha inteira (ou a caixa inteira do item, no sininho) de amarelo vivo;
   uma **mensagem nova** mostra um contador com a quantidade de
   respostas ainda não lidas naquele chamado. O sininho também mostra
   quem escreveu e uma prévia da última mensagem. Abrir a ficha do
