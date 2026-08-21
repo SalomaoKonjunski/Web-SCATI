@@ -425,12 +425,15 @@ web-scati/
   de licença entre equipamentos, que registra o evento no histórico de
   ambos os equipamentos envolvidos.
 - **Relatórios**: todos os relatórios listados na seção 14 da documentação
-  (equipamentos, estoque, licenças e financeiro), com opção de impressão em
-  layout limpo (sem navbar/menu lateral), pronto para impressão ou
-  exportação em PDF pelo próprio diálogo de impressão do navegador. O
-  relatório "Histórico de alterações" reúne o histórico de equipamentos,
-  de itens de estoque e de chamados numa lista só, com filtros por tipo de
-  ação, categoria, período e patrimônio/item/chamado.
+  (equipamentos, estoque, licenças, financeiro e chamados), com opção de
+  impressão em layout limpo (sem navbar/menu lateral), pronto para
+  impressão ou exportação em PDF pelo próprio diálogo de impressão do
+  navegador. O relatório **"Chamados concluídos"** lista os chamados já
+  concluídos (título, solicitante, prioridade, responsável, data de
+  abertura e de conclusão). O relatório **"Histórico de alterações"**
+  reúne o histórico de equipamentos, de itens de estoque e de chamados
+  numa lista só, com filtros por tipo de ação, categoria, período e
+  patrimônio/item/chamado.
 - **Interface responsiva** com Bootstrap 5, menu lateral recolhível em
   telas pequenas.
 - **Configurações**: tela central (menu lateral) com três ajustes do
