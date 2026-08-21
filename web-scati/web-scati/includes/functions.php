@@ -343,7 +343,7 @@ function statusChamadoBadgeClass(string $status): string
         'Em andamento'  => 'bg-warning text-dark',
         'Aguardando'    => 'bg-secondary',
         'Concluído'     => 'bg-success',
-        'Cancelado'     => 'bg-dark',
+        'Cancelado'     => 'bg-dark text-white',
         default         => 'bg-secondary',
     };
 }

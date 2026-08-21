@@ -25,6 +25,7 @@ $titulosRelatorios = [
     'financeiro_valor_total'  => 'Valor total dos equipamentos',
     'financeiro_sem_valor'    => 'Equipamentos sem valor cadastrado',
     'financeiro_garantia'     => 'Equipamentos em garantia',
+    'chamados_concluidos'     => 'Chamados concluídos',
     'historico_alteracoes'    => 'Histórico de alterações',
 ];
 
@@ -130,6 +131,23 @@ if ($relatorio !== '' && isset($titulosRelatorios[$relatorio])) {
             foreach ($rows as $r) { $linhas[] = [nomeEquipamento($r['nome'], $r['patrimonio']), patrimonioOuIndefinido($r['patrimonio']), $r['tipo'], $r['garantia'], formatDate($r['data_compra'])]; }
             break;
 
+        case 'chamados_concluidos':
+            $colunas = ['Título', 'Solicitante', 'Prioridade', 'Responsável', 'Aberto em', 'Concluído em'];
+            $rows = $pdo->query(
+                "SELECT c.titulo, c.solicitante, c.prioridade, u.usuario AS responsavel_nome, c.criado_em, c.concluido_em
+                 FROM chamados c
+                 LEFT JOIN usuarios u ON u.id = c.responsavel_id
+                 WHERE c.status = 'Concluído'
+                 ORDER BY c.concluido_em DESC"
+            )->fetchAll();
+            foreach ($rows as $r) {
+                $linhas[] = [
+                    $r['titulo'], $r['solicitante'] ?: '-', $r['prioridade'], $r['responsavel_nome'] ?: '-',
+                    formatDateTime($r['criado_em']), $r['concluido_em'] !== null ? formatDateTime($r['concluido_em']) : '-',
+                ];
+            }
+            break;
+
         case 'historico_alteracoes':
             $colunas = ['Data/Hora', 'Origem', 'Patrimônio/Item/Chamado', 'Categoria', 'Evento', 'Descrição', 'Usuário'];
 
@@ -224,6 +242,9 @@ include __DIR__ . '/../../includes/header.php';
             <a class="list-group-item list-group-item-action <?= $relatorio === 'financeiro_valor_total' ? 'active' : '' ?>" href="?relatorio=financeiro_valor_total">Valor dos equipamentos</a>
             <a class="list-group-item list-group-item-action <?= $relatorio === 'financeiro_sem_valor' ? 'active' : '' ?>" href="?relatorio=financeiro_sem_valor">Sem valor cadastrado</a>
             <a class="list-group-item list-group-item-action <?= $relatorio === 'financeiro_garantia' ? 'active' : '' ?>" href="?relatorio=financeiro_garantia">Em garantia</a>
+
+            <div class="list-group-item list-group-item-secondary fw-semibold">Chamados</div>
+            <a class="list-group-item list-group-item-action <?= $relatorio === 'chamados_concluidos' ? 'active' : '' ?>" href="?relatorio=chamados_concluidos">Chamados concluídos</a>
 
             <div class="list-group-item list-group-item-secondary fw-semibold">Histórico</div>
             <a class="list-group-item list-group-item-action <?= $relatorio === 'historico_alteracoes' ? 'active' : '' ?>" href="?relatorio=historico_alteracoes">Histórico de alterações</a>
