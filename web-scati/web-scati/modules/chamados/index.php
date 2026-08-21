@@ -22,11 +22,9 @@ $filtroUrgentes = $aba === 'pendentes' && isset($_GET['urgentes']) && $_GET['urg
 
 $sql = "SELECT c.*, u.usuario AS responsavel_nome,
                v.visto_em AS meu_visto_em,
-               EXISTS(
-                   SELECT 1 FROM chamado_respostas r
-                   WHERE r.chamado_id = c.id AND (r.usuario_id IS NULL OR r.usuario_id != :uid_notif2)
-                     AND r.criado_em > COALESCE(v.visto_em, '1970-01-01 00:00:00')
-               ) AS tem_mensagem_nova
+               (SELECT COUNT(*) FROM chamado_respostas r
+                WHERE r.chamado_id = c.id AND (r.usuario_id IS NULL OR r.usuario_id != :uid_notif2)
+                  AND r.criado_em > COALESCE(v.visto_em, '1970-01-01 00:00:00')) AS qtd_mensagens_novas
         FROM chamados c
         LEFT JOIN usuarios u ON u.id = c.responsavel_id
         LEFT JOIN chamado_visualizacoes v ON v.chamado_id = c.id AND v.usuario_id = :uid_notif1
@@ -303,15 +301,12 @@ include __DIR__ . '/../../includes/header.php';
                         // vista(s) desde a última vez que eu vi este chamado.
                         $ehSolicitacaoNova = $chamado['meu_visto_em'] === null
                             && (int) ($chamado['criado_por_id'] ?? 0) !== (int) $usuarioAtual['id'];
-                        $temMensagemNova = !$ehSolicitacaoNova && (bool) $chamado['tem_mensagem_nova'];
+                        $qtdMensagensNovas = $ehSolicitacaoNova ? 0 : (int) $chamado['qtd_mensagens_novas'];
 
-                        // Solicitação nova e mensagem nova pintam a linha inteira (tem
-                        // prioridade sobre a cor de urgência); senão a cor de urgência
-                        // normal se aplica.
+                        // Solicitação nova pinta a linha inteira (tem prioridade sobre
+                        // a cor de urgência); senão a cor de urgência normal se aplica.
                         if ($ehSolicitacaoNova) {
                             $classeLinha = 'chamado-novo';
-                        } elseif ($temMensagemNova) {
-                            $classeLinha = 'chamado-mensagem-nova';
                         } elseif ($emAberto && $chamado['prioridade'] === 'Urgente') {
                             $classeLinha = 'chamado-urgente';
                         } elseif ($emAberto && $chamado['prioridade'] === 'Alta') {
@@ -323,6 +318,9 @@ include __DIR__ . '/../../includes/header.php';
                     <tr data-href="form.php?id=<?= (int) $chamado['id'] ?>" class="<?= $classeLinha ?>">
                         <td>
                             <strong><?= e($chamado['titulo']) ?></strong>
+                            <?php if ($qtdMensagensNovas > 0): ?>
+                                <span class="badge rounded-pill bg-primary ms-1"><?= $qtdMensagensNovas > 9 ? '9+' : $qtdMensagensNovas ?></span>
+                            <?php endif; ?>
                             <?php if ($descricaoResumo !== ''): ?>
                                 <div class="small text-muted"><?= e($descricaoResumo) ?></div>
                             <?php endif; ?>

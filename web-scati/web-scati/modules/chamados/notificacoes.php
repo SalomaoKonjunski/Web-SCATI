@@ -23,11 +23,12 @@ echo json_encode([
             $resumo = mb_substr($resumo, 0, 80) . '…';
         }
         return [
-            'chamado_id'   => (int) $item['chamado_id'],
-            'titulo'       => $item['titulo'],
-            'tipo'         => $item['tipo'],
-            'mensagem'     => $resumo,
-            'usuario_nome' => $ehSolicitacao ? $item['solicitante'] : $item['ultima_usuario_nome'],
+            'chamado_id'          => (int) $item['chamado_id'],
+            'titulo'              => $item['titulo'],
+            'tipo'                => $item['tipo'],
+            'mensagem'            => $resumo,
+            'usuario_nome'        => $ehSolicitacao ? $item['solicitante'] : $item['ultima_usuario_nome'],
+            'qtd_mensagens_novas' => (int) $item['qtd_mensagens_novas'],
         ];
     }, $itens),
 ]);

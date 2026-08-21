@@ -406,7 +406,8 @@ function contarChamadosNaoLidos(int $usuarioId, bool $verTodos = false): int
  * novidade não vista pelo usuário informado — nova solicitação (chamado
  * nunca aberto por ele) ou resposta nova — usado para preencher o menu de
  * notificações. Mesmo critério de visibilidade de contarChamadosNaoLidos().
- * Cada item vem com 'tipo' = 'solicitacao' ou 'mensagem'.
+ * Cada item vem com 'tipo' = 'solicitacao' ou 'mensagem', e 'qtd_mensagens_novas'
+ * com a quantidade de respostas ainda não vistas nesse chamado.
  */
 function listarChamadosNaoLidos(int $usuarioId, bool $verTodos = false): array
 {
@@ -415,7 +416,11 @@ function listarChamadosNaoLidos(int $usuarioId, bool $verTodos = false): array
         "SELECT c.id AS chamado_id, c.titulo, c.descricao, c.solicitante, c.criado_em,
                 CASE WHEN v.visto_em IS NULL THEN 'solicitacao' ELSE 'mensagem' END AS tipo,
                 ultima.mensagem AS ultima_mensagem, ultima.usuario_nome AS ultima_usuario_nome,
-                ultima.criado_em AS ultima_criado_em
+                ultima.criado_em AS ultima_criado_em,
+                (SELECT COUNT(*) FROM chamado_respostas r3
+                 WHERE r3.chamado_id = c.id
+                   AND (r3.usuario_id IS NULL OR r3.usuario_id != :uid6)
+                   AND r3.criado_em > COALESCE(v.visto_em, '1970-01-01 00:00:00')) AS qtd_mensagens_novas
          FROM chamados c
          LEFT JOIN chamado_visualizacoes v ON v.chamado_id = c.id AND v.usuario_id = :uid1
          LEFT JOIN chamado_respostas ultima ON ultima.id = (
@@ -434,7 +439,7 @@ function listarChamadosNaoLidos(int $usuarioId, bool $verTodos = false): array
          ORDER BY COALESCE(ultima.criado_em, c.criado_em) DESC
          LIMIT 10"
     );
-    $params = ['uid1' => $usuarioId, 'uid4' => $usuarioId, 'uid5' => $usuarioId];
+    $params = ['uid1' => $usuarioId, 'uid4' => $usuarioId, 'uid5' => $usuarioId, 'uid6' => $usuarioId];
     if (!$verTodos) {
         $params['uid2'] = $usuarioId;
         $params['uid3'] = $usuarioId;
