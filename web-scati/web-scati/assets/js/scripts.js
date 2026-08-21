@@ -241,7 +241,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 corpo.appendChild(mensagem);
                 link.appendChild(corpo);
 
-                if (item.tipo === 'mensagem' && item.qtd_mensagens_novas > 0) {
+                // Mostra o contador mesmo quando o chamado em si já está
+                // pintado como solicitação nova — ele pode já ter respostas
+                // não vistas antes mesmo de eu ter aberto pela primeira vez.
+                if (item.qtd_mensagens_novas > 0) {
                     const contador = document.createElement('span');
                     contador.className = 'badge rounded-pill bg-primary flex-shrink-0';
                     contador.textContent = item.qtd_mensagens_novas > 9 ? '9+' : String(item.qtd_mensagens_novas);

@@ -77,9 +77,17 @@ if ($aba === 'resolvidos') {
     // Resolvidos mais recentes primeiro.
     $sql .= " ORDER BY COALESCE(c.concluido_em, c.atualizado_em) DESC";
 } else {
-    // Abertos primeiro (respeitando a ordem definida no ENUM: Aberto > Em
-    // andamento > Aguardando), depois os mais urgentes, depois os mais antigos.
-    $sql .= " ORDER BY c.status ASC, c.prioridade DESC, c.criado_em ASC";
+    // Chamados novos (nunca abertos por mim) sempre em primeiro lugar,
+    // ordenados por prioridade entre eles; os demais mantêm a ordem de
+    // sempre (abertos primeiro, depois os mais urgentes, depois os mais
+    // antigos).
+    $sql .= " ORDER BY
+                (CASE WHEN v.visto_em IS NULL AND (c.criado_por_id IS NULL OR c.criado_por_id != :uid_notif3) THEN 0 ELSE 1 END) ASC,
+                (CASE WHEN v.visto_em IS NULL AND (c.criado_por_id IS NULL OR c.criado_por_id != :uid_notif4)
+                      THEN FIELD(c.prioridade, 'Baixa', 'Média', 'Alta', 'Urgente') END) DESC,
+                c.status ASC, c.prioridade DESC, c.criado_em ASC";
+    $params['uid_notif3'] = $usuarioAtual['id'];
+    $params['uid_notif4'] = $usuarioAtual['id'];
 }
 
 $stmt = $pdo->prepare($sql);
@@ -301,7 +309,10 @@ include __DIR__ . '/../../includes/header.php';
                         // vista(s) desde a última vez que eu vi este chamado.
                         $ehSolicitacaoNova = $chamado['meu_visto_em'] === null
                             && (int) ($chamado['criado_por_id'] ?? 0) !== (int) $usuarioAtual['id'];
-                        $qtdMensagensNovas = $ehSolicitacaoNova ? 0 : (int) $chamado['qtd_mensagens_novas'];
+                        // Mesmo quando o chamado em si é novo, mostra também a
+                        // contagem de mensagens (ele pode já ter recebido
+                        // respostas antes de eu ter aberto pela primeira vez).
+                        $qtdMensagensNovas = (int) $chamado['qtd_mensagens_novas'];
 
                         // Solicitação nova pinta a linha inteira (tem prioridade sobre
                         // a cor de urgência); senão a cor de urgência normal se aplica.
