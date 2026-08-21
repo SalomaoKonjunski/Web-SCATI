@@ -129,6 +129,17 @@ a.scati-kpi-card-link .scati-kpi-card.kpi-ativo {
     background-color: #90c8ff !important;
 }
 
+/* Chamado com resposta nova ainda não lida — mesma ideia, mas com um
+   azul um pouco mais forte que o de solicitação nova, para dar pra
+   distinguir os dois tipos de aviso à primeira vista. */
+.chamado-mensagem-nova {
+    --bs-table-bg: #4da6ff;
+}
+
+.scati-notif-mensagem {
+    background-color: #4da6ff !important;
+}
+
 @media (max-width: 767.98px) {
     .scati-sidebar {
         position: fixed;
