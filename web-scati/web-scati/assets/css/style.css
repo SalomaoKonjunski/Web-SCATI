@@ -119,15 +119,14 @@ a.scati-kpi-card-link .scati-kpi-card.kpi-ativo {
 
 /* Chamado com solicitação nova (nunca aberto pelo usuário logado) — a
    linha inteira da listagem, e a caixa inteira do item no menu do
-   sininho, ficam pintadas de amarelo vivo para chamar atenção. Tem
-   prioridade sobre as cores de urgência acima (bem mais visível que o
-   amarelo claro do chamado-alta, de propósito). */
+   sininho, ficam pintadas para chamar atenção. Tem prioridade sobre as
+   cores de urgência acima. */
 .chamado-novo {
-    --bs-table-bg: #ffe066;
+    --bs-table-bg: #e7f1ff;
 }
 
 .scati-notif-solicitacao {
-    background-color: #ffe066 !important;
+    background-color: #e7f1ff !important;
 }
 
 @media (max-width: 767.98px) {
