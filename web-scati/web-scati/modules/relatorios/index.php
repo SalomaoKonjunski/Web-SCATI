@@ -37,13 +37,17 @@ $filtroHistCategoria = $_GET['h_categoria'] ?? '';
 $filtroHistDataIni = $_GET['h_data_ini'] ?? '';
 $filtroHistDataFim = $_GET['h_data_fim'] ?? '';
 $filtroHistBusca = trim($_GET['h_busca'] ?? '');
+// COLLATE explícito em cada ramo: as tabelas historico_* podem ter sido
+// criadas em momentos diferentes com collations diferentes (comum depois
+// de rodar uma migração incremental), e o MySQL recusa fazer UNION de
+// colunas de texto com collations diferentes ("Illegal mix of collations").
 $eventosHistorico = $pdo->query(
     "SELECT DISTINCT evento FROM (
-        SELECT evento FROM historico_equipamentos
+        SELECT evento COLLATE utf8mb4_unicode_ci AS evento FROM historico_equipamentos
         UNION
-        SELECT evento FROM historico_estoque
+        SELECT evento COLLATE utf8mb4_unicode_ci AS evento FROM historico_estoque
         UNION
-        SELECT evento FROM historico_chamados
+        SELECT evento COLLATE utf8mb4_unicode_ci AS evento FROM historico_chamados
     ) t ORDER BY evento"
 )->fetchAll(PDO::FETCH_COLUMN);
 $categoriasHistorico = $pdo->query('SELECT nome FROM categorias_estoque ORDER BY nome')->fetchAll(PDO::FETCH_COLUMN);
@@ -129,14 +133,33 @@ if ($relatorio !== '' && isset($titulosRelatorios[$relatorio])) {
         case 'historico_alteracoes':
             $colunas = ['Data/Hora', 'Origem', 'Patrimônio/Item/Chamado', 'Categoria', 'Evento', 'Descrição', 'Usuário'];
 
+            // COLLATE explícito em cada coluna de texto combinada: evita o erro
+            // "Illegal mix of collations" quando as tabelas historico_* têm
+            // collations diferentes entre si (veja o comentário acima de
+            // $eventosHistorico).
             $sql = "SELECT * FROM (
-                        SELECT h.data_hora, 'Equipamento' AS origem, COALESCE(e.patrimonio, 'Indefinido') AS identificacao, NULL AS categoria, h.evento, h.descricao, h.usuario_nome
+                        SELECT h.data_hora, 'Equipamento' AS origem,
+                               COALESCE(e.patrimonio, 'Indefinido') COLLATE utf8mb4_unicode_ci AS identificacao,
+                               NULL AS categoria,
+                               h.evento COLLATE utf8mb4_unicode_ci AS evento,
+                               h.descricao COLLATE utf8mb4_unicode_ci AS descricao,
+                               h.usuario_nome COLLATE utf8mb4_unicode_ci AS usuario_nome
                         FROM historico_equipamentos h JOIN equipamentos e ON e.id = h.equipamento_id
                         UNION ALL
-                        SELECT he.data_hora, 'Item de Estoque' AS origem, he.item_nome AS identificacao, he.categoria_nome AS categoria, he.evento, he.descricao, he.usuario_nome
+                        SELECT he.data_hora, 'Item de Estoque' AS origem,
+                               he.item_nome COLLATE utf8mb4_unicode_ci AS identificacao,
+                               he.categoria_nome COLLATE utf8mb4_unicode_ci AS categoria,
+                               he.evento COLLATE utf8mb4_unicode_ci AS evento,
+                               he.descricao COLLATE utf8mb4_unicode_ci AS descricao,
+                               he.usuario_nome COLLATE utf8mb4_unicode_ci AS usuario_nome
                         FROM historico_estoque he
                         UNION ALL
-                        SELECT hc.data_hora, 'Chamado' AS origem, c.titulo AS identificacao, NULL AS categoria, hc.evento, hc.descricao, hc.usuario_nome
+                        SELECT hc.data_hora, 'Chamado' AS origem,
+                               c.titulo COLLATE utf8mb4_unicode_ci AS identificacao,
+                               NULL AS categoria,
+                               hc.evento COLLATE utf8mb4_unicode_ci AS evento,
+                               hc.descricao COLLATE utf8mb4_unicode_ci AS descricao,
+                               hc.usuario_nome COLLATE utf8mb4_unicode_ci AS usuario_nome
                         FROM historico_chamados hc JOIN chamados c ON c.id = hc.chamado_id
                     ) AS combinado WHERE 1=1";
             $params = [];
