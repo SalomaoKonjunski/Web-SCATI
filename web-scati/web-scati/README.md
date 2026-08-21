@@ -177,11 +177,20 @@ Funcional (v1.0).
    mysql -u root -p scati < database/migration_historico_chamados.sql
    ```
 
-   Se o banco já existia antes das **observações privadas do chamado**
-   (ainda não tem a tabela `chamado_observacoes`), rode também esta
-   migração incremental **uma única vez**:
+   Se o banco já existia antes das **observações do chamado** (ainda
+   não tem a tabela `chamado_observacoes`), rode também esta migração
+   incremental **uma única vez**:
    ```bash
    mysql -u root -p scati < database/migration_chamado_observacoes.sql
+   ```
+
+   Se o banco já existia antes de dar para **escolher quem mais vê uma
+   observação** (ainda não tem a tabela
+   `chamado_observacao_visualizadores`), rode também esta migração
+   incremental **uma única vez** (exige que `chamado_observacoes` já
+   exista):
+   ```bash
+   mysql -u root -p scati < database/migration_chamado_observacao_visualizadores.sql
    ```
 
    > Importante: ao importar qualquer um dos arquivos `.sql` deste projeto,
@@ -531,18 +540,19 @@ web-scati/
   abriu) ou uma resposta nova em algum chamado — e tocam um bipe curto
   quando a novidade chega, enquanto o sistema estiver aberto em alguma
   aba do navegador (a verificação é feita a cada 25 segundos). As duas
-  situações são destacadas de um jeito diferente, tanto na listagem de
+  situações são destacadas com uma cor diferente, tanto na listagem de
   chamados quanto no menu do sininho: uma **solicitação nova** pinta a
   linha inteira (ou a caixa inteira do item, no sininho) de azul vivo;
-  uma **mensagem nova** mostra um contador com a quantidade de
-  respostas ainda não lidas naquele chamado. O sininho também mostra
-  quem escreveu e uma prévia da última mensagem. Abrir a ficha do
-  chamado marca tudo como lido — some a cor, o contador, a contagem do
-  menu lateral e do sininho. Administrador e Padrão são avisados sobre
-  qualquer chamado do sistema (já que enxergam a listagem inteira); o
-  perfil Usuário só é avisado sobre os próprios chamados (como
-  solicitante ou responsável) — e nunca sobre a própria solicitação que
-  acabou de abrir, já que ele sabe que ela existe.
+  uma **mensagem nova** pinta com um azul um pouco mais forte, para dar
+  pra distinguir os dois tipos de aviso à primeira vista. O sininho
+  também mostra o título do chamado, quem escreveu e uma prévia da
+  última mensagem. Abrir a ficha do chamado marca tudo como lido —
+  some a cor, a contagem do menu lateral e do sininho. Administrador e
+  Padrão são avisados sobre qualquer chamado do sistema (já que
+  enxergam a listagem inteira); o perfil Usuário só é avisado sobre os
+  próprios chamados (como solicitante ou responsável) — e nunca sobre
+  a própria solicitação que acabou de abrir, já que ele sabe que ela
+  existe.
 
   > Nota técnica: a notificação sonora funciona enquanto o navegador
   > estiver aberto com alguma página do sistema carregada (mesmo em
@@ -561,11 +571,14 @@ web-scati/
   "Histórico de alterações" (aba **Relatórios**), junto com o
   histórico de equipamentos e estoque.
 
-  Também tem uma seção **Observações**, para anotações privadas: cada
-  observação só aparece para quem escreveu — nem outros administradores,
-  nem o solicitante do chamado conseguem ver. Útil para lembretes
-  pessoais sobre o andamento de um chamado que não fazem sentido no
-  histórico público de respostas.
+  Também tem uma seção **Observações**, para anotações internas: por
+  padrão, uma observação só aparece para quem escreveu, mas o autor
+  pode escolher outros cadastros do sistema para também verem aquela
+  nota específica (um checkbox por usuário, ao escrever a observação).
+  Cada observação mostra de quem é (quando não é sua) e a lista de
+  quem tem acesso a ela. Útil para lembretes ou combinados internos
+  sobre o andamento de um chamado que não fazem sentido no histórico
+  público de respostas.
 
 ## Notas de projeto
 
