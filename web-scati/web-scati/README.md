@@ -540,15 +540,15 @@ web-scati/
   abriu) ou uma resposta nova em algum chamado — e tocam um bipe curto
   quando a novidade chega, enquanto o sistema estiver aberto em alguma
   aba do navegador (a verificação é feita a cada 25 segundos). As duas
-  situações são destacadas com uma cor diferente, tanto na listagem de
+  situações são destacadas de um jeito diferente, tanto na listagem de
   chamados quanto no menu do sininho: uma **solicitação nova** pinta a
   linha inteira (ou a caixa inteira do item, no sininho) de azul vivo;
-  uma **mensagem nova** pinta com um azul um pouco mais forte, para dar
-  pra distinguir os dois tipos de aviso à primeira vista. O sininho
-  também mostra o título do chamado, quem escreveu e uma prévia da
-  última mensagem. Abrir a ficha do chamado marca tudo como lido —
-  some a cor, a contagem do menu lateral e do sininho. Administrador e
-  Padrão são avisados sobre qualquer chamado do sistema (já que
+  uma **mensagem nova** mostra um contador com a quantidade de
+  respostas ainda não lidas naquele chamado. O sininho também mostra
+  quem escreveu e uma prévia da última mensagem. Abrir a ficha do
+  chamado marca tudo como lido — some a cor, o contador, a contagem do
+  menu lateral e do sininho. Administrador e Padrão são avisados sobre
+  qualquer chamado do sistema (já que
   enxergam a listagem inteira); o perfil Usuário só é avisado sobre os
   próprios chamados (como solicitante ou responsável) — e nunca sobre
   a própria solicitação que acabou de abrir, já que ele sabe que ela
