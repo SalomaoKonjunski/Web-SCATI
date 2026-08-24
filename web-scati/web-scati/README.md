@@ -203,12 +203,18 @@ Funcional (v1.0).
    mysql --default-character-set=utf8mb4 -u root -p scati < database/migration_estoque_campos_extras.sql
    ```
 
-   Se o banco já existia antes de uma categoria de estoque poder
-   **virar Equipamento** (ainda não tem a coluna `equipamento_tipo`
-   em `categorias_estoque`), rode também esta migração incremental
-   **uma única vez**:
+   Se o seu banco chegou a rodar a versão anterior deste projeto em que
+   uma categoria de estoque podia "virar Equipamento" (rodou o script
+   `migration_categoria_equipamento_tipo.sql` acima), esse recurso foi
+   substituído pela tela separada **Categorias de Equipamentos** — rode
+   a migração abaixo para criar a tabela `categorias_equipamento` (já
+   populada com os tipos que antes ficavam fixos no código) e remover a
+   coluna `equipamento_tipo` de `categorias_estoque`, que não é mais
+   usada. Se o seu banco nunca rodou aquele script, pode rodar esta
+   mesma migração do mesmo jeito — ela também funciona a partir do
+   `scati.sql` anterior a ambos os recursos:
    ```bash
-   mysql --default-character-set=utf8mb4 -u root -p scati < database/migration_categoria_equipamento_tipo.sql
+   mysql --default-character-set=utf8mb4 -u root -p scati < database/migration_categorias_equipamento_separadas.sql
    ```
 
    > Importante: ao importar qualquer um dos arquivos `.sql` deste projeto,
@@ -452,7 +458,7 @@ web-scati/
   patrimônio/item/chamado.
 - **Interface responsiva** com Bootstrap 5, menu lateral recolhível em
   telas pequenas.
-- **Configurações**: tela central (menu lateral) com três ajustes do
+- **Configurações**: tela central (menu lateral) com vários ajustes do
   sistema:
   - **Categorias de Estoque**: CRUD completo das categorias usadas para
     classificar itens do Estoque — antes só podiam ser criadas via SQL
@@ -468,16 +474,21 @@ web-scati/
     categoria sem nada marcado continua com só os campos padrão do
     Estoque. Os grupos aparecem/somem no formulário do item assim que
     a categoria é trocada, e o servidor sempre confere de novo quais
-    grupos a categoria tem antes de salvar. Uma categoria também pode
-    ser marcada como **Equipamento** (com um Tipo — Computador,
-    Impressora, Servidor etc.) em vez de "Item de estoque comum": nesse
-    modo ela não gera mais linhas em Estoque com quantidade — "Novo
-    Item" para essa categoria leva direto para o cadastro de
-    Equipamentos, já com o tipo pré-selecionado, já que um Equipamento
-    é um ativo individual (com patrimônio, histórico, etc.), não algo
-    que se conta em unidades. A categoria "Toner" não pode virar
-    Equipamento, pois a funcionalidade de toner de impressoras depende
-    dela continuar sendo um item de estoque com quantidade.
+    grupos a categoria tem antes de salvar.
+  - **Categorias de Equipamentos**: CRUD completo dos tipos disponíveis
+    no campo "Tipo" do cadastro de Equipamentos — antes era uma lista
+    fixa no código (Computador, Notebook, Impressora, Monitor, Switch,
+    Roteador, Access Point, Nobreak, Servidor, Outros), que agora vem
+    pré-cadastrada como ponto de partida editável. É uma tela separada
+    de Categorias de Estoque — os dois cadastros não têm relação entre
+    si. Os nomes "Computador", "Notebook", "Impressora" e "Servidor" são
+    protegidos contra renomeação e exclusão, pois são usados por nome em
+    outras partes do sistema (campos específicos do formulário de
+    Equipamentos, filtro de impressoras, compartilhamentos de rede).
+    Uma categoria com equipamentos cadastrados nela não pode ser
+    excluída; renomear uma categoria não protegida atualiza
+    automaticamente o tipo de todos os equipamentos que já usavam o
+    nome antigo.
   - **Tipos de Manutenção**: CRUD completo dos tipos disponíveis ao
     registrar uma manutenção no histórico de um equipamento — antes era
     uma lista fixa no código. Excluir um tipo não afeta os registros já
