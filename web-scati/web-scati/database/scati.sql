@@ -53,13 +53,21 @@ CREATE TABLE categorias_estoque (
 
     -- Quais grupos de campos (os mesmos do cadastro de Equipamentos) também
     -- aparecem ao criar/editar um item de estoque desta categoria. Com tudo
-    -- em 0, o item usa só os campos padrão do Estoque.
+    -- em 0, o item usa só os campos padrão do Estoque. Só se aplica quando
+    -- equipamento_tipo é NULL (categoria em modo "item de estoque").
     campo_hardware          TINYINT(1) NOT NULL DEFAULT 0,
     campo_impressora        TINYINT(1) NOT NULL DEFAULT 0,
     campo_rede_computador   TINYINT(1) NOT NULL DEFAULT 0,
     campo_servidor          TINYINT(1) NOT NULL DEFAULT 0,
     campo_localizacao_uso   TINYINT(1) NOT NULL DEFAULT 0,
-    campo_financeiro        TINYINT(1) NOT NULL DEFAULT 0
+    campo_financeiro        TINYINT(1) NOT NULL DEFAULT 0,
+
+    -- Quando preenchido (com um dos valores de tiposEquipamento()), a
+    -- categoria deixa de ser "item de estoque com quantidade" e passa a
+    -- representar um tipo de Equipamento — "Novo Item" nessa categoria leva
+    -- direto para o cadastro de Equipamentos (ativo individual, sem
+    -- controle de quantidade), em vez de criar uma linha em "estoque".
+    equipamento_tipo        VARCHAR(30) NULL
 ) ENGINE=InnoDB;
 
 INSERT INTO categorias_estoque (nome) VALUES

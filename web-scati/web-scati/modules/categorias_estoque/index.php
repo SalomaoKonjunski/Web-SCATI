@@ -33,17 +33,25 @@ include __DIR__ . '/../../includes/header.php';
             <thead class="table-light">
                 <tr>
                     <th>Nome</th>
+                    <th>Tipo</th>
                     <th class="text-center">Itens de Estoque</th>
                     <th class="text-end">Ações</th>
                 </tr>
             </thead>
             <tbody>
                 <?php if (empty($categorias)): ?>
-                    <tr><td colspan="3" class="text-center text-muted py-4">Nenhuma categoria cadastrada.</td></tr>
+                    <tr><td colspan="4" class="text-center text-muted py-4">Nenhuma categoria cadastrada.</td></tr>
                 <?php endif; ?>
                 <?php foreach ($categorias as $cat): ?>
                     <tr>
                         <td><strong><?= e($cat['nome']) ?></strong></td>
+                        <td>
+                            <?php if (!empty($cat['equipamento_tipo'])): ?>
+                                <span class="badge bg-info text-dark"><i class="bi bi-pc-display me-1"></i>Equipamento: <?= e($cat['equipamento_tipo']) ?></span>
+                            <?php else: ?>
+                                <span class="text-muted small">Item de estoque</span>
+                            <?php endif; ?>
+                        </td>
                         <td class="text-center"><span class="badge bg-secondary"><?= (int) $cat['total_itens'] ?></span></td>
                         <td class="text-end">
                             <a href="form.php?id=<?= (int) $cat['id'] ?>" class="btn btn-sm btn-outline-primary"><i class="bi bi-pencil"></i></a>
