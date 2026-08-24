@@ -9,7 +9,14 @@ $pdo = db();
 $id = isset($_GET['id']) ? (int) $_GET['id'] : null;
 $edicao = $id !== null;
 
+$grupos = gruposCamposEstoque();
+
 $item = ['nome' => '', 'categoria_id' => '', 'marca' => '', 'modelo' => '', 'quantidade' => 0, 'quantidade_minima' => 0, 'localizacao' => '', 'observacoes' => ''];
+foreach ($grupos as $grupo) {
+    foreach ($grupo['campos'] as $nomeCampo => $config) {
+        $item[$nomeCampo] = $config['tipo'] === 'checkbox' ? 0 : '';
+    }
+}
 
 if ($edicao) {
     $stmt = $pdo->prepare('SELECT * FROM estoque WHERE id = :id');
@@ -34,6 +41,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $item['localizacao'] = trim($_POST['localizacao'] ?? '');
     $item['observacoes'] = trim($_POST['observacoes'] ?? '');
 
+    // Só grava os campos extras dos grupos habilitados na categoria
+    // selecionada — valida contra o banco, não confia em campos escondidos
+    // via inspecionar elemento para uma categoria sem aquele grupo.
+    $flagsCategoria = [];
+    $categoriaSelecionadaId = (int) ($item['categoria_id'] ?: 0);
+    if ($categoriaSelecionadaId > 0) {
+        $stmtCatFlags = $pdo->prepare('SELECT * FROM categorias_estoque WHERE id = :id');
+        $stmtCatFlags->execute(['id' => $categoriaSelecionadaId]);
+        $catFlagsRow = $stmtCatFlags->fetch();
+        if ($catFlagsRow) {
+            foreach ($grupos as $grupo) {
+                $flagsCategoria[$grupo['coluna']] = (bool) $catFlagsRow[$grupo['coluna']];
+            }
+        }
+    }
+
+    $camposExtras = [];
+    foreach ($grupos as $grupo) {
+        $habilitado = $flagsCategoria[$grupo['coluna']] ?? false;
+        foreach ($grupo['campos'] as $nomeCampo => $config) {
+            if (!$habilitado) {
+                $item[$nomeCampo] = $config['tipo'] === 'checkbox' ? 0 : '';
+                $camposExtras[$nomeCampo] = $config['tipo'] === 'checkbox' ? 0 : null;
+                continue;
+            }
+            if ($config['tipo'] === 'checkbox') {
+                $item[$nomeCampo] = isset($_POST[$nomeCampo]) ? 1 : 0;
+                $camposExtras[$nomeCampo] = $item[$nomeCampo];
+                continue;
+            }
+            $valorBruto = trim((string) ($_POST[$nomeCampo] ?? ''));
+            $item[$nomeCampo] = $valorBruto;
+            $camposExtras[$nomeCampo] = match (true) {
+                $valorBruto === ''            => null,
+                $config['tipo'] === 'numero'   => (int) $valorBruto,
+                $config['tipo'] === 'dinheiro' => (float) str_replace(',', '.', $valorBruto),
+                $config['tipo'] === 'rede'     => (int) $valorBruto,
+                default                        => $valorBruto,
+            };
+        }
+    }
+
     if ($item['nome'] === '') {
         $erros[] = 'O campo Nome é obrigatório.';
     }
@@ -48,7 +97,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if (empty($erros)) {
-        $dados = [
+        $dados = array_merge([
             'nome' => $item['nome'],
             'categoria_id' => (int) $item['categoria_id'],
             'marca' => $item['marca'] ?: null,
@@ -57,14 +106,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'quantidade_minima' => (int) $item['quantidade_minima'],
             'localizacao' => $item['localizacao'] ?: null,
             'observacoes' => $item['observacoes'] ?: null,
-        ];
+        ], $camposExtras);
+
+        // Nomes das colunas extras vêm de gruposCamposEstoque() (fixo no código,
+        // não de entrada do usuário), então montar a lista de colunas/placeholders
+        // dinamicamente aqui é seguro e evita repetir os mesmos 22 campos à mão.
+        $colunasExtras = [];
+        foreach ($grupos as $grupo) {
+            $colunasExtras = array_merge($colunasExtras, array_keys($grupo['campos']));
+        }
 
         if ($edicao) {
             $dados['id'] = $id;
+            $setExtras = implode(', ', array_map(fn (string $c): string => "$c = :$c", $colunasExtras));
             $pdo->prepare(
-                'UPDATE estoque SET nome=:nome, categoria_id=:categoria_id, marca=:marca, modelo=:modelo,
+                "UPDATE estoque SET nome=:nome, categoria_id=:categoria_id, marca=:marca, modelo=:modelo,
                  quantidade=:quantidade, quantidade_minima=:quantidade_minima, localizacao=:localizacao,
-                 observacoes=:observacoes WHERE id=:id'
+                 observacoes=:observacoes, $setExtras WHERE id=:id"
             )->execute($dados);
 
             // Se a quantidade mudou (ex.: reposição de estoque), registra no histórico do item.
@@ -120,9 +178,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 flash('success', 'Já existia um item de estoque chamado "' . $itemExistente['nome'] . '" — a quantidade informada foi somada a ele em vez de criar um cadastro duplicado.');
             } else {
+                $colunasExtrasLista = implode(', ', $colunasExtras);
+                $placeholdersExtras = implode(', ', array_map(fn (string $c): string => ":$c", $colunasExtras));
                 $pdo->prepare(
-                    'INSERT INTO estoque (nome, categoria_id, marca, modelo, quantidade, quantidade_minima, localizacao, observacoes)
-                     VALUES (:nome, :categoria_id, :marca, :modelo, :quantidade, :quantidade_minima, :localizacao, :observacoes)'
+                    "INSERT INTO estoque (nome, categoria_id, marca, modelo, quantidade, quantidade_minima, localizacao, observacoes, $colunasExtrasLista)
+                     VALUES (:nome, :categoria_id, :marca, :modelo, :quantidade, :quantidade_minima, :localizacao, :observacoes, $placeholdersExtras)"
                 )->execute($dados);
                 $novoId = (int) $pdo->lastInsertId();
 
@@ -139,7 +199,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$categorias = $pdo->query('SELECT id, nome FROM categorias_estoque ORDER BY nome')->fetchAll();
+$categorias = $pdo->query('SELECT * FROM categorias_estoque ORDER BY nome')->fetchAll();
+$redes = $pdo->query('SELECT id, nome FROM redes ORDER BY nome')->fetchAll();
 $pageTitle = $edicao ? 'Editar Item de Estoque' : 'Novo Item de Estoque';
 
 include __DIR__ . '/../../includes/header.php';
@@ -165,10 +226,18 @@ include __DIR__ . '/../../includes/header.php';
             </div>
             <div class="col-md-6">
                 <label class="form-label">Categoria *</label>
-                <select name="categoria_id" class="form-select" required>
+                <select name="categoria_id" id="categoriaEstoqueSelect" class="form-select" required>
                     <option value="">Selecione...</option>
                     <?php foreach ($categorias as $cat): ?>
-                        <option value="<?= (int) $cat['id'] ?>" <?= (string) $item['categoria_id'] === (string) $cat['id'] ? 'selected' : '' ?>><?= e($cat['nome']) ?></option>
+                        <?php
+                            $gruposDaCategoria = [];
+                            foreach ($grupos as $chave => $grupo) {
+                                if (!empty($cat[$grupo['coluna']])) {
+                                    $gruposDaCategoria[] = $chave;
+                                }
+                            }
+                        ?>
+                        <option value="<?= (int) $cat['id'] ?>" data-grupos="<?= e(implode(',', $gruposDaCategoria)) ?>" <?= (string) $item['categoria_id'] === (string) $cat['id'] ? 'selected' : '' ?>><?= e($cat['nome']) ?></option>
                     <?php endforeach; ?>
                 </select>
             </div>
@@ -198,6 +267,54 @@ include __DIR__ . '/../../includes/header.php';
             </div>
         </div>
     </div>
+
+    <?php foreach ($grupos as $chave => $grupo): ?>
+        <div class="card mb-3" id="grupoCampos_<?= e($chave) ?>" style="display:none;">
+            <div class="card-header bg-white">
+                <i class="bi <?= e($grupo['icone']) ?> me-1"></i> <?= e($grupo['label']) ?>
+            </div>
+            <div class="card-body row g-3">
+                <?php foreach ($grupo['campos'] as $nomeCampo => $config): ?>
+                    <div class="col-md-<?= $config['tipo'] === 'textarea' ? '12' : '4' ?>">
+                        <?php if ($config['tipo'] === 'checkbox'): ?>
+                            <div class="form-check mt-4">
+                                <input type="checkbox" name="<?= e($nomeCampo) ?>" id="campo_<?= e($nomeCampo) ?>" class="form-check-input" value="1" <?= !empty($item[$nomeCampo]) ? 'checked' : '' ?>>
+                                <label class="form-check-label" for="campo_<?= e($nomeCampo) ?>"><?= e($config['label']) ?></label>
+                            </div>
+                        <?php else: ?>
+                            <label class="form-label"><?= e($config['label']) ?></label>
+                            <?php if ($config['tipo'] === 'textarea'): ?>
+                                <textarea name="<?= e($nomeCampo) ?>" class="form-control" rows="2"><?= e((string) $item[$nomeCampo]) ?></textarea>
+                            <?php elseif ($config['tipo'] === 'select'): ?>
+                                <select name="<?= e($nomeCampo) ?>" class="form-select">
+                                    <option value="">Selecione...</option>
+                                    <?php foreach ($config['opcoes'] as $opcao): ?>
+                                        <option value="<?= e($opcao) ?>" <?= (string) $item[$nomeCampo] === $opcao ? 'selected' : '' ?>><?= e($opcao) ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            <?php elseif ($config['tipo'] === 'rede'): ?>
+                                <select name="<?= e($nomeCampo) ?>" class="form-select">
+                                    <option value="">Nenhuma</option>
+                                    <?php foreach ($redes as $rede): ?>
+                                        <option value="<?= (int) $rede['id'] ?>" <?= (string) $item[$nomeCampo] === (string) $rede['id'] ? 'selected' : '' ?>><?= e($rede['nome']) ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            <?php elseif ($config['tipo'] === 'data'): ?>
+                                <input type="date" name="<?= e($nomeCampo) ?>" class="form-control" value="<?= e((string) $item[$nomeCampo]) ?>">
+                            <?php elseif ($config['tipo'] === 'numero'): ?>
+                                <input type="number" name="<?= e($nomeCampo) ?>" class="form-control" value="<?= e((string) $item[$nomeCampo]) ?>">
+                            <?php elseif ($config['tipo'] === 'dinheiro'): ?>
+                                <input type="text" name="<?= e($nomeCampo) ?>" class="form-control" placeholder="0,00" value="<?= e((string) $item[$nomeCampo]) ?>">
+                            <?php else: ?>
+                                <input type="text" name="<?= e($nomeCampo) ?>" class="form-control" <?= isset($config['placeholder']) ? 'placeholder="' . e($config['placeholder']) . '"' : '' ?> value="<?= e((string) $item[$nomeCampo]) ?>">
+                            <?php endif; ?>
+                        <?php endif; ?>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        </div>
+    <?php endforeach; ?>
+
     <div class="d-flex gap-2 mb-5">
         <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Salvar</button>
         <a href="index.php" class="btn btn-outline-secondary">Cancelar</a>

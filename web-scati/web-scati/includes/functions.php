@@ -304,6 +304,89 @@ function registrarHistoricoEstoque(?int $estoqueId, string $itemNome, ?string $c
 }
 
 /**
+ * Definição única dos grupos de campos extras que uma categoria de estoque
+ * pode habilitar — os mesmos campos (nome, rótulo e tipo) do cadastro de
+ * Equipamentos, reaproveitados aqui. Usada tanto para montar os checkboxes
+ * em Categorias de Estoque quanto para renderizar/validar os campos extras
+ * no formulário de item de estoque, então qualquer alteração de campo só
+ * precisa ser feita neste um lugar.
+ *
+ * Tipos de campo suportados: 'texto', 'numero', 'dinheiro' (aceita vírgula
+ * decimal, como os campos financeiros de Equipamentos), 'textarea', 'data',
+ * 'select' (usa 'opcoes'), 'checkbox' e 'rede' (select especial, preenchido
+ * com as redes cadastradas).
+ */
+function gruposCamposEstoque(): array
+{
+    return [
+        'hardware' => [
+            'coluna' => 'campo_hardware',
+            'label' => 'Hardware',
+            'icone' => 'bi-cpu',
+            'campos' => [
+                'processador' => ['label' => 'Processador', 'tipo' => 'texto'],
+                'memoria_ram' => ['label' => 'Memória RAM', 'tipo' => 'texto', 'placeholder' => 'Ex: 16GB'],
+                'armazenamento' => ['label' => 'Armazenamento', 'tipo' => 'texto', 'placeholder' => 'Ex: SSD 512GB'],
+                'sistema_operacional' => ['label' => 'Sistema Operacional', 'tipo' => 'texto'],
+                'placa_mae' => ['label' => 'Placa Mãe', 'tipo' => 'texto'],
+                'placa_video' => ['label' => 'Placa de Vídeo', 'tipo' => 'texto'],
+            ],
+        ],
+        'impressora' => [
+            'coluna' => 'campo_impressora',
+            'label' => 'Dados da Impressora',
+            'icone' => 'bi-printer',
+            'campos' => [
+                'ip' => ['label' => 'Endereço IP', 'tipo' => 'texto'],
+                'modelo_toner' => ['label' => 'Modelo do Toner', 'tipo' => 'texto'],
+                'qtd_toners' => ['label' => 'Qtd. de Toners Disponíveis', 'tipo' => 'numero'],
+                'toner_duracao_dias' => ['label' => 'Duração estimada do toner (dias)', 'tipo' => 'numero'],
+            ],
+        ],
+        'rede_computador' => [
+            'coluna' => 'campo_rede_computador',
+            'label' => 'Rede do Computador',
+            'icone' => 'bi-ethernet',
+            'campos' => [
+                'ip_fixo' => ['label' => 'IP Fixo', 'tipo' => 'texto', 'placeholder' => 'Ex: 192.168.1.10'],
+            ],
+        ],
+        'servidor' => [
+            'coluna' => 'campo_servidor',
+            'label' => 'Informações do Servidor',
+            'icone' => 'bi-hdd-rack',
+            'campos' => [
+                'funcao_servidor' => ['label' => 'Função do Servidor', 'tipo' => 'texto'],
+                'servidor_status' => ['label' => 'Status do Servidor', 'tipo' => 'select', 'opcoes' => ['Ativo', 'Inativo']],
+                'servidor_observacoes' => ['label' => 'Observações', 'tipo' => 'textarea'],
+            ],
+        ],
+        'localizacao_uso' => [
+            'coluna' => 'campo_localizacao_uso',
+            'label' => 'Localização e Uso',
+            'icone' => 'bi-geo-alt',
+            'campos' => [
+                'status' => ['label' => 'Status', 'tipo' => 'select', 'opcoes' => ['Em uso', 'Disponível', 'Em manutenção', 'Com defeito', 'Descartado']],
+                'usuario_responsavel' => ['label' => 'Usuário Responsável', 'tipo' => 'texto'],
+                'rede_id' => ['label' => 'Rede', 'tipo' => 'rede'],
+                'acesso_usb' => ['label' => 'Permitir acesso a dispositivos USB', 'tipo' => 'checkbox'],
+            ],
+        ],
+        'financeiro' => [
+            'coluna' => 'campo_financeiro',
+            'label' => 'Financeiro',
+            'icone' => 'bi-cash-coin',
+            'campos' => [
+                'valor_aquisicao' => ['label' => 'Valor de Aquisição', 'tipo' => 'dinheiro'],
+                'valor_atual' => ['label' => 'Valor Atual', 'tipo' => 'dinheiro'],
+                'data_compra' => ['label' => 'Data da Compra', 'tipo' => 'data'],
+                'garantia' => ['label' => 'Garantia', 'tipo' => 'texto'],
+            ],
+        ],
+    ];
+}
+
+/**
  * Lista fixa das prioridades aceitas para um chamado (deve refletir o ENUM do banco).
  */
 function prioridadesChamado(): array

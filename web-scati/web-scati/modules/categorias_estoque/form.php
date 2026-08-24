@@ -9,7 +9,12 @@ $pdo = db();
 $id = isset($_GET['id']) ? (int) $_GET['id'] : null;
 $edicao = $id !== null;
 
+$grupos = gruposCamposEstoque();
+
 $categoria = ['nome' => ''];
+foreach ($grupos as $grupo) {
+    $categoria[$grupo['coluna']] = 0;
+}
 
 if ($edicao) {
     $stmt = $pdo->prepare('SELECT * FROM categorias_estoque WHERE id = :id');
@@ -26,6 +31,9 @@ $erros = [];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $categoria['nome'] = trim($_POST['nome'] ?? '');
+    foreach ($grupos as $chave => $grupo) {
+        $categoria[$grupo['coluna']] = isset($_POST['grupo_' . $chave]) ? 1 : 0;
+    }
 
     if ($categoria['nome'] === '') {
         $erros[] = 'O campo Nome é obrigatório.';
@@ -52,13 +60,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if (empty($erros)) {
+        $params = ['nome' => $categoria['nome']];
+        foreach ($grupos as $grupo) {
+            $params[$grupo['coluna']] = $categoria[$grupo['coluna']];
+        }
+
         if ($edicao) {
-            $pdo->prepare('UPDATE categorias_estoque SET nome = :nome WHERE id = :id')
-                ->execute(['nome' => $categoria['nome'], 'id' => $id]);
+            $params['id'] = $id;
+            $pdo->prepare(
+                'UPDATE categorias_estoque SET nome = :nome,
+                    campo_hardware = :campo_hardware, campo_impressora = :campo_impressora,
+                    campo_rede_computador = :campo_rede_computador, campo_servidor = :campo_servidor,
+                    campo_localizacao_uso = :campo_localizacao_uso, campo_financeiro = :campo_financeiro
+                 WHERE id = :id'
+            )->execute($params);
             flash('success', 'Categoria atualizada com sucesso.');
         } else {
-            $pdo->prepare('INSERT INTO categorias_estoque (nome) VALUES (:nome)')
-                ->execute(['nome' => $categoria['nome']]);
+            $pdo->prepare(
+                'INSERT INTO categorias_estoque
+                    (nome, campo_hardware, campo_impressora, campo_rede_computador, campo_servidor, campo_localizacao_uso, campo_financeiro)
+                 VALUES
+                    (:nome, :campo_hardware, :campo_impressora, :campo_rede_computador, :campo_servidor, :campo_localizacao_uso, :campo_financeiro)'
+            )->execute($params);
             flash('success', 'Categoria cadastrada com sucesso.');
         }
         redirect('/modules/categorias_estoque/index.php');
@@ -90,6 +113,28 @@ include __DIR__ . '/../../includes/header.php';
             </div>
         </div>
     </div>
+
+    <div class="card mb-3">
+        <div class="card-header bg-white">
+            <i class="bi bi-ui-checks-grid me-1"></i> Campos extras para os itens desta categoria
+        </div>
+        <div class="card-body">
+            <p class="text-muted small">Marque quais grupos de campos do cadastro de Equipamentos também devem aparecer ao criar/editar um item desta categoria. Deixe tudo desmarcado para uma categoria de item comum (peça avulsa, suprimento, etc.) — só os campos padrão do Estoque.</p>
+
+            <div class="list-group">
+                <?php foreach ($grupos as $chave => $grupo): ?>
+                    <label class="list-group-item d-flex gap-3">
+                        <input class="form-check-input flex-shrink-0 mt-1" type="checkbox" name="grupo_<?= e($chave) ?>" value="1" <?= $categoria[$grupo['coluna']] ? 'checked' : '' ?>>
+                        <span>
+                            <span class="fw-semibold"><i class="bi <?= e($grupo['icone']) ?> me-1"></i> <?= e($grupo['label']) ?></span>
+                            <div class="text-muted small"><?= e(implode(', ', array_column($grupo['campos'], 'label'))) ?></div>
+                        </span>
+                    </label>
+                <?php endforeach; ?>
+            </div>
+        </div>
+    </div>
+
     <div class="d-flex gap-2 mb-5">
         <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Salvar</button>
         <a href="index.php" class="btn btn-outline-secondary">Cancelar</a>

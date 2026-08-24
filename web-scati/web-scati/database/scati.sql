@@ -48,8 +48,18 @@ CREATE TABLE redes (
 -- Tabela: categorias_estoque
 -- ---------------------------------------------------------------------
 CREATE TABLE categorias_estoque (
-    id      INT AUTO_INCREMENT PRIMARY KEY,
-    nome    VARCHAR(60) NOT NULL UNIQUE
+    id                      INT AUTO_INCREMENT PRIMARY KEY,
+    nome                    VARCHAR(60) NOT NULL UNIQUE,
+
+    -- Quais grupos de campos (os mesmos do cadastro de Equipamentos) também
+    -- aparecem ao criar/editar um item de estoque desta categoria. Com tudo
+    -- em 0, o item usa só os campos padrão do Estoque.
+    campo_hardware          TINYINT(1) NOT NULL DEFAULT 0,
+    campo_impressora        TINYINT(1) NOT NULL DEFAULT 0,
+    campo_rede_computador   TINYINT(1) NOT NULL DEFAULT 0,
+    campo_servidor          TINYINT(1) NOT NULL DEFAULT 0,
+    campo_localizacao_uso   TINYINT(1) NOT NULL DEFAULT 0,
+    campo_financeiro        TINYINT(1) NOT NULL DEFAULT 0
 ) ENGINE=InnoDB;
 
 INSERT INTO categorias_estoque (nome) VALUES
@@ -133,11 +143,46 @@ CREATE TABLE estoque (
     quantidade_minima   INT NOT NULL DEFAULT 0,
     localizacao         VARCHAR(120) NULL,
     observacoes         TEXT NULL,
+
+    -- Campos extras (só preenchidos quando a categoria do item habilita o
+    -- grupo correspondente — veja categorias_estoque.campo_*). Mesmos nomes
+    -- e tipos dos campos equivalentes em "equipamentos", para consistência.
+    -- Hardware
+    processador             VARCHAR(120) NULL,
+    memoria_ram             VARCHAR(60)  NULL,
+    armazenamento           VARCHAR(60)  NULL,
+    sistema_operacional     VARCHAR(80)  NULL,
+    placa_mae               VARCHAR(120) NULL,
+    placa_video             VARCHAR(120) NULL,
+    -- Dados da Impressora
+    ip                      VARCHAR(45)  NULL,
+    modelo_toner            VARCHAR(80)  NULL,
+    qtd_toners               INT NULL,
+    toner_duracao_dias       INT NULL,
+    -- Rede do Computador
+    ip_fixo                 VARCHAR(45)  NULL,
+    -- Informações do Servidor
+    funcao_servidor          VARCHAR(100) NULL,
+    servidor_status          ENUM('Ativo','Inativo') NULL,
+    servidor_observacoes     TEXT NULL,
+    -- Localização e Uso (a "Localização" em si já é o campo padrão acima)
+    status                   ENUM('Em uso','Disponível','Em manutenção','Com defeito','Descartado') NULL,
+    usuario_responsavel      VARCHAR(120) NULL,
+    rede_id                  INT NULL,
+    acesso_usb                TINYINT(1) NOT NULL DEFAULT 0,
+    -- Financeiro
+    valor_aquisicao          DECIMAL(12,2) NULL,
+    valor_atual               DECIMAL(12,2) NULL,
+    data_compra               DATE NULL,
+    garantia                  VARCHAR(60) NULL,
+
     criado_em           DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     atualizado_em        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
     CONSTRAINT fk_estoque_categoria
         FOREIGN KEY (categoria_id) REFERENCES categorias_estoque(id),
+    CONSTRAINT fk_estoque_rede
+        FOREIGN KEY (rede_id) REFERENCES redes(id) ON DELETE SET NULL,
     CONSTRAINT chk_estoque_qtd_nao_negativa CHECK (quantidade >= 0)
 ) ENGINE=InnoDB;
 

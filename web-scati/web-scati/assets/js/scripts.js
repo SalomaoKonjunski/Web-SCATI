@@ -87,6 +87,24 @@ document.addEventListener('DOMContentLoaded', function () {
         toggleTypeFields();
     }
 
+    // Mostra/oculta os cards de campos extras no formulário de item de
+    // estoque, conforme os grupos habilitados na categoria selecionada
+    // (data-grupos em cada <option>, ex.: "hardware,rede_computador").
+    const categoriaEstoqueSelect = document.getElementById('categoriaEstoqueSelect');
+    function toggleGruposCategoriaEstoque() {
+        if (!categoriaEstoqueSelect) return;
+        const opcaoSelecionada = categoriaEstoqueSelect.options[categoriaEstoqueSelect.selectedIndex];
+        const grupos = (opcaoSelecionada && opcaoSelecionada.dataset.grupos) ? opcaoSelecionada.dataset.grupos.split(',') : [];
+        document.querySelectorAll('[id^="grupoCampos_"]').forEach(function (card) {
+            const chave = card.id.replace('grupoCampos_', '');
+            card.style.display = grupos.includes(chave) ? '' : 'none';
+        });
+    }
+    if (categoriaEstoqueSelect) {
+        categoriaEstoqueSelect.addEventListener('change', toggleGruposCategoriaEstoque);
+        toggleGruposCategoriaEstoque();
+    }
+
     // Gráfico "Itens de Estoque por Categoria": tooltip ao passar o mouse/focar
     const donutSegs = document.querySelectorAll('.scati-donut-seg');
     const donutTooltip = document.getElementById('estoqueDonutTooltip');
