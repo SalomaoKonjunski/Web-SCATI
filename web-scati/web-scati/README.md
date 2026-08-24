@@ -195,17 +195,9 @@ Funcional (v1.0).
    mysql -u root -p scati < database/migration_remove_chamado_observacao_visualizadores.sql
    ```
 
-   Se o banco já existia antes dos **campos extras por categoria de
-   estoque** (ainda não tem as colunas `campo_hardware` etc. em
-   `categorias_estoque`), rode também esta migração incremental **uma
-   única vez**:
-   ```bash
-   mysql --default-character-set=utf8mb4 -u root -p scati < database/migration_estoque_campos_extras.sql
-   ```
-
    Se o seu banco chegou a rodar a versão anterior deste projeto em que
    uma categoria de estoque podia "virar Equipamento" (rodou o script
-   `migration_categoria_equipamento_tipo.sql` acima), esse recurso foi
+   `migration_categoria_equipamento_tipo.sql`), esse recurso foi
    substituído pela tela separada **Categorias de Equipamentos** — rode
    a migração abaixo para criar a tabela `categorias_equipamento` (já
    populada com os tipos que antes ficavam fixos no código) e remover a
@@ -215,6 +207,19 @@ Funcional (v1.0).
    `scati.sql` anterior a ambos os recursos:
    ```bash
    mysql --default-character-set=utf8mb4 -u root -p scati < database/migration_categorias_equipamento_separadas.sql
+   ```
+
+   Se o seu banco já tem os **campos extras por categoria** aplicados a
+   `categorias_estoque` (rodou o script `migration_estoque_campos_extras.sql`)
+   ou ainda não tem os campos extras em `categorias_equipamento`, rode
+   esta migração incremental **uma única vez** — ela move o recurso: cria
+   as colunas `campo_hardware`, `campo_impressora`, `campo_rede_computador`
+   e `campo_servidor` em `categorias_equipamento` (já preenchidas para as
+   4 categorias protegidas e para "Hardware" nas demais, refletindo o
+   comportamento que já existia) e remove os campos extras de
+   `categorias_estoque`:
+   ```bash
+   mysql --default-character-set=utf8mb4 -u root -p scati < database/migration_campos_extras_equipamento.sql
    ```
 
    > Importante: ao importar qualquer um dos arquivos `.sql` deste projeto,
@@ -464,17 +469,7 @@ web-scati/
     classificar itens do Estoque — antes só podiam ser criadas via SQL
     direto. A categoria "Toner" é protegida contra renomeação e exclusão
     (é usada por nome em outras partes do sistema), e uma categoria com
-    itens de estoque vinculados não pode ser excluída. Cada categoria
-    também pode habilitar **campos extras** para os itens dela — os
-    mesmos grupos de campos do cadastro de Equipamentos (Hardware,
-    Dados da Impressora, Rede do Computador, Informações do Servidor,
-    Localização e Uso, Financeiro), marcados por checkbox. Um item de
-    estoque cadastrado numa categoria com "Rede do Computador"
-    habilitado, por exemplo, ganha um campo IP Fixo próprio; uma
-    categoria sem nada marcado continua com só os campos padrão do
-    Estoque. Os grupos aparecem/somem no formulário do item assim que
-    a categoria é trocada, e o servidor sempre confere de novo quais
-    grupos a categoria tem antes de salvar.
+    itens de estoque vinculados não pode ser excluída.
   - **Categorias de Equipamentos**: CRUD completo dos tipos disponíveis
     no campo "Tipo" do cadastro de Equipamentos — antes era uma lista
     fixa no código (Computador, Notebook, Impressora, Monitor, Switch,
@@ -488,7 +483,17 @@ web-scati/
     Uma categoria com equipamentos cadastrados nela não pode ser
     excluída; renomear uma categoria não protegida atualiza
     automaticamente o tipo de todos os equipamentos que já usavam o
-    nome antigo.
+    nome antigo. Cada categoria também define quais **cards de campos
+    extras** aparecem no cadastro/ficha de Equipamentos dela — Hardware,
+    Dados da Impressora, Rede do Computador e Informações do Servidor —
+    marcados por checkbox; as 4 categorias protegidas têm esses campos
+    fixos (bloqueados na tela, refletindo o comportamento de sempre do
+    sistema), enquanto categorias novas ou não protegidas (Monitor,
+    Switch, Tablet criado por você, etc.) ficam livres para configurar.
+    Os cards aparecem/somem no formulário assim que o Tipo é trocado, e
+    o servidor sempre confere de novo quais grupos o tipo escolhido tem
+    antes de salvar — ignora valores de campos escondidos, mesmo se
+    forçados via inspecionar elemento.
   - **Tipos de Manutenção**: CRUD completo dos tipos disponíveis ao
     registrar uma manutenção no histórico de um equipamento — antes era
     uma lista fixa no código. Excluir um tipo não afeta os registros já
