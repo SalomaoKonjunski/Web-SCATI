@@ -19,6 +19,7 @@ $categorias = $pdo->query(
 )->fetchAll();
 
 $nomesProtegidos = tiposEquipamentoProtegidos();
+$grupos = gruposCamposEquipamento();
 
 include __DIR__ . '/../../includes/header.php';
 ?>
@@ -39,13 +40,14 @@ include __DIR__ . '/../../includes/header.php';
             <thead class="table-light">
                 <tr>
                     <th>Nome</th>
+                    <th>Campos Extras</th>
                     <th class="text-center">Equipamentos</th>
                     <th class="text-end">Ações</th>
                 </tr>
             </thead>
             <tbody>
                 <?php if (empty($categorias)): ?>
-                    <tr><td colspan="3" class="text-center text-muted py-4">Nenhuma categoria cadastrada.</td></tr>
+                    <tr><td colspan="4" class="text-center text-muted py-4">Nenhuma categoria cadastrada.</td></tr>
                 <?php endif; ?>
                 <?php foreach ($categorias as $cat): ?>
                     <?php $protegida = in_array($cat['nome'], $nomesProtegidos, true); ?>
@@ -54,6 +56,21 @@ include __DIR__ . '/../../includes/header.php';
                             <strong><?= e($cat['nome']) ?></strong>
                             <?php if ($protegida): ?>
                                 <i class="bi bi-lock-fill text-muted ms-1" title="Usada por funcionalidades do sistema — não pode ser renomeada nem excluída."></i>
+                            <?php endif; ?>
+                        </td>
+                        <td>
+                            <?php
+                                $labelsAtivos = [];
+                                foreach ($grupos as $grupo) {
+                                    if (!empty($cat[$grupo['coluna']])) {
+                                        $labelsAtivos[] = $grupo['label'];
+                                    }
+                                }
+                            ?>
+                            <?php if (empty($labelsAtivos)): ?>
+                                <span class="text-muted small">Nenhum</span>
+                            <?php else: ?>
+                                <span class="small"><?= e(implode(', ', $labelsAtivos)) ?></span>
                             <?php endif; ?>
                         </td>
                         <td class="text-center"><span class="badge bg-secondary"><?= (int) $cat['total_equipamentos'] ?></span></td>

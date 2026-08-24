@@ -49,60 +49,37 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    // Mostra/oculta campos específicos de impressora, servidor ou computador no formulário de equipamentos
+    // Mostra/oculta, no formulário de equipamentos, o card de nota da aba
+    // Toner (só existe para o tipo "Impressora" — recurso próprio, não faz
+    // parte dos cards de campos extras configuráveis por categoria abaixo).
     const tipoSelect = document.getElementById('tipo');
-    const printerFields = document.getElementById('printerFields');
-    const serverFields = document.getElementById('serverFields');
-    const computerFields = document.getElementById('computerFields');
-    const placaMaeField = document.getElementById('placaMaeField');
-    const placaVideoField = document.getElementById('placaVideoField');
     const tonerNotaNovoField = document.getElementById('tonerNotaNovoField');
-    const hardwareFields = document.getElementById('hardwareFields');
-    function toggleTypeFields() {
-        if (!tipoSelect) return;
-        if (printerFields) {
-            printerFields.style.display = tipoSelect.value === 'Impressora' ? '' : 'none';
-        }
-        if (tonerNotaNovoField) {
-            tonerNotaNovoField.style.display = tipoSelect.value === 'Impressora' ? '' : 'none';
-        }
-        if (hardwareFields) {
-            hardwareFields.style.display = tipoSelect.value === 'Impressora' ? 'none' : '';
-        }
-        if (serverFields) {
-            serverFields.style.display = tipoSelect.value === 'Servidor' ? '' : 'none';
-        }
-        if (computerFields) {
-            computerFields.style.display = tipoSelect.value === 'Computador' ? '' : 'none';
-        }
-        if (placaMaeField) {
-            placaMaeField.style.display = tipoSelect.value === 'Computador' ? '' : 'none';
-        }
-        if (placaVideoField) {
-            placaVideoField.style.display = tipoSelect.value === 'Computador' ? '' : 'none';
-        }
+    function toggleTonerNota() {
+        if (!tipoSelect || !tonerNotaNovoField) return;
+        tonerNotaNovoField.style.display = tipoSelect.value === 'Impressora' ? '' : 'none';
     }
     if (tipoSelect) {
-        tipoSelect.addEventListener('change', toggleTypeFields);
-        toggleTypeFields();
+        tipoSelect.addEventListener('change', toggleTonerNota);
+        toggleTonerNota();
     }
 
-    // Mostra/oculta os cards de campos extras no formulário de item de
-    // estoque, conforme os grupos habilitados na categoria selecionada
-    // (data-grupos em cada <option>, ex.: "hardware,rede_computador").
-    const categoriaEstoqueSelect = document.getElementById('categoriaEstoqueSelect');
-    function toggleGruposCategoriaEstoque() {
-        if (!categoriaEstoqueSelect) return;
-        const opcaoSelecionada = categoriaEstoqueSelect.options[categoriaEstoqueSelect.selectedIndex];
+    // Mostra/oculta os cards de campos extras (Hardware, Dados da
+    // Impressora, Rede do Computador, Informações do Servidor) no
+    // formulário de equipamentos, conforme os grupos habilitados na
+    // categoria selecionada (data-grupos em cada <option> do #tipo, ex.:
+    // "hardware,rede_computador").
+    function toggleGruposCategoriaEquipamento() {
+        if (!tipoSelect) return;
+        const opcaoSelecionada = tipoSelect.options[tipoSelect.selectedIndex];
         const grupos = (opcaoSelecionada && opcaoSelecionada.dataset.grupos) ? opcaoSelecionada.dataset.grupos.split(',') : [];
         document.querySelectorAll('[id^="grupoCampos_"]').forEach(function (card) {
             const chave = card.id.replace('grupoCampos_', '');
             card.style.display = grupos.includes(chave) ? '' : 'none';
         });
     }
-    if (categoriaEstoqueSelect) {
-        categoriaEstoqueSelect.addEventListener('change', toggleGruposCategoriaEstoque);
-        toggleGruposCategoriaEstoque();
+    if (tipoSelect) {
+        tipoSelect.addEventListener('change', toggleGruposCategoriaEquipamento);
+        toggleGruposCategoriaEquipamento();
     }
 
     // Gráfico "Itens de Estoque por Categoria": tooltip ao passar o mouse/focar

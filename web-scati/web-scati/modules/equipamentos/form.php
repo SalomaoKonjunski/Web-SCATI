@@ -155,6 +155,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $equipamento[$campo] = trim($_POST[$campo] ?? '');
     }
 
+    // Só grava os campos dos grupos habilitados na categoria escolhida —
+    // valida contra o banco, não confia em campos escondidos via inspecionar
+    // elemento para um tipo sem aquele grupo habilitado.
+    $gruposHabilitados = gruposHabilitadosParaTipo($equipamento['tipo']);
+    foreach (gruposCamposEquipamento() as $chave => $grupo) {
+        if (in_array($chave, $gruposHabilitados, true)) {
+            continue;
+        }
+        foreach ($grupo['campos'] as $nomeCampo => $config) {
+            $equipamento[$nomeCampo] = '';
+        }
+    }
+
     // Validações essenciais
     if ($equipamento['nome'] === '') {
         $erros[] = 'O campo Nome do Equipamento é obrigatório.';
@@ -317,6 +330,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $redes = $pdo->query('SELECT id, nome FROM redes ORDER BY nome')->fetchAll();
+$categoriasEquip = $pdo->query('SELECT * FROM categorias_equipamento ORDER BY nome')->fetchAll();
+$gruposEquipamento = gruposCamposEquipamento();
 $pageTitle = $edicao ? 'Editar Equipamento' : 'Novo Equipamento';
 
 // Status do alerta de troca de toner por tempo de uso (independente da
@@ -434,8 +449,16 @@ include __DIR__ . '/../../includes/header.php';
             <div class="col-md-3">
                 <label class="form-label">Tipo *</label>
                 <select name="tipo" id="tipo" class="form-select" required>
-                    <?php foreach (tiposEquipamento() as $tipo): ?>
-                        <option value="<?= e($tipo) ?>" <?= $equipamento['tipo'] === $tipo ? 'selected' : '' ?>><?= e($tipo) ?></option>
+                    <?php foreach ($categoriasEquip as $catEquip): ?>
+                        <?php
+                            $gruposDaCategoria = [];
+                            foreach ($gruposEquipamento as $chave => $grupo) {
+                                if (!empty($catEquip[$grupo['coluna']])) {
+                                    $gruposDaCategoria[] = $chave;
+                                }
+                            }
+                        ?>
+                        <option value="<?= e($catEquip['nome']) ?>" data-grupos="<?= e(implode(',', $gruposDaCategoria)) ?>" <?= $equipamento['tipo'] === $catEquip['nome'] ? 'selected' : '' ?>><?= e($catEquip['nome']) ?></option>
                     <?php endforeach; ?>
                 </select>
             </div>
@@ -459,7 +482,7 @@ include __DIR__ . '/../../includes/header.php';
     </div>
 
     <!-- Hardware -->
-    <div class="card mb-3" id="hardwareFields">
+    <div class="card mb-3" id="grupoCampos_hardware">
         <div class="card-header bg-white"><strong><i class="bi bi-cpu me-1"></i> Hardware</strong></div>
         <div class="card-body row g-3">
             <div class="col-md-3">
@@ -478,11 +501,11 @@ include __DIR__ . '/../../includes/header.php';
                 <label class="form-label">Sistema Operacional</label>
                 <input type="text" name="sistema_operacional" class="form-control" value="<?= e($equipamento['sistema_operacional']) ?>">
             </div>
-            <div class="col-md-3" id="placaMaeField">
+            <div class="col-md-3">
                 <label class="form-label">Placa Mãe</label>
                 <input type="text" name="placa_mae" class="form-control" placeholder="Ex: ASUS PRIME B460M-A" value="<?= e($equipamento['placa_mae']) ?>">
             </div>
-            <div class="col-md-3" id="placaVideoField">
+            <div class="col-md-3">
                 <label class="form-label">Placa de Vídeo</label>
                 <input type="text" name="placa_video" class="form-control" placeholder="Ex: NVIDIA GeForce GTX 1650" value="<?= e($equipamento['placa_video']) ?>">
             </div>
@@ -490,7 +513,7 @@ include __DIR__ . '/../../includes/header.php';
     </div>
 
     <!-- Campos específicos de impressora -->
-    <div class="card mb-3" id="printerFields">
+    <div class="card mb-3" id="grupoCampos_impressora">
         <div class="card-header bg-white"><strong><i class="bi bi-printer me-1"></i> Dados da Impressora</strong></div>
         <div class="card-body row g-3">
             <div class="col-md-4">
@@ -514,7 +537,7 @@ include __DIR__ . '/../../includes/header.php';
     </div>
 
     <!-- Campos específicos de computador -->
-    <div class="card mb-3" id="computerFields">
+    <div class="card mb-3" id="grupoCampos_rede_computador">
         <div class="card-header bg-white"><strong><i class="bi bi-ethernet me-1"></i> Rede do Computador</strong></div>
         <div class="card-body row g-3">
             <div class="col-md-4">
@@ -525,7 +548,7 @@ include __DIR__ . '/../../includes/header.php';
     </div>
 
     <!-- Campos específicos de servidor -->
-    <div class="card mb-3" id="serverFields">
+    <div class="card mb-3" id="grupoCampos_servidor">
         <div class="card-header bg-white"><strong><i class="bi bi-hdd-rack me-1"></i> Informações do Servidor</strong></div>
         <div class="card-body row g-3">
             <div class="col-md-4">

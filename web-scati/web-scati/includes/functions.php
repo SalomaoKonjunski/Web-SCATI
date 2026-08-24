@@ -204,14 +204,6 @@ function ehServidor(?string $tipo): bool
 }
 
 /**
- * Retorna true se o equipamento é do tipo Computador (para exibir campos extras).
- */
-function ehComputador(?string $tipo): bool
-{
-    return $tipo === 'Computador';
-}
-
-/**
  * Lista fixa dos status operacionais aceitos para servidores.
  */
 function statusServidor(): array
@@ -316,19 +308,14 @@ function registrarHistoricoEstoque(?int $estoqueId, string $itemNome, ?string $c
 }
 
 /**
- * Definição única dos grupos de campos extras que uma categoria de estoque
- * pode habilitar — os mesmos campos (nome, rótulo e tipo) do cadastro de
- * Equipamentos, reaproveitados aqui. Usada tanto para montar os checkboxes
- * em Categorias de Estoque quanto para renderizar/validar os campos extras
- * no formulário de item de estoque, então qualquer alteração de campo só
- * precisa ser feita neste um lugar.
- *
- * Tipos de campo suportados: 'texto', 'numero', 'dinheiro' (aceita vírgula
- * decimal, como os campos financeiros de Equipamentos), 'textarea', 'data',
- * 'select' (usa 'opcoes'), 'checkbox' e 'rede' (select especial, preenchido
- * com as redes cadastradas).
+ * Definição única dos grupos de campos que uma categoria de equipamento
+ * pode habilitar — controla quais cards aparecem no cadastro/ficha de
+ * Equipamentos para os tipos não protegidos (Computador, Notebook,
+ * Impressora e Servidor continuam com seu comportamento fixo de sempre).
+ * Usada tanto para montar os checkboxes em Categorias de Equipamentos
+ * quanto para mostrar/ocultar os cards no formulário e na ficha.
  */
-function gruposCamposEstoque(): array
+function gruposCamposEquipamento(): array
 {
     return [
         'hardware' => [
@@ -336,12 +323,12 @@ function gruposCamposEstoque(): array
             'label' => 'Hardware',
             'icone' => 'bi-cpu',
             'campos' => [
-                'processador' => ['label' => 'Processador', 'tipo' => 'texto'],
-                'memoria_ram' => ['label' => 'Memória RAM', 'tipo' => 'texto', 'placeholder' => 'Ex: 16GB'],
-                'armazenamento' => ['label' => 'Armazenamento', 'tipo' => 'texto', 'placeholder' => 'Ex: SSD 512GB'],
-                'sistema_operacional' => ['label' => 'Sistema Operacional', 'tipo' => 'texto'],
-                'placa_mae' => ['label' => 'Placa Mãe', 'tipo' => 'texto'],
-                'placa_video' => ['label' => 'Placa de Vídeo', 'tipo' => 'texto'],
+                'processador' => ['label' => 'Processador'],
+                'memoria_ram' => ['label' => 'Memória RAM'],
+                'armazenamento' => ['label' => 'Armazenamento'],
+                'sistema_operacional' => ['label' => 'Sistema Operacional'],
+                'placa_mae' => ['label' => 'Placa Mãe'],
+                'placa_video' => ['label' => 'Placa de Vídeo'],
             ],
         ],
         'impressora' => [
@@ -349,10 +336,10 @@ function gruposCamposEstoque(): array
             'label' => 'Dados da Impressora',
             'icone' => 'bi-printer',
             'campos' => [
-                'ip' => ['label' => 'Endereço IP', 'tipo' => 'texto'],
-                'modelo_toner' => ['label' => 'Modelo do Toner', 'tipo' => 'texto'],
-                'qtd_toners' => ['label' => 'Qtd. de Toners Disponíveis', 'tipo' => 'numero'],
-                'toner_duracao_dias' => ['label' => 'Duração estimada do toner (dias)', 'tipo' => 'numero'],
+                'ip' => ['label' => 'Endereço IP'],
+                'modelo_toner' => ['label' => 'Modelo do Toner'],
+                'qtd_toners' => ['label' => 'Qtd. de Toners Disponíveis'],
+                'toner_duracao_dias' => ['label' => 'Duração estimada do toner (dias)'],
             ],
         ],
         'rede_computador' => [
@@ -360,7 +347,7 @@ function gruposCamposEstoque(): array
             'label' => 'Rede do Computador',
             'icone' => 'bi-ethernet',
             'campos' => [
-                'ip_fixo' => ['label' => 'IP Fixo', 'tipo' => 'texto', 'placeholder' => 'Ex: 192.168.1.10'],
+                'ip_fixo' => ['label' => 'IP Fixo'],
             ],
         ],
         'servidor' => [
@@ -368,34 +355,40 @@ function gruposCamposEstoque(): array
             'label' => 'Informações do Servidor',
             'icone' => 'bi-hdd-rack',
             'campos' => [
-                'funcao_servidor' => ['label' => 'Função do Servidor', 'tipo' => 'texto'],
-                'servidor_status' => ['label' => 'Status do Servidor', 'tipo' => 'select', 'opcoes' => ['Ativo', 'Inativo']],
-                'servidor_observacoes' => ['label' => 'Observações', 'tipo' => 'textarea'],
-            ],
-        ],
-        'localizacao_uso' => [
-            'coluna' => 'campo_localizacao_uso',
-            'label' => 'Localização e Uso',
-            'icone' => 'bi-geo-alt',
-            'campos' => [
-                'status' => ['label' => 'Status', 'tipo' => 'select', 'opcoes' => ['Em uso', 'Disponível', 'Em manutenção', 'Com defeito', 'Descartado']],
-                'usuario_responsavel' => ['label' => 'Usuário Responsável', 'tipo' => 'texto'],
-                'rede_id' => ['label' => 'Rede', 'tipo' => 'rede'],
-                'acesso_usb' => ['label' => 'Permitir acesso a dispositivos USB', 'tipo' => 'checkbox'],
-            ],
-        ],
-        'financeiro' => [
-            'coluna' => 'campo_financeiro',
-            'label' => 'Financeiro',
-            'icone' => 'bi-cash-coin',
-            'campos' => [
-                'valor_aquisicao' => ['label' => 'Valor de Aquisição', 'tipo' => 'dinheiro'],
-                'valor_atual' => ['label' => 'Valor Atual', 'tipo' => 'dinheiro'],
-                'data_compra' => ['label' => 'Data da Compra', 'tipo' => 'data'],
-                'garantia' => ['label' => 'Garantia', 'tipo' => 'texto'],
+                'funcao_servidor' => ['label' => 'Função do Servidor'],
+                'servidor_status' => ['label' => 'Status do Servidor'],
+                'servidor_observacoes' => ['label' => 'Observações'],
             ],
         ],
     ];
+}
+
+/**
+ * Chaves dos grupos de campos (ver gruposCamposEquipamento()) habilitados
+ * para um tipo de equipamento, consultando os flags salvos em
+ * categorias_equipamento para aquele nome. Usada tanto para decidir quais
+ * cards aparecem no formulário/ficha quanto para, ao salvar, zerar
+ * server-side os campos de grupos desabilitados (nunca confiar em quais
+ * campos vieram no POST).
+ */
+function gruposHabilitadosParaTipo(string $tipo): array
+{
+    $stmt = db()->prepare('SELECT * FROM categorias_equipamento WHERE nome = :nome');
+    $stmt->execute(['nome' => $tipo]);
+    $categoria = $stmt->fetch();
+
+    if (!$categoria) {
+        return [];
+    }
+
+    $grupos = [];
+    foreach (gruposCamposEquipamento() as $chave => $grupo) {
+        if (!empty($categoria[$grupo['coluna']])) {
+            $grupos[] = $chave;
+        }
+    }
+
+    return $grupos;
 }
 
 /**

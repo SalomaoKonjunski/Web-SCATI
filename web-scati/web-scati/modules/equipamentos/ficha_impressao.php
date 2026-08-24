@@ -20,6 +20,8 @@ if (!$eq) {
     flash('danger', 'Equipamento não encontrado.');
     redirect('/modules/equipamentos/index.php');
 }
+
+$gruposHabilitados = gruposHabilitadosParaTipo($eq['tipo']);
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -91,30 +93,28 @@ if (!$eq) {
                 <div class="ficha-campo"><strong>Número de Série:</strong> <?= e($eq['numero_serie']) ?: '-' ?></div>
                 <div class="ficha-campo"><strong>Hostname:</strong> <?= e($eq['hostname']) ?: '-' ?></div>
 
-                <?php if (!ehImpressora($eq['tipo'])): ?>
+                <?php if (in_array('hardware', $gruposHabilitados, true)): ?>
                 <h6 class="text-uppercase small mt-4">Hardware</h6>
                 <div class="ficha-campo"><strong>Processador:</strong> <?= e($eq['processador']) ?: '-' ?></div>
                 <div class="ficha-campo"><strong>Memória RAM:</strong> <?= e($eq['memoria_ram']) ?: '-' ?></div>
                 <div class="ficha-campo"><strong>Armazenamento:</strong> <?= e($eq['armazenamento']) ?: '-' ?></div>
                 <div class="ficha-campo"><strong>Sistema Operacional:</strong> <?= e($eq['sistema_operacional']) ?: '-' ?></div>
-                <?php if (ehComputador($eq['tipo'])): ?>
-                    <div class="ficha-campo"><strong>Placa Mãe:</strong> <?= e($eq['placa_mae']) ?: '-' ?></div>
-                    <div class="ficha-campo"><strong>Placa de Vídeo:</strong> <?= e($eq['placa_video']) ?: '-' ?></div>
-                <?php endif; ?>
+                <div class="ficha-campo"><strong>Placa Mãe:</strong> <?= e($eq['placa_mae']) ?: '-' ?></div>
+                <div class="ficha-campo"><strong>Placa de Vídeo:</strong> <?= e($eq['placa_video']) ?: '-' ?></div>
                 <?php endif; ?>
 
-                <?php if (ehImpressora($eq['tipo'])): ?>
+                <?php if (in_array('impressora', $gruposHabilitados, true)): ?>
                     <h6 class="text-uppercase small mt-4">Dados da Impressora</h6>
                     <div class="ficha-campo"><strong>Endereço IP:</strong> <?= e($eq['ip']) ?: '-' ?></div>
                     <div class="ficha-campo"><strong>Modelo do Toner:</strong> <?= e($eq['modelo_toner']) ?: '-' ?></div>
                 <?php endif; ?>
 
-                <?php if (ehComputador($eq['tipo'])): ?>
+                <?php if (in_array('rede_computador', $gruposHabilitados, true)): ?>
                     <h6 class="text-uppercase small mt-4">Rede do Computador</h6>
                     <div class="ficha-campo"><strong>IP Fixo:</strong> <?= e($eq['ip_fixo']) ?: '-' ?></div>
                 <?php endif; ?>
 
-                <?php if (ehServidor($eq['tipo'])): ?>
+                <?php if (in_array('servidor', $gruposHabilitados, true)): ?>
                     <h6 class="text-uppercase small mt-4">Informações do Servidor</h6>
                     <div class="ficha-campo"><strong>Função:</strong> <?= e($eq['funcao_servidor']) ?: '-' ?></div>
                     <div class="ficha-campo"><strong>Status do Servidor:</strong> <?= e($eq['servidor_status']) ?: '-' ?></div>

@@ -75,13 +75,31 @@ INSERT INTO categorias_estoque (nome) VALUES
 -- gravado como texto em equipamentos.tipo (sem FK) — mantém a mesma forma
 -- simples que o sistema já usava com a lista fixa antiga.
 CREATE TABLE categorias_equipamento (
-    id      INT AUTO_INCREMENT PRIMARY KEY,
-    nome    VARCHAR(30) NOT NULL UNIQUE
+    id                      INT AUTO_INCREMENT PRIMARY KEY,
+    nome                    VARCHAR(30) NOT NULL UNIQUE,
+
+    -- Quais cards de campos (os mesmos do cadastro de Equipamentos) aparecem
+    -- ao criar/editar um equipamento desta categoria. Para as 4 categorias
+    -- protegidas (Computador, Notebook, Impressora, Servidor) estes flags
+    -- são fixos — não editáveis pela tela, refletem o comportamento de
+    -- sempre do sistema.
+    campo_hardware          TINYINT(1) NOT NULL DEFAULT 0,
+    campo_impressora        TINYINT(1) NOT NULL DEFAULT 0,
+    campo_rede_computador   TINYINT(1) NOT NULL DEFAULT 0,
+    campo_servidor          TINYINT(1) NOT NULL DEFAULT 0
 ) ENGINE=InnoDB;
 
-INSERT INTO categorias_equipamento (nome) VALUES
-('Computador'), ('Notebook'), ('Impressora'), ('Monitor'), ('Switch'),
-('Roteador'), ('Access Point'), ('Nobreak'), ('Servidor'), ('Outros');
+INSERT INTO categorias_equipamento (nome, campo_hardware, campo_impressora, campo_rede_computador, campo_servidor) VALUES
+('Computador', 1, 0, 1, 0),
+('Notebook', 1, 0, 0, 0),
+('Impressora', 0, 1, 0, 0),
+('Monitor', 1, 0, 0, 0),
+('Switch', 1, 0, 0, 0),
+('Roteador', 1, 0, 0, 0),
+('Access Point', 1, 0, 0, 0),
+('Nobreak', 1, 0, 0, 0),
+('Servidor', 1, 0, 0, 1),
+('Outros', 1, 0, 0, 0);
 
 -- ---------------------------------------------------------------------
 -- Tabela: equipamentos

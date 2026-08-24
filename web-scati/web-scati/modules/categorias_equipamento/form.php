@@ -9,7 +9,12 @@ $pdo = db();
 $id = isset($_GET['id']) ? (int) $_GET['id'] : null;
 $edicao = $id !== null;
 
+$grupos = gruposCamposEquipamento();
+
 $categoria = ['nome' => ''];
+foreach ($grupos as $grupo) {
+    $categoria[$grupo['coluna']] = 0;
+}
 
 if ($edicao) {
     $stmt = $pdo->prepare('SELECT * FROM categorias_equipamento WHERE id = :id');
@@ -28,6 +33,14 @@ $erros = [];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $categoria['nome'] = trim($_POST['nome'] ?? '');
+
+    // Categorias protegidas mantêm os grupos de campos fixos de sempre —
+    // não aceita alteração nem via POST adulterado.
+    if (!$protegida) {
+        foreach ($grupos as $chave => $grupo) {
+            $categoria[$grupo['coluna']] = isset($_POST['grupo_' . $chave]) ? 1 : 0;
+        }
+    }
 
     if ($categoria['nome'] === '') {
         $erros[] = 'O campo Nome é obrigatório.';
@@ -54,9 +67,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if (empty($erros)) {
+        $params = ['nome' => $categoria['nome']];
+        foreach ($grupos as $grupo) {
+            $params[$grupo['coluna']] = $categoria[$grupo['coluna']];
+        }
+
         if ($edicao) {
-            $pdo->prepare('UPDATE categorias_equipamento SET nome = :nome WHERE id = :id')
-                ->execute(['nome' => $categoria['nome'], 'id' => $id]);
+            $params['id'] = $id;
+            $pdo->prepare(
+                'UPDATE categorias_equipamento SET nome = :nome,
+                    campo_hardware = :campo_hardware, campo_impressora = :campo_impressora,
+                    campo_rede_computador = :campo_rede_computador, campo_servidor = :campo_servidor
+                 WHERE id = :id'
+            )->execute($params);
 
             // equipamentos.tipo guarda o nome como texto (sem FK) — como é
             // um campo "ao vivo" (não histórico), renomear a categoria
@@ -68,8 +91,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             flash('success', 'Categoria atualizada com sucesso.');
         } else {
-            $pdo->prepare('INSERT INTO categorias_equipamento (nome) VALUES (:nome)')
-                ->execute(['nome' => $categoria['nome']]);
+            $pdo->prepare(
+                'INSERT INTO categorias_equipamento (nome, campo_hardware, campo_impressora, campo_rede_computador, campo_servidor)
+                 VALUES (:nome, :campo_hardware, :campo_impressora, :campo_rede_computador, :campo_servidor)'
+            )->execute($params);
             flash('success', 'Categoria cadastrada com sucesso.');
         }
         redirect('/modules/categorias_equipamento/index.php');
@@ -94,7 +119,7 @@ include __DIR__ . '/../../includes/header.php';
 
 <?php if ($protegida): ?>
     <div class="alert alert-warning">
-        <i class="bi bi-lock-fill me-1"></i> Esta categoria é usada por funcionalidades do sistema (campos específicos do formulário de Equipamentos, filtro de impressoras, compartilhamentos de rede) e não pode ser renomeada.
+        <i class="bi bi-lock-fill me-1"></i> Esta categoria é usada por funcionalidades do sistema (campos específicos do formulário de Equipamentos, filtro de impressoras, compartilhamentos de rede) e não pode ser renomeada nem ter seus campos alterados.
     </div>
 <?php endif; ?>
 
@@ -113,6 +138,34 @@ include __DIR__ . '/../../includes/header.php';
             usavam o nome antigo.
         </p>
     <?php endif; ?>
+
+    <div class="card mb-3">
+        <div class="card-header bg-white">
+            <i class="bi bi-ui-checks-grid me-1"></i> Campos extras no cadastro de Equipamentos
+        </div>
+        <div class="card-body">
+            <p class="text-muted small">
+                Marque quais cards de campos aparecem ao criar/editar um equipamento desta categoria.
+                Deixe tudo desmarcado para uma categoria simples, só com os campos padrão
+                (Identificação, Localização e Uso, Financeiro).
+                <?= $protegida ? ' Fixo para esta categoria, não pode ser alterado.' : '' ?>
+            </p>
+
+            <div class="list-group">
+                <?php foreach ($grupos as $chave => $grupo): ?>
+                    <label class="list-group-item d-flex gap-3">
+                        <input class="form-check-input flex-shrink-0 mt-1" type="checkbox" name="grupo_<?= e($chave) ?>" value="1"
+                               <?= $categoria[$grupo['coluna']] ? 'checked' : '' ?> <?= $protegida ? 'disabled' : '' ?>>
+                        <span>
+                            <span class="fw-semibold"><i class="bi <?= e($grupo['icone']) ?> me-1"></i> <?= e($grupo['label']) ?></span>
+                            <div class="text-muted small"><?= e(implode(', ', array_column($grupo['campos'], 'label'))) ?></div>
+                        </span>
+                    </label>
+                <?php endforeach; ?>
+            </div>
+        </div>
+    </div>
+
     <div class="d-flex gap-2 mb-5">
         <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Salvar</button>
         <a href="index.php" class="btn btn-outline-secondary">Cancelar</a>

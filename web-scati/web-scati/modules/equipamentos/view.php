@@ -311,6 +311,11 @@ $compartilhamentos = $pdo->prepare('SELECT * FROM compartilhamentos_servidor WHE
 $compartilhamentos->execute(['id' => $id]);
 $compartilhamentos = $compartilhamentos->fetchAll();
 
+// Grupos de campos extras habilitados para a categoria deste equipamento
+// (ver gruposCamposEquipamento()) — decide quais cards de dados extras
+// aparecem abaixo.
+$gruposHabilitados = gruposHabilitadosParaTipo($eq['tipo']);
+
 $computadoresVinculados = [];
 if (!empty($compartilhamentos)) {
     $placeholders = implode(',', array_fill(0, count($compartilhamentos), '?'));
@@ -419,21 +424,19 @@ include __DIR__ . '/../../includes/header.php';
                     <tr><th>Hostname</th><td><?= e($eq['hostname']) ?: '-' ?></td></tr>
                 </table>
 
-                <?php if (!ehImpressora($eq['tipo'])): ?>
+                <?php if (in_array('hardware', $gruposHabilitados, true)): ?>
                 <h6 class="text-muted text-uppercase small mb-3 mt-4">Hardware</h6>
                 <table class="table table-sm">
                     <tr><th style="width:40%">Processador</th><td><?= e($eq['processador']) ?: '-' ?></td></tr>
                     <tr><th>Memória RAM</th><td><?= e($eq['memoria_ram']) ?: '-' ?></td></tr>
                     <tr><th>Armazenamento</th><td><?= e($eq['armazenamento']) ?: '-' ?></td></tr>
                     <tr><th>Sistema Operacional</th><td><?= e($eq['sistema_operacional']) ?: '-' ?></td></tr>
-                    <?php if (ehComputador($eq['tipo'])): ?>
                     <tr><th>Placa Mãe</th><td><?= e($eq['placa_mae']) ?: '-' ?></td></tr>
                     <tr><th>Placa de Vídeo</th><td><?= e($eq['placa_video']) ?: '-' ?></td></tr>
-                    <?php endif; ?>
                 </table>
                 <?php endif; ?>
 
-                <?php if (ehImpressora($eq['tipo'])): ?>
+                <?php if (in_array('impressora', $gruposHabilitados, true)): ?>
                 <h6 class="text-muted text-uppercase small mb-3 mt-4">Dados da Impressora</h6>
                 <table class="table table-sm">
                     <tr><th style="width:40%">Endereço IP</th><td><?= e($eq['ip']) ?: '-' ?></td></tr>
@@ -442,14 +445,14 @@ include __DIR__ . '/../../includes/header.php';
                 </table>
                 <?php endif; ?>
 
-                <?php if (ehComputador($eq['tipo'])): ?>
+                <?php if (in_array('rede_computador', $gruposHabilitados, true)): ?>
                 <h6 class="text-muted text-uppercase small mb-3 mt-4">Rede do Computador</h6>
                 <table class="table table-sm">
                     <tr><th style="width:40%">IP Fixo</th><td><?= e($eq['ip_fixo']) ?: '-' ?></td></tr>
                 </table>
                 <?php endif; ?>
 
-                <?php if (ehServidor($eq['tipo'])): ?>
+                <?php if (in_array('servidor', $gruposHabilitados, true)): ?>
                 <h6 class="text-muted text-uppercase small mb-3 mt-4">Informações do Servidor</h6>
                 <table class="table table-sm">
                     <tr><th style="width:40%">Função do Servidor</th><td><?= e($eq['funcao_servidor']) ?: '-' ?></td></tr>
