@@ -195,6 +195,14 @@ Funcional (v1.0).
    mysql -u root -p scati < database/migration_remove_chamado_observacao_visualizadores.sql
    ```
 
+   Se o banco já existia antes dos **campos extras por categoria de
+   estoque** (ainda não tem as colunas `campo_hardware` etc. em
+   `categorias_estoque`), rode também esta migração incremental **uma
+   única vez**:
+   ```bash
+   mysql --default-character-set=utf8mb4 -u root -p scati < database/migration_estoque_campos_extras.sql
+   ```
+
    > Importante: ao importar qualquer um dos arquivos `.sql` deste projeto,
    > garanta que o cliente MySQL use UTF-8 (ex.: `mysql --default-character-set=utf8mb4 -u root -p < arquivo.sql`),
    > caso contrário os valores acentuados dos campos `ENUM` (como "Disponível")
@@ -442,7 +450,17 @@ web-scati/
     classificar itens do Estoque — antes só podiam ser criadas via SQL
     direto. A categoria "Toner" é protegida contra renomeação e exclusão
     (é usada por nome em outras partes do sistema), e uma categoria com
-    itens de estoque vinculados não pode ser excluída.
+    itens de estoque vinculados não pode ser excluída. Cada categoria
+    também pode habilitar **campos extras** para os itens dela — os
+    mesmos grupos de campos do cadastro de Equipamentos (Hardware,
+    Dados da Impressora, Rede do Computador, Informações do Servidor,
+    Localização e Uso, Financeiro), marcados por checkbox. Um item de
+    estoque cadastrado numa categoria com "Rede do Computador"
+    habilitado, por exemplo, ganha um campo IP Fixo próprio; uma
+    categoria sem nada marcado continua com só os campos padrão do
+    Estoque. Os grupos aparecem/somem no formulário do item assim que
+    a categoria é trocada, e o servidor sempre confere de novo quais
+    grupos a categoria tem antes de salvar.
   - **Tipos de Manutenção**: CRUD completo dos tipos disponíveis ao
     registrar uma manutenção no histórico de um equipamento — antes era
     uma lista fixa no código. Excluir um tipo não afeta os registros já
