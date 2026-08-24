@@ -105,43 +105,6 @@ document.addEventListener('DOMContentLoaded', function () {
         toggleGruposCategoriaEstoque();
     }
 
-    // Ao escolher uma categoria de estoque marcada como "Equipamento" (tem
-    // data-equipamento-url), leva direto para o cadastro de Equipamentos em
-    // vez de deixar criar uma linha de estoque com quantidade.
-    function redirecionarSeCategoriaForEquipamento() {
-        if (!categoriaEstoqueSelect) return;
-        const opcaoSelecionada = categoriaEstoqueSelect.options[categoriaEstoqueSelect.selectedIndex];
-        const url = opcaoSelecionada ? opcaoSelecionada.dataset.equipamentoUrl : '';
-        if (url) {
-            window.location.href = url;
-        }
-    }
-    if (categoriaEstoqueSelect) {
-        categoriaEstoqueSelect.addEventListener('change', redirecionarSeCategoriaForEquipamento);
-    }
-
-    // No formulário de Categoria de Estoque, mostra/oculta o seletor de tipo
-    // de equipamento e o card de campos extras conforme o modo escolhido.
-    const modoEstoqueRadio = document.getElementById('modoEstoque');
-    const modoEquipamentoRadio = document.getElementById('modoEquipamento');
-    const painelEquipamentoTipo = document.getElementById('painelEquipamentoTipo');
-    const painelCamposExtras = document.getElementById('painelCamposExtras');
-    function toggleModoCategoriaEstoque() {
-        if (!modoEquipamentoRadio) return;
-        const ehEquipamento = modoEquipamentoRadio.checked;
-        if (painelEquipamentoTipo) {
-            painelEquipamentoTipo.style.display = ehEquipamento ? '' : 'none';
-        }
-        if (painelCamposExtras) {
-            painelCamposExtras.style.display = ehEquipamento ? 'none' : '';
-        }
-    }
-    if (modoEstoqueRadio && modoEquipamentoRadio) {
-        modoEstoqueRadio.addEventListener('change', toggleModoCategoriaEstoque);
-        modoEquipamentoRadio.addEventListener('change', toggleModoCategoriaEstoque);
-        toggleModoCategoriaEstoque();
-    }
-
     // Gráfico "Itens de Estoque por Categoria": tooltip ao passar o mouse/focar
     const donutSegs = document.querySelectorAll('.scati-donut-seg');
     const donutTooltip = document.getElementById('estoqueDonutTooltip');

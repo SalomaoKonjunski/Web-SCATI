@@ -200,8 +200,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $categorias = $pdo->query('SELECT * FROM categorias_estoque ORDER BY nome')->fetchAll();
-$categoriasEstoque = array_filter($categorias, fn (array $c): bool => empty($c['equipamento_tipo']));
-$categoriasEquipamento = array_filter($categorias, fn (array $c): bool => !empty($c['equipamento_tipo']));
 $redes = $pdo->query('SELECT id, nome FROM redes ORDER BY nome')->fetchAll();
 $pageTitle = $edicao ? 'Editar Item de Estoque' : 'Novo Item de Estoque';
 
@@ -230,30 +228,18 @@ include __DIR__ . '/../../includes/header.php';
                 <label class="form-label">Categoria *</label>
                 <select name="categoria_id" id="categoriaEstoqueSelect" class="form-select" required>
                     <option value="">Selecione...</option>
-                    <?php if (!empty($categoriasEstoque)): ?>
-                        <optgroup label="Itens de estoque">
-                            <?php foreach ($categoriasEstoque as $cat): ?>
-                                <?php
-                                    $gruposDaCategoria = [];
-                                    foreach ($grupos as $chave => $grupo) {
-                                        if (!empty($cat[$grupo['coluna']])) {
-                                            $gruposDaCategoria[] = $chave;
-                                        }
-                                    }
-                                ?>
-                                <option value="<?= (int) $cat['id'] ?>" data-grupos="<?= e(implode(',', $gruposDaCategoria)) ?>" <?= (string) $item['categoria_id'] === (string) $cat['id'] ? 'selected' : '' ?>><?= e($cat['nome']) ?></option>
-                            <?php endforeach; ?>
-                        </optgroup>
-                    <?php endif; ?>
-                    <?php if (!empty($categoriasEquipamento)): ?>
-                        <optgroup label="Equipamentos (leva para outro cadastro)">
-                            <?php foreach ($categoriasEquipamento as $cat): ?>
-                                <option value="" data-equipamento-url="<?= BASE_URL ?>/modules/equipamentos/form.php?tipo=<?= urlencode($cat['equipamento_tipo']) ?>"><?= e($cat['nome']) ?></option>
-                            <?php endforeach; ?>
-                        </optgroup>
-                    <?php endif; ?>
+                    <?php foreach ($categorias as $cat): ?>
+                        <?php
+                            $gruposDaCategoria = [];
+                            foreach ($grupos as $chave => $grupo) {
+                                if (!empty($cat[$grupo['coluna']])) {
+                                    $gruposDaCategoria[] = $chave;
+                                }
+                            }
+                        ?>
+                        <option value="<?= (int) $cat['id'] ?>" data-grupos="<?= e(implode(',', $gruposDaCategoria)) ?>" <?= (string) $item['categoria_id'] === (string) $cat['id'] ? 'selected' : '' ?>><?= e($cat['nome']) ?></option>
+                    <?php endforeach; ?>
                 </select>
-                <div class="form-text">Categorias em "Equipamentos" não ficam em Estoque — ao escolher uma, você é levado direto para o cadastro de Equipamentos.</div>
             </div>
             <div class="col-md-3">
                 <label class="form-label">Marca</label>

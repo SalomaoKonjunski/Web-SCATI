@@ -53,27 +53,35 @@ CREATE TABLE categorias_estoque (
 
     -- Quais grupos de campos (os mesmos do cadastro de Equipamentos) também
     -- aparecem ao criar/editar um item de estoque desta categoria. Com tudo
-    -- em 0, o item usa só os campos padrão do Estoque. Só se aplica quando
-    -- equipamento_tipo é NULL (categoria em modo "item de estoque").
+    -- em 0, o item usa só os campos padrão do Estoque.
     campo_hardware          TINYINT(1) NOT NULL DEFAULT 0,
     campo_impressora        TINYINT(1) NOT NULL DEFAULT 0,
     campo_rede_computador   TINYINT(1) NOT NULL DEFAULT 0,
     campo_servidor          TINYINT(1) NOT NULL DEFAULT 0,
     campo_localizacao_uso   TINYINT(1) NOT NULL DEFAULT 0,
-    campo_financeiro        TINYINT(1) NOT NULL DEFAULT 0,
-
-    -- Quando preenchido (com um dos valores de tiposEquipamento()), a
-    -- categoria deixa de ser "item de estoque com quantidade" e passa a
-    -- representar um tipo de Equipamento — "Novo Item" nessa categoria leva
-    -- direto para o cadastro de Equipamentos (ativo individual, sem
-    -- controle de quantidade), em vez de criar uma linha em "estoque".
-    equipamento_tipo        VARCHAR(30) NULL
+    campo_financeiro        TINYINT(1) NOT NULL DEFAULT 0
 ) ENGINE=InnoDB;
 
 INSERT INTO categorias_estoque (nome) VALUES
 ('Memória RAM'), ('SSD'), ('HD'), ('Mouse'), ('Teclado'), ('Monitor'),
 ('Computador'), ('Notebook'), ('Toner'), ('Tinta'), ('Cabos'),
 ('Adaptadores'), ('Outros');
+
+-- ---------------------------------------------------------------------
+-- Tabela: categorias_equipamento
+-- ---------------------------------------------------------------------
+-- Tela própria em Configurações (independente de categorias_estoque),
+-- usada para popular o campo "Tipo" do cadastro de Equipamentos. O nome é
+-- gravado como texto em equipamentos.tipo (sem FK) — mantém a mesma forma
+-- simples que o sistema já usava com a lista fixa antiga.
+CREATE TABLE categorias_equipamento (
+    id      INT AUTO_INCREMENT PRIMARY KEY,
+    nome    VARCHAR(30) NOT NULL UNIQUE
+) ENGINE=InnoDB;
+
+INSERT INTO categorias_equipamento (nome) VALUES
+('Computador'), ('Notebook'), ('Impressora'), ('Monitor'), ('Switch'),
+('Roteador'), ('Access Point'), ('Nobreak'), ('Servidor'), ('Outros');
 
 -- ---------------------------------------------------------------------
 -- Tabela: equipamentos
@@ -84,8 +92,7 @@ CREATE TABLE equipamentos (
     -- Identificação
     nome                    VARCHAR(120) NULL,
     patrimonio              VARCHAR(50)  NULL UNIQUE,
-    tipo                    ENUM('Computador','Notebook','Impressora','Monitor','Switch',
-                                  'Roteador','Access Point','Nobreak','Servidor','Outros') NOT NULL,
+    tipo                    VARCHAR(30) NOT NULL,
     marca                   VARCHAR(80)  NULL,
     modelo                  VARCHAR(80)  NULL,
     numero_serie            VARCHAR(100) NULL,

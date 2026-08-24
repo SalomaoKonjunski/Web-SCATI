@@ -152,11 +152,23 @@ function registrarHistorico(int $equipamentoId, string $evento, string $descrica
 }
 
 /**
- * Lista fixa dos tipos de equipamento aceitos (deve refletir o ENUM do banco).
+ * Lista os tipos de equipamento cadastrados em Configurações > Categorias
+ * de Equipamentos (tabela categorias_equipamento).
  */
 function tiposEquipamento(): array
 {
-    return ['Computador', 'Notebook', 'Impressora', 'Monitor', 'Switch', 'Roteador', 'Access Point', 'Nobreak', 'Servidor', 'Outros'];
+    return db()->query('SELECT nome FROM categorias_equipamento ORDER BY nome')->fetchAll(PDO::FETCH_COLUMN);
+}
+
+/**
+ * Nomes de categoria de equipamento usados por literal em várias partes do
+ * sistema (campos específicos do formulário de Equipamentos, filtro de
+ * impressoras, compartilhamentos de rede, KPIs do dashboard) — não podem
+ * ser renomeados nem excluídos em Categorias de Equipamentos.
+ */
+function tiposEquipamentoProtegidos(): array
+{
+    return ['Computador', 'Notebook', 'Impressora', 'Servidor'];
 }
 
 /**

@@ -37,6 +37,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['salvar_dias_alerta_to
 $diasAlertaLicenca = configGet('dias_alerta_licenca', '30');
 $diasAlertaToner = configGet('dias_alerta_toner', '7');
 $totalCategorias = (int) $pdo->query('SELECT COUNT(*) FROM categorias_estoque')->fetchColumn();
+$totalCategoriasEquipamento = (int) $pdo->query('SELECT COUNT(*) FROM categorias_equipamento')->fetchColumn();
 $totalTiposManutencao = (int) $pdo->query('SELECT COUNT(*) FROM tipos_manutencao')->fetchColumn();
 
 include __DIR__ . '/../../includes/header.php';
@@ -63,6 +64,22 @@ include __DIR__ . '/../../includes/header.php';
                 </p>
                 <p class="text-muted small mb-3"><?= $totalCategorias ?> categoria(s) cadastrada(s).</p>
                 <a href="../categorias_estoque/index.php" class="btn btn-outline-primary mt-auto">
+                    <i class="bi bi-arrow-right"></i> Gerenciar Categorias
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-body d-flex flex-column">
+                <h5 class="card-title"><i class="bi bi-pc-display me-1"></i> Categorias de Equipamentos</h5>
+                <p class="card-text text-muted">
+                    Cadastre, renomeie ou exclua os tipos usados no campo "Tipo" do cadastro de
+                    Equipamentos (Computador, Notebook, Impressora, Servidor, etc.).
+                </p>
+                <p class="text-muted small mb-3"><?= $totalCategoriasEquipamento ?> categoria(s) cadastrada(s).</p>
+                <a href="../categorias_equipamento/index.php" class="btn btn-outline-primary mt-auto">
                     <i class="bi bi-arrow-right"></i> Gerenciar Categorias
                 </a>
             </div>

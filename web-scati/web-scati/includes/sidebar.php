@@ -61,7 +61,7 @@ $totalChamadosNaoLidos = contarChamadosNaoLidos((int) $usuarioAtualSidebar['id']
             </a>
         </li>
         <li class="nav-item mt-3 border-top border-secondary-subtle pt-3">
-            <a class="nav-link <?= isActive('/modules/configuracoes/', $currentPath) ?: (isActive('/modules/categorias_estoque/', $currentPath) ?: isActive('/modules/tipos_manutencao/', $currentPath)) ?>" href="<?= BASE_URL ?>/modules/configuracoes/index.php">
+            <a class="nav-link <?= isActive('/modules/configuracoes/', $currentPath) ?: (isActive('/modules/categorias_estoque/', $currentPath) ?: (isActive('/modules/categorias_equipamento/', $currentPath) ?: isActive('/modules/tipos_manutencao/', $currentPath))) ?>" href="<?= BASE_URL ?>/modules/configuracoes/index.php">
                 <i class="bi bi-gear"></i> Configurações
             </a>
         </li>
