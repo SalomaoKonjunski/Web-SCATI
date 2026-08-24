@@ -8,10 +8,14 @@ exigirNaoSolicitante();
 $pdo = db();
 $pageTitle = 'Categorias de Equipamentos';
 
+// COLLATE explícito na comparação: em bancos existentes, "equipamentos" e
+// "categorias_equipamento" podem ter sido criadas com collations diferentes
+// (ex.: utf8mb4_general_ci vs utf8mb4_unicode_ci), o que gera erro de
+// "Illegal mix of collations" numa comparação direta de coluna com coluna.
 $categorias = $pdo->query(
-    'SELECT c.*, (SELECT COUNT(*) FROM equipamentos e WHERE e.tipo = c.nome) AS total_equipamentos
+    "SELECT c.*, (SELECT COUNT(*) FROM equipamentos e WHERE e.tipo COLLATE utf8mb4_unicode_ci = c.nome COLLATE utf8mb4_unicode_ci) AS total_equipamentos
      FROM categorias_equipamento c
-     ORDER BY c.nome ASC'
+     ORDER BY c.nome ASC"
 )->fetchAll();
 
 $nomesProtegidos = tiposEquipamentoProtegidos();
