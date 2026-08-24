@@ -203,6 +203,14 @@ Funcional (v1.0).
    mysql --default-character-set=utf8mb4 -u root -p scati < database/migration_estoque_campos_extras.sql
    ```
 
+   Se o banco já existia antes de uma categoria de estoque poder
+   **virar Equipamento** (ainda não tem a coluna `equipamento_tipo`
+   em `categorias_estoque`), rode também esta migração incremental
+   **uma única vez**:
+   ```bash
+   mysql --default-character-set=utf8mb4 -u root -p scati < database/migration_categoria_equipamento_tipo.sql
+   ```
+
    > Importante: ao importar qualquer um dos arquivos `.sql` deste projeto,
    > garanta que o cliente MySQL use UTF-8 (ex.: `mysql --default-character-set=utf8mb4 -u root -p < arquivo.sql`),
    > caso contrário os valores acentuados dos campos `ENUM` (como "Disponível")
@@ -460,7 +468,16 @@ web-scati/
     categoria sem nada marcado continua com só os campos padrão do
     Estoque. Os grupos aparecem/somem no formulário do item assim que
     a categoria é trocada, e o servidor sempre confere de novo quais
-    grupos a categoria tem antes de salvar.
+    grupos a categoria tem antes de salvar. Uma categoria também pode
+    ser marcada como **Equipamento** (com um Tipo — Computador,
+    Impressora, Servidor etc.) em vez de "Item de estoque comum": nesse
+    modo ela não gera mais linhas em Estoque com quantidade — "Novo
+    Item" para essa categoria leva direto para o cadastro de
+    Equipamentos, já com o tipo pré-selecionado, já que um Equipamento
+    é um ativo individual (com patrimônio, histórico, etc.), não algo
+    que se conta em unidades. A categoria "Toner" não pode virar
+    Equipamento, pois a funcionalidade de toner de impressoras depende
+    dela continuar sendo um item de estoque com quantidade.
   - **Tipos de Manutenção**: CRUD completo dos tipos disponíveis ao
     registrar uma manutenção no histórico de um equipamento — antes era
     uma lista fixa no código. Excluir um tipo não afeta os registros já
