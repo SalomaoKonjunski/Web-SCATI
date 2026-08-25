@@ -222,6 +222,14 @@ Funcional (v1.0).
    mysql --default-character-set=utf8mb4 -u root -p scati < database/migration_campos_extras_equipamento.sql
    ```
 
+   Se o banco já existia antes do **Construtor de Relatório** (ainda não
+   tem a tabela `relatorios_personalizados`, usada para salvar relatórios
+   personalizados como favoritos), rode também esta migração incremental
+   **uma única vez**:
+   ```bash
+   mysql --default-character-set=utf8mb4 -u root -p scati < database/migration_relatorios_personalizados.sql
+   ```
+
    > Importante: ao importar qualquer um dos arquivos `.sql` deste projeto,
    > garanta que o cliente MySQL use UTF-8 (ex.: `mysql --default-character-set=utf8mb4 -u root -p < arquivo.sql`),
    > caso contrário os valores acentuados dos campos `ENUM` (como "Disponível")
@@ -461,6 +469,21 @@ web-scati/
   reúne o histórico de equipamentos, de itens de estoque e de chamados
   numa lista só, com filtros por tipo de ação, categoria, período e
   patrimônio/item/chamado.
+  - **Construtor de Relatório**: além dos relatórios fixos acima, uma tela
+    de relatório configurável — escolha a **origem dos dados**
+    (Equipamentos, Estoque, Licenças ou Chamados), quais **colunas**
+    aparecem e quantos **filtros** quiser (campo + operador + valor,
+    combinados sempre com E — ex.: Status é igual a "Em uso" **e** Tipo é
+    igual a "Computador"). O relatório gerado pode ser exportado em
+    **CSV** (com BOM UTF-8 e `;` como separador, pronto para abrir no
+    Excel em pt-BR), impresso, ou **salvo como favorito** — fica
+    disponível na barra lateral de Relatórios, em "Personalizado", pronto
+    para reabrir sem configurar tudo de novo. A consulta é montada com
+    segurança: a origem e as colunas escolhidas pelo usuário só são
+    usadas como chave de busca num whitelist fixo no código
+    (`origensRelatorioPersonalizado()`, em `includes/functions.php`) —
+    nunca são interpoladas direto no SQL, então não há risco de SQL
+    injection mesmo essa configuração vindo inteiramente do usuário.
 - **Interface responsiva** com Bootstrap 5, menu lateral recolhível em
   telas pequenas.
 - **Configurações**: tela central (menu lateral) com vários ajustes do
