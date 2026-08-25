@@ -707,6 +707,40 @@ function perfisUsuario(): array
     return ['Administrador', 'Padrão', 'Usuário'];
 }
 
+/**
+ * Cifra um texto com AES-256-CBC usando ENCRYPTION_KEY (config/database.php)
+ * — usado só para a senha de email corporativo no cadastro de Usuários.
+ * Diferente da senha de login (hash bcrypt, irreversível), este valor
+ * precisa poder ser lido de volta, então usa criptografia reversível em
+ * vez de hash. Guarda o IV junto com o texto cifrado (necessário para
+ * descriptografar), tudo em base64 num único campo.
+ */
+function criptografar(string $texto): string
+{
+    $iv = random_bytes(16);
+    $cifrado = openssl_encrypt($texto, 'aes-256-cbc', ENCRYPTION_KEY, OPENSSL_RAW_DATA, $iv);
+    return base64_encode($iv . $cifrado);
+}
+
+/**
+ * Reverte criptografar(). Retorna null se o valor estiver vazio ou não
+ * puder ser decifrado (ex.: ENCRYPTION_KEY foi trocada depois de salvo).
+ */
+function descriptografar(?string $valorCifrado): ?string
+{
+    if ($valorCifrado === null || $valorCifrado === '') {
+        return null;
+    }
+    $dados = base64_decode($valorCifrado, true);
+    if ($dados === false || strlen($dados) <= 16) {
+        return null;
+    }
+    $iv = substr($dados, 0, 16);
+    $cifrado = substr($dados, 16);
+    $texto = openssl_decrypt($cifrado, 'aes-256-cbc', ENCRYPTION_KEY, OPENSSL_RAW_DATA, $iv);
+    return $texto !== false ? $texto : null;
+}
+
 function perfilUsuarioBadgeClass(string $perfil): string
 {
     return match ($perfil) {

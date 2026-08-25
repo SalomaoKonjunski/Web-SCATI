@@ -184,6 +184,19 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    // Botão de mostrar/ocultar em campos de senha (cadastro de Usuários:
+    // Senha de login e Senha do Email Corporativo). Sempre começa oculto.
+    document.querySelectorAll('.senha-toggle-btn').forEach(function (botao) {
+        botao.addEventListener('click', function () {
+            const input = botao.closest('.input-group').querySelector('.senha-toggle-input');
+            const icone = botao.querySelector('i');
+            const vaiMostrar = input.type === 'password';
+            input.type = vaiMostrar ? 'text' : 'password';
+            icone.classList.toggle('bi-eye', !vaiMostrar);
+            icone.classList.toggle('bi-eye-slash', vaiMostrar);
+        });
+    });
+
     // Gráfico "Itens de Estoque por Categoria": tooltip ao passar o mouse/focar
     const donutSegs = document.querySelectorAll('.scati-donut-seg');
     const donutTooltip = document.getElementById('estoqueDonutTooltip');

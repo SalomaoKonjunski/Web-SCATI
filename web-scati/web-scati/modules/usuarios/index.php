@@ -54,7 +54,10 @@ include __DIR__ . '/../../includes/header.php';
                             <?php if (!empty($u['telefone'])): ?>
                                 <div class="small"><i class="bi bi-telephone"></i> <?= e($u['telefone']) ?></div>
                             <?php endif; ?>
-                            <?php if (empty($u['ramal']) && empty($u['telefone'])): ?>
+                            <?php if (!empty($u['email_corporativo'])): ?>
+                                <div class="small"><i class="bi bi-envelope-at"></i> <?= e($u['email_corporativo']) ?></div>
+                            <?php endif; ?>
+                            <?php if (empty($u['ramal']) && empty($u['telefone']) && empty($u['email_corporativo'])): ?>
                                 <span class="text-muted">-</span>
                             <?php endif; ?>
                         </td>

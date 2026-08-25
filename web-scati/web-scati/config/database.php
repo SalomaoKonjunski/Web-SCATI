@@ -22,6 +22,17 @@ define('DB_CHARSET', 'utf8mb4');
 // ---------------------------------------------------------------------
 define('BASE_URL', '/web-scati');
 
+// ---------------------------------------------------------------------
+// Chave de criptografia - usada só para cifrar a senha de email
+// corporativo salva no cadastro de Usuários (não afeta a senha de login,
+// que continua em hash bcrypt, irreversível). RECOMENDADO trocar por uma
+// chave própria antes de colocar o sistema em uso — gere uma nova com:
+//   php -r "echo bin2hex(random_bytes(32));"
+// Atenção: trocar a chave depois de já ter senhas de email salvas torna
+// essas senhas antigas ilegíveis (é preciso recadastrá-las).
+// ---------------------------------------------------------------------
+define('ENCRYPTION_KEY', hex2bin('79a5a63ff45630192437fbd0fafc62bba7de1632871773b1c086fe1f7d540c6f'));
+
 /**
  * Retorna uma conexão PDO única (padrão Singleton simples).
  */

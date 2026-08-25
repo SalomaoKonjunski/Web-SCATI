@@ -10,13 +10,19 @@ USE scati;
 -- Tabela: usuarios
 -- ---------------------------------------------------------------------
 CREATE TABLE usuarios (
-    id              INT AUTO_INCREMENT PRIMARY KEY,
-    usuario         VARCHAR(50)  NOT NULL UNIQUE,
-    senha_hash      VARCHAR(255) NOT NULL,
-    perfil          ENUM('Administrador','Padrão','Usuário') NOT NULL DEFAULT 'Padrão',
-    ramal           VARCHAR(20)  NULL,
-    telefone        VARCHAR(20)  NULL,
-    criado_em       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP
+    id                    INT AUTO_INCREMENT PRIMARY KEY,
+    usuario               VARCHAR(50)  NOT NULL UNIQUE,
+    senha_hash            VARCHAR(255) NOT NULL,
+    perfil                ENUM('Administrador','Padrão','Usuário') NOT NULL DEFAULT 'Padrão',
+    ramal                 VARCHAR(20)  NULL,
+    telefone              VARCHAR(20)  NULL,
+    email_corporativo     VARCHAR(150) NULL,
+    -- Senha do email corporativo, cifrada com ENCRYPTION_KEY (ver
+    -- config/database.php e a função criptografar() em functions.php) —
+    -- diferente de senha_hash, pode ser lida de volta para o administrador
+    -- consultar no cadastro.
+    senha_email_cifrada   TEXT         NULL,
+    criado_em             DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 
 -- Perfis de acesso:
