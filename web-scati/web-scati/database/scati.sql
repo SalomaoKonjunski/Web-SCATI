@@ -403,6 +403,22 @@ CREATE TABLE relatorios_personalizados (
 ) ENGINE=InnoDB;
 
 -- ---------------------------------------------------------------------
+-- Tabela: notas
+-- Bloco de notas pessoal — cada nota pertence a um usuário e só aparece
+-- para ele mesmo (toda consulta em modules/notas/ filtra por usuario_id).
+-- ---------------------------------------------------------------------
+CREATE TABLE notas (
+    id              INT AUTO_INCREMENT PRIMARY KEY,
+    usuario_id      INT          NOT NULL,
+    titulo          VARCHAR(150) NOT NULL,
+    conteudo        TEXT         NULL,
+    criado_em       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    atualizado_em   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_nota_usuario FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- ---------------------------------------------------------------------
 -- Tabela: configuracoes
 -- Armazenamento simples de chave/valor para parâmetros ajustáveis pela
 -- tela de Configurações (ex.: dias de antecedência do alerta de

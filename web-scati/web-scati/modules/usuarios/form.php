@@ -207,7 +207,6 @@ include __DIR__ . '/../../includes/header.php';
                     <input type="password" name="senha_email_corporativo" class="form-control senha-toggle-input" value="<?= e($senhaEmailAtual) ?>">
                     <button type="button" class="btn btn-outline-secondary senha-toggle-btn" tabindex="-1" title="Mostrar/ocultar senha"><i class="bi bi-eye"></i></button>
                 </div>
-                <div class="form-text">Fica salva de forma cifrada no banco (não em texto puro). Ainda assim, para contas críticas prefira um gerenciador de senhas dedicado.</div>
             </div>
         </div>
     </div>

@@ -60,6 +60,11 @@ $totalChamadosNaoLidos = contarChamadosNaoLidos((int) $usuarioAtualSidebar['id']
                 <i class="bi bi-bar-chart-line"></i> Relatórios
             </a>
         </li>
+        <li class="nav-item">
+            <a class="nav-link <?= isActive('/modules/notas/', $currentPath) ?>" href="<?= BASE_URL ?>/modules/notas/index.php">
+                <i class="bi bi-journal-text"></i> Bloco de Notas
+            </a>
+        </li>
         <li class="nav-item mt-3 border-top border-secondary-subtle pt-3">
             <a class="nav-link <?= isActive('/modules/configuracoes/', $currentPath) ?: (isActive('/modules/categorias_estoque/', $currentPath) ?: (isActive('/modules/categorias_equipamento/', $currentPath) ?: isActive('/modules/tipos_manutencao/', $currentPath))) ?>" href="<?= BASE_URL ?>/modules/configuracoes/index.php">
                 <i class="bi bi-gear"></i> Configurações
