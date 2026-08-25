@@ -82,6 +82,108 @@ document.addEventListener('DOMContentLoaded', function () {
         toggleGruposCategoriaEquipamento();
     }
 
+    // Construtor de Relatório (passo 3, Filtros): monta dinamicamente o
+    // select de Operador e o campo de Valor de cada linha, de acordo com o
+    // tipo da coluna escolhida em "Campo" — dados injetados pelo PHP em
+    // window.SCATI_COLUNAS_ORIGEM (colunas da origem atual) e
+    // window.SCATI_OPERADORES_POR_TIPO (operadores por tipo de coluna).
+    // Linhas já preenchidas na carga da página vêm prontas do servidor;
+    // este script só entra em ação ao adicionar uma linha nova ou trocar o
+    // "Campo" de uma linha existente.
+    const filtrosContainer = document.getElementById('filtrosContainer');
+    if (filtrosContainer && window.SCATI_COLUNAS_ORIGEM && window.SCATI_OPERADORES_POR_TIPO) {
+        const colunasOrigem = window.SCATI_COLUNAS_ORIGEM;
+        const operadoresPorTipo = window.SCATI_OPERADORES_POR_TIPO;
+        let proximoIdDatalist = 0;
+
+        function tipoParaInputHtml(tipo) {
+            if (tipo === 'numero' || tipo === 'dinheiro') return 'number';
+            if (tipo === 'data' || tipo === 'datahora') return 'date';
+            return 'text';
+        }
+
+        function atualizarLinhaFiltro(linha) {
+            const campoSelect = linha.querySelector('.filtro-campo-select');
+            const operadorSelect = linha.querySelector('.filtro-operador-select');
+            const valorInput = linha.querySelector('.filtro-valor-input');
+            const datalist = linha.querySelector('datalist');
+            const def = colunasOrigem[campoSelect.value];
+
+            operadorSelect.innerHTML = '';
+            valorInput.value = '';
+            datalist.innerHTML = '';
+
+            if (!def) {
+                return;
+            }
+
+            const operadores = operadoresPorTipo[def.tipo] || {};
+            Object.keys(operadores).forEach(function (chaveOp) {
+                const opcao = document.createElement('option');
+                opcao.value = chaveOp;
+                opcao.textContent = operadores[chaveOp];
+                operadorSelect.appendChild(opcao);
+            });
+
+            valorInput.type = tipoParaInputHtml(def.tipo);
+
+            if (def.opcoes) {
+                def.opcoes.forEach(function (valorOpcao) {
+                    const opcao = document.createElement('option');
+                    opcao.value = valorOpcao;
+                    datalist.appendChild(opcao);
+                });
+            }
+
+            toggleValorInput(linha);
+        }
+
+        function toggleValorInput(linha) {
+            const operadorSelect = linha.querySelector('.filtro-operador-select');
+            const valorInput = linha.querySelector('.filtro-valor-input');
+            const semValor = operadorSelect.value === 'vazio' || operadorSelect.value === 'nao_vazio';
+            valorInput.style.display = semValor ? 'none' : '';
+        }
+
+        function novaLinhaFiltro() {
+            const template = document.getElementById('filtroLinhaTemplate');
+            const fragmento = template.content.cloneNode(true);
+            const linha = fragmento.querySelector('.filtro-linha');
+
+            // Cada linha precisa de um id de <datalist> próprio (o clonado
+            // do template pode colidir com o de outras linhas na página).
+            proximoIdDatalist++;
+            const novoId = 'filtroDatalistNovo_' + proximoIdDatalist;
+            linha.querySelector('datalist').id = novoId;
+            linha.querySelector('.filtro-valor-input').setAttribute('list', novoId);
+
+            return linha;
+        }
+
+        const btnAdicionar = document.getElementById('btnAdicionarFiltro');
+        if (btnAdicionar) {
+            btnAdicionar.addEventListener('click', function () {
+                filtrosContainer.appendChild(novaLinhaFiltro());
+            });
+        }
+
+        filtrosContainer.addEventListener('click', function (e) {
+            const btnRemover = e.target.closest('.btn-remover-filtro');
+            if (btnRemover) {
+                btnRemover.closest('.filtro-linha').remove();
+            }
+        });
+
+        filtrosContainer.addEventListener('change', function (e) {
+            if (e.target.classList.contains('filtro-campo-select')) {
+                atualizarLinhaFiltro(e.target.closest('.filtro-linha'));
+            }
+            if (e.target.classList.contains('filtro-operador-select')) {
+                toggleValorInput(e.target.closest('.filtro-linha'));
+            }
+        });
+    }
+
     // Gráfico "Itens de Estoque por Categoria": tooltip ao passar o mouse/focar
     const donutSegs = document.querySelectorAll('.scati-donut-seg');
     const donutTooltip = document.getElementById('estoqueDonutTooltip');

@@ -381,6 +381,22 @@ INSERT INTO tipos_manutencao (nome) VALUES
 ('Manutenção Preventiva'), ('Limpeza'), ('Troca de Componente'), ('Outro');
 
 -- ---------------------------------------------------------------------
+-- Tabela: relatorios_personalizados
+-- Relatórios salvos pelo Construtor de Relatório (Relatórios > Construtor
+-- de Relatório): guarda a origem dos dados e as colunas/filtros escolhidos
+-- (como JSON) para o usuário reabrir sem configurar tudo de novo.
+-- ---------------------------------------------------------------------
+CREATE TABLE relatorios_personalizados (
+    id              INT AUTO_INCREMENT PRIMARY KEY,
+    nome            VARCHAR(120) NOT NULL,
+    origem          VARCHAR(30)  NOT NULL,
+    colunas         TEXT         NOT NULL,
+    filtros         TEXT         NULL,
+    criado_por      VARCHAR(50)  NULL,
+    criado_em       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+-- ---------------------------------------------------------------------
 -- Tabela: configuracoes
 -- Armazenamento simples de chave/valor para parâmetros ajustáveis pela
 -- tela de Configurações (ex.: dias de antecedência do alerta de

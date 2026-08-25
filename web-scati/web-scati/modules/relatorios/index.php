@@ -53,6 +53,8 @@ $eventosHistorico = $pdo->query(
 )->fetchAll(PDO::FETCH_COLUMN);
 $categoriasHistorico = $pdo->query('SELECT nome FROM categorias_estoque ORDER BY nome')->fetchAll(PDO::FETCH_COLUMN);
 
+$favoritosPersonalizados = $pdo->query('SELECT id, nome FROM relatorios_personalizados ORDER BY nome')->fetchAll();
+
 if ($relatorio !== '' && isset($titulosRelatorios[$relatorio])) {
     switch ($relatorio) {
         case 'todos_equipamentos':
@@ -248,6 +250,18 @@ include __DIR__ . '/../../includes/header.php';
 
             <div class="list-group-item list-group-item-secondary fw-semibold">Histórico</div>
             <a class="list-group-item list-group-item-action <?= $relatorio === 'historico_alteracoes' ? 'active' : '' ?>" href="?relatorio=historico_alteracoes">Histórico de alterações</a>
+
+            <div class="list-group-item list-group-item-secondary fw-semibold">Personalizado</div>
+            <a class="list-group-item list-group-item-action" href="construtor.php"><i class="bi bi-magic me-1"></i> Construtor de Relatório</a>
+            <?php foreach ($favoritosPersonalizados as $favorito): ?>
+                <div class="list-group-item d-flex align-items-center p-0">
+                    <a class="list-group-item-action border-0 flex-grow-1 py-2 ps-3" href="construtor.php?favorito_id=<?= (int) $favorito['id'] ?>"><?= e($favorito['nome']) ?></a>
+                    <a href="excluir_favorito.php?id=<?= (int) $favorito['id'] ?>" class="btn btn-sm btn-link text-danger px-2 js-confirm-delete"
+                       data-confirm-msg="Excluir o relatório salvo &quot;<?= e($favorito['nome']) ?>&quot;?" title="Excluir">
+                        <i class="bi bi-trash"></i>
+                    </a>
+                </div>
+            <?php endforeach; ?>
         </div>
     </div>
 

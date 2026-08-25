@@ -408,6 +408,272 @@ function statusChamado(): array
 }
 
 /**
+ * Whitelist única de origens de dados e colunas disponíveis no Construtor
+ * de Relatório (Relatórios > Construtor de Relatório). Cada origem define
+ * a tabela/junção ("from") e a ordenação padrão em SQL fixo (nunca vindo
+ * do usuário), e cada coluna define o rótulo exibido, a expressão SQL e o
+ * tipo (que decide os operadores de filtro e a formatação do valor).
+ *
+ * Esta função é a ÚNICA fonte de nomes de tabela/coluna aceitos ao montar
+ * a consulta em montarRelatorioPersonalizado() — a origem e as colunas que
+ * vêm da requisição são sempre usadas só como CHAVE de busca neste array,
+ * nunca interpoladas direto no SQL. Isso é o que torna o construtor livre
+ * de risco de SQL injection apesar de ser configurável pelo usuário.
+ *
+ * Tipos de coluna suportados: 'texto', 'select' (usa 'opcoes'), 'numero',
+ * 'dinheiro', 'data', 'datahora' e 'booleano' (também usa 'opcoes', fixo
+ * em Sim/Não).
+ */
+function origensRelatorioPersonalizado(): array
+{
+    return [
+        'equipamentos' => [
+            'label' => 'Equipamentos',
+            'icone' => 'bi-pc-display',
+            'descricao' => 'Nome, patrimônio, tipo, status, responsável, financeiro...',
+            'from' => 'equipamentos e LEFT JOIN redes r ON r.id = e.rede_id',
+            'ordem_padrao' => 'e.nome',
+            'colunas' => [
+                'nome'                => ['label' => 'Nome', 'sql' => 'e.nome', 'tipo' => 'texto'],
+                'patrimonio'          => ['label' => 'Patrimônio', 'sql' => 'e.patrimonio', 'tipo' => 'texto'],
+                'tipo'                => ['label' => 'Tipo', 'sql' => 'e.tipo', 'tipo' => 'select', 'opcoes' => tiposEquipamento()],
+                'marca'               => ['label' => 'Marca', 'sql' => 'e.marca', 'tipo' => 'texto'],
+                'modelo'              => ['label' => 'Modelo', 'sql' => 'e.modelo', 'tipo' => 'texto'],
+                'numero_serie'        => ['label' => 'Número de Série', 'sql' => 'e.numero_serie', 'tipo' => 'texto'],
+                'status'              => ['label' => 'Status', 'sql' => 'e.status', 'tipo' => 'select', 'opcoes' => statusEquipamento()],
+                'localizacao'         => ['label' => 'Localização', 'sql' => 'e.localizacao', 'tipo' => 'texto'],
+                'usuario_responsavel' => ['label' => 'Responsável', 'sql' => 'e.usuario_responsavel', 'tipo' => 'texto'],
+                'rede_nome'           => ['label' => 'Rede', 'sql' => 'r.nome', 'tipo' => 'texto'],
+                'data_compra'         => ['label' => 'Data da Compra', 'sql' => 'e.data_compra', 'tipo' => 'data'],
+                'garantia'            => ['label' => 'Garantia', 'sql' => 'e.garantia', 'tipo' => 'texto'],
+                'fornecedor'          => ['label' => 'Fornecedor', 'sql' => 'e.fornecedor', 'tipo' => 'texto'],
+                'valor_atual'         => ['label' => 'Valor Atual', 'sql' => 'e.valor_atual', 'tipo' => 'dinheiro'],
+                'acesso_usb'          => ['label' => 'Acesso USB', 'sql' => 'e.acesso_usb', 'tipo' => 'booleano', 'opcoes' => ['Sim', 'Não']],
+            ],
+        ],
+        'estoque' => [
+            'label' => 'Estoque',
+            'icone' => 'bi-box-seam',
+            'descricao' => 'Itens, categorias, quantidades, localização...',
+            'from' => 'estoque es JOIN categorias_estoque c ON c.id = es.categoria_id',
+            'ordem_padrao' => 'es.nome',
+            'colunas' => [
+                'nome'              => ['label' => 'Nome', 'sql' => 'es.nome', 'tipo' => 'texto'],
+                'categoria_nome'    => ['label' => 'Categoria', 'sql' => 'c.nome', 'tipo' => 'texto'],
+                'marca'             => ['label' => 'Marca', 'sql' => 'es.marca', 'tipo' => 'texto'],
+                'modelo'            => ['label' => 'Modelo', 'sql' => 'es.modelo', 'tipo' => 'texto'],
+                'quantidade'        => ['label' => 'Quantidade', 'sql' => 'es.quantidade', 'tipo' => 'numero'],
+                'quantidade_minima' => ['label' => 'Quantidade Mínima', 'sql' => 'es.quantidade_minima', 'tipo' => 'numero'],
+                'localizacao'       => ['label' => 'Localização', 'sql' => 'es.localizacao', 'tipo' => 'texto'],
+                'observacoes'       => ['label' => 'Observações', 'sql' => 'es.observacoes', 'tipo' => 'texto'],
+            ],
+        ],
+        'licencas' => [
+            'label' => 'Licenças',
+            'icone' => 'bi-key',
+            'descricao' => 'Software, fabricante, validade, vínculo...',
+            'from' => 'licencas l LEFT JOIN equipamentos eq ON eq.id = l.equipamento_id',
+            'ordem_padrao' => 'l.software',
+            'colunas' => [
+                'software'               => ['label' => 'Software', 'sql' => 'l.software', 'tipo' => 'texto'],
+                'fabricante'             => ['label' => 'Fabricante', 'sql' => 'l.fabricante', 'tipo' => 'texto'],
+                'tipo'                   => ['label' => 'Tipo', 'sql' => 'l.tipo', 'tipo' => 'select', 'opcoes' => tiposLicenca()],
+                'versao'                 => ['label' => 'Versão', 'sql' => 'l.versao', 'tipo' => 'texto'],
+                'data_validade'          => ['label' => 'Validade', 'sql' => 'l.data_validade', 'tipo' => 'data'],
+                'equipamento_patrimonio' => ['label' => 'Equipamento Vinculado', 'sql' => 'eq.patrimonio', 'tipo' => 'texto'],
+            ],
+        ],
+        'chamados' => [
+            'label' => 'Chamados',
+            'icone' => 'bi-life-preserver',
+            'descricao' => 'Título, solicitante, prioridade, status...',
+            'from' => 'chamados ch LEFT JOIN usuarios u ON u.id = ch.responsavel_id',
+            'ordem_padrao' => 'ch.criado_em DESC',
+            'colunas' => [
+                'titulo'           => ['label' => 'Título', 'sql' => 'ch.titulo', 'tipo' => 'texto'],
+                'solicitante'      => ['label' => 'Solicitante', 'sql' => 'ch.solicitante', 'tipo' => 'texto'],
+                'prioridade'       => ['label' => 'Prioridade', 'sql' => 'ch.prioridade', 'tipo' => 'select', 'opcoes' => prioridadesChamado()],
+                'status'           => ['label' => 'Status', 'sql' => 'ch.status', 'tipo' => 'select', 'opcoes' => statusChamado()],
+                'responsavel_nome' => ['label' => 'Responsável', 'sql' => 'u.usuario', 'tipo' => 'texto'],
+                'criado_em'        => ['label' => 'Aberto em', 'sql' => 'ch.criado_em', 'tipo' => 'datahora'],
+                'concluido_em'     => ['label' => 'Concluído em', 'sql' => 'ch.concluido_em', 'tipo' => 'datahora'],
+            ],
+        ],
+    ];
+}
+
+/**
+ * Operadores de filtro disponíveis para cada tipo de coluna do Construtor
+ * de Relatório (chave => rótulo exibido).
+ */
+function operadoresRelatorioPersonalizado(): array
+{
+    return [
+        'texto' => [
+            'contem' => 'contém',
+            'igual' => 'é igual a',
+            'vazio' => 'está vazio',
+            'nao_vazio' => 'não está vazio',
+        ],
+        'select' => [
+            'igual' => 'é igual a',
+            'diferente' => 'é diferente de',
+        ],
+        'booleano' => [
+            'igual' => 'é igual a',
+        ],
+        'numero' => [
+            'igual' => 'é igual a',
+            'maior' => 'maior que',
+            'menor' => 'menor que',
+        ],
+        'dinheiro' => [
+            'igual' => 'é igual a',
+            'maior' => 'maior que',
+            'menor' => 'menor que',
+        ],
+        'data' => [
+            'igual' => 'é igual a',
+            'a_partir' => 'a partir de',
+            'ate' => 'até',
+        ],
+        'datahora' => [
+            'a_partir' => 'a partir de',
+            'ate' => 'até',
+        ],
+    ];
+}
+
+/**
+ * Monta a consulta SQL do Construtor de Relatório a partir da origem,
+ * colunas e filtros escolhidos (tipicamente vindos de $_GET/$_POST) —
+ * validando tudo contra origensRelatorioPersonalizado(). Nomes de coluna
+ * inválidos (fora do whitelist) são simplesmente ignorados, nunca chegam
+ * a entrar no SQL. Retorna null se a origem for inválida ou nenhuma
+ * coluna válida tiver sido informada.
+ *
+ * $filtros é uma lista de ['campo' => string, 'operador' => string, 'valor' => string].
+ */
+function montarRelatorioPersonalizado(string $origemChave, array $colunasChaves, array $filtros): ?array
+{
+    $origens = origensRelatorioPersonalizado();
+    if (!isset($origens[$origemChave])) {
+        return null;
+    }
+    $origemDef = $origens[$origemChave];
+
+    $colunasValidas = [];
+    foreach ($colunasChaves as $chave) {
+        if (is_string($chave) && isset($origemDef['colunas'][$chave])) {
+            $colunasValidas[$chave] = $origemDef['colunas'][$chave];
+        }
+    }
+    if (empty($colunasValidas)) {
+        return null;
+    }
+
+    $selectSql = [];
+    foreach ($colunasValidas as $chave => $def) {
+        $selectSql[] = $def['sql'] . ' AS ' . $chave;
+    }
+
+    $operadoresPorTipo = operadoresRelatorioPersonalizado();
+    $condicoes = [];
+    $params = [];
+    $indice = 0;
+
+    foreach ($filtros as $filtro) {
+        $campo = $filtro['campo'] ?? '';
+        $operador = $filtro['operador'] ?? '';
+        $valor = trim((string) ($filtro['valor'] ?? ''));
+
+        if (!isset($origemDef['colunas'][$campo])) {
+            continue;
+        }
+        $colDef = $origemDef['colunas'][$campo];
+        $operadoresValidos = $operadoresPorTipo[$colDef['tipo']] ?? [];
+        if (!isset($operadoresValidos[$operador])) {
+            continue;
+        }
+        if ($valor === '' && !in_array($operador, ['vazio', 'nao_vazio'], true)) {
+            continue;
+        }
+
+        $indice++;
+        $paramKey = 'f' . $indice;
+        // Comparações de data/hora usam DATE() para "a partir de"/"até"
+        // funcionarem pelo dia inteiro, mesmo em colunas DATETIME.
+        $sqlCol = $colDef['tipo'] === 'datahora' ? 'DATE(' . $colDef['sql'] . ')' : $colDef['sql'];
+        $valorFinal = $colDef['tipo'] === 'booleano' ? ($valor === 'Sim' ? 1 : 0) : $valor;
+
+        switch ($operador) {
+            case 'contem':
+                $condicoes[] = "$sqlCol LIKE :$paramKey";
+                $params[$paramKey] = '%' . $valorFinal . '%';
+                break;
+            case 'igual':
+                $condicoes[] = "$sqlCol = :$paramKey";
+                $params[$paramKey] = $valorFinal;
+                break;
+            case 'diferente':
+                $condicoes[] = "$sqlCol <> :$paramKey";
+                $params[$paramKey] = $valorFinal;
+                break;
+            case 'maior':
+                $condicoes[] = "$sqlCol > :$paramKey";
+                $params[$paramKey] = $valorFinal;
+                break;
+            case 'menor':
+                $condicoes[] = "$sqlCol < :$paramKey";
+                $params[$paramKey] = $valorFinal;
+                break;
+            case 'a_partir':
+                $condicoes[] = "$sqlCol >= :$paramKey";
+                $params[$paramKey] = $valorFinal;
+                break;
+            case 'ate':
+                $condicoes[] = "$sqlCol <= :$paramKey";
+                $params[$paramKey] = $valorFinal;
+                break;
+            case 'vazio':
+                $condicoes[] = "($sqlCol IS NULL OR $sqlCol = '')";
+                break;
+            case 'nao_vazio':
+                $condicoes[] = "($sqlCol IS NOT NULL AND $sqlCol <> '')";
+                break;
+        }
+    }
+
+    $sql = 'SELECT ' . implode(', ', $selectSql) . ' FROM ' . $origemDef['from'];
+    if (!empty($condicoes)) {
+        $sql .= ' WHERE ' . implode(' AND ', $condicoes);
+    }
+    $sql .= ' ORDER BY ' . $origemDef['ordem_padrao'];
+
+    return [
+        'sql' => $sql,
+        'params' => $params,
+        'colunas' => $colunasValidas,
+        'origem_def' => $origemDef,
+    ];
+}
+
+/**
+ * Formata um valor de coluna do Construtor de Relatório para exibição,
+ * de acordo com o tipo da coluna (ver origensRelatorioPersonalizado()).
+ */
+function formatarValorRelatorioPersonalizado($valor, string $tipo): string
+{
+    return match ($tipo) {
+        'dinheiro' => formatMoney($valor),
+        'data' => formatDate($valor),
+        'datahora' => formatDateTime($valor),
+        'booleano' => empty($valor) ? 'Não' : 'Sim',
+        default => ($valor !== null && $valor !== '') ? (string) $valor : '-',
+    };
+}
+
+/**
  * Retorna a classe de badge Bootstrap correspondente à prioridade do chamado.
  */
 function prioridadeChamadoBadgeClass(string $prioridade): string
