@@ -230,6 +230,17 @@ Funcional (v1.0).
    mysql --default-character-set=utf8mb4 -u root -p scati < database/migration_relatorios_personalizados.sql
    ```
 
+   Se o banco já existia antes do **email corporativo no cadastro de
+   Usuários** (ainda não tem as colunas `email_corporativo` e
+   `senha_email_cifrada` em `usuarios`), rode também esta migração
+   incremental **uma única vez** — antes de rodar, defina uma
+   `ENCRYPTION_KEY` própria em `config/database.php` (veja o comentário
+   ali; o arquivo já vem com uma chave de exemplo, mas é recomendado
+   trocar antes de cadastrar qualquer senha de email):
+   ```bash
+   mysql --default-character-set=utf8mb4 -u root -p scati < database/migration_usuarios_email_corporativo.sql
+   ```
+
    > Importante: ao importar qualquer um dos arquivos `.sql` deste projeto,
    > garanta que o cliente MySQL use UTF-8 (ex.: `mysql --default-character-set=utf8mb4 -u root -p < arquivo.sql`),
    > caso contrário os valores acentuados dos campos `ENUM` (como "Disponível")
@@ -544,10 +555,20 @@ web-scati/
     TI (ex.: recepção, outros setores), sem acesso operacional ao
     sistema.
 
-  Cada usuário pode ter também **ramal** e **telefone** cadastrados
-  (ambos opcionais), exibidos na coluna "Contato" da listagem — útil
-  para saber rapidamente como entrar em contato com quem abriu ou está
-  responsável por um chamado.
+  Cada usuário pode ter também **ramal**, **telefone** e **email
+  corporativo** cadastrados (todos opcionais), exibidos na coluna
+  "Contato" da listagem — útil para saber rapidamente como entrar em
+  contato com quem abriu ou está responsável por um chamado. Junto com o
+  email corporativo, é possível cadastrar a **senha desse email** — ao
+  contrário da senha de login (hash bcrypt, irreversível), essa fica
+  **cifrada com AES-256-CBC** (chave em `ENCRYPTION_KEY`,
+  `config/database.php`) em vez de hash, então pode ser consultada de
+  volta pelo administrador ao reabrir o cadastro do usuário — protegida
+  contra uma cópia crua do banco, mas ainda assim recuperável pela
+  aplicação. Tanto a senha de login quanto a senha do email têm um botão
+  de mostrar/ocultar no formulário, sempre começando ocultas. Não há mais
+  campo de "Confirmar Senha" — o botão de mostrar substitui essa
+  conferência.
 
   O sistema sempre mantém pelo menos um administrador: não é possível
   excluir a própria conta logada, nem excluir ou remover o perfil de
