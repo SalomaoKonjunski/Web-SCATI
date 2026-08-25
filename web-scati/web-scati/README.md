@@ -241,6 +241,13 @@ Funcional (v1.0).
    mysql --default-character-set=utf8mb4 -u root -p scati < database/migration_usuarios_email_corporativo.sql
    ```
 
+   Se o banco já existia antes do **Bloco de Notas** (ainda não tem a
+   tabela `notas`), rode também esta migração incremental **uma única
+   vez**:
+   ```bash
+   mysql --default-character-set=utf8mb4 -u root -p scati < database/migration_notas.sql
+   ```
+
    > Importante: ao importar qualquer um dos arquivos `.sql` deste projeto,
    > garanta que o cliente MySQL use UTF-8 (ex.: `mysql --default-character-set=utf8mb4 -u root -p < arquivo.sql`),
    > caso contrário os valores acentuados dos campos `ENUM` (como "Disponível")
@@ -495,6 +502,12 @@ web-scati/
     (`origensRelatorioPersonalizado()`, em `includes/functions.php`) —
     nunca são interpoladas direto no SQL, então não há risco de SQL
     injection mesmo essa configuração vindo inteiramente do usuário.
+- **Bloco de Notas**: menu lateral, cada usuário cria quantas notas
+  quiser (título + conteúdo) — são **pessoais**, só quem criou enxerga,
+  edita ou exclui a própria nota (toda consulta filtra por usuário
+  logado, então nem trocando o id na URL dá para acessar a nota de
+  outra pessoa). Não aparece para o perfil Usuário, que só tem acesso à
+  aba Chamados.
 - **Interface responsiva** com Bootstrap 5, menu lateral recolhível em
   telas pequenas.
 - **Configurações**: tela central (menu lateral) com vários ajustes do
