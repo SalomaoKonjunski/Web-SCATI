@@ -342,7 +342,9 @@ web-scati/
   pesquisa continuam aplicados ao trocar a ordenação.
 - **Impressoras**: aba própria no menu lateral com uma listagem separada,
   mostrando só os equipamentos do tipo Impressora (reaproveita a mesma
-  tabela de Equipamentos, sem cadastro duplicado). Além de Patrimônio,
+  tabela de Equipamentos, sem cadastro duplicado) — impressoras não
+  aparecem na listagem de Equipamentos nem no filtro "Tipo" de lá, só
+  aqui. Além de Patrimônio,
   Marca/Modelo, IP, Status e Localização, mostra também o **Toner**
   instalado — ou um alerta "Sem toner" quando a impressora não tem
   nenhum vinculado no momento. Tem pesquisa e filtro por status
