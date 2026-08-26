@@ -15,10 +15,13 @@ $chamado = [
     'prioridade' => 'Média', 'status' => 'Aberto', 'responsavel_id' => '',
 ];
 
-// Só o Administrador pode escolher quem é o solicitante ao abrir um chamado;
-// para os demais perfis, o solicitante é sempre o próprio usuário logado.
+// Só o Administrador pode escolher quem é o solicitante ao abrir um chamado
+// (útil quando abre em nome de outra pessoa) — mas o campo já nasce
+// preenchido com o próprio usuário logado, podendo ser trocado. Para os
+// demais perfis, o solicitante é sempre o próprio usuário logado, sem
+// poder ser alterado.
 $podeEscolherSolicitante = $usuarioAtual['admin'];
-if (!$edicao && !$podeEscolherSolicitante) {
+if (!$edicao) {
     $chamado['solicitante'] = $usuarioAtual['usuario'];
 }
 
@@ -281,6 +284,9 @@ include __DIR__ . '/../../includes/header.php';
                     <div class="form-text">Definido automaticamente como o seu usuário.</div>
                 <?php else: ?>
                     <input type="text" name="solicitante" class="form-control" placeholder="Quem pediu / nome, setor..." value="<?= e($chamado['solicitante']) ?>">
+                    <?php if (!$edicao): ?>
+                        <div class="form-text">Já vem com seu usuário — troque se estiver abrindo em nome de outra pessoa.</div>
+                    <?php endif; ?>
                 <?php endif; ?>
             </div>
             <div class="col-md-12">
