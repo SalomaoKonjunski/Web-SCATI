@@ -28,10 +28,11 @@ if (!array_key_exists($ordenarPor, $colunasOrdenaveis)) {
     $ordenarPor = '';
 }
 
+// Impressoras têm tela própria (aba Impressoras) e não aparecem aqui.
 $sql = "SELECT e.*, r.nome AS rede_nome
         FROM equipamentos e
         LEFT JOIN redes r ON r.id = e.rede_id
-        WHERE 1=1";
+        WHERE e.tipo <> 'Impressora'";
 $params = [];
 
 if ($busca !== '') {
@@ -116,6 +117,7 @@ include __DIR__ . '/../../includes/header.php';
                 <select name="tipo" class="form-select">
                     <option value="">Todos</option>
                     <?php foreach (tiposEquipamento() as $tipo): ?>
+                        <?php if ($tipo === 'Impressora') continue; ?>
                         <option value="<?= e($tipo) ?>" <?= $filtroTipo === $tipo ? 'selected' : '' ?>><?= e($tipo) ?></option>
                     <?php endforeach; ?>
                 </select>
