@@ -1,6 +1,18 @@
 /**
  * Web SCATI - Scripts gerais da interface
  */
+
+// PWA: registra o service worker assim que a página carrega (fora do
+// DOMContentLoaded de propósito — funciona mesmo em navegadores que
+// disparam 'load' antes, e não depende de nenhum elemento da página).
+if ('serviceWorker' in navigator && window.SCATI_BASE_URL !== undefined) {
+    navigator.serviceWorker
+        .register(window.SCATI_BASE_URL + '/service-worker.js', { scope: window.SCATI_BASE_URL + '/' })
+        .catch(function () {
+            // navegador sem suporte completo a service worker - segue sem PWA
+        });
+}
+
 document.addEventListener('DOMContentLoaded', function () {
     // Alterna a sidebar em telas pequenas
     const toggleBtn = document.getElementById('sidebarToggle');
@@ -258,6 +270,80 @@ document.addEventListener('DOMContentLoaded', function () {
                 dt.items.add(anexoCamera.files[0]);
                 anexoArquivo.files = dt.files;
             }
+        });
+    }
+
+    // Botão de ativar/desativar notificação push neste dispositivo (ícone
+    // de sino ao lado do menu de notificações). Ao ativar, pede permissão
+    // do navegador, se inscreve no Push API com a chave pública VAPID do
+    // servidor (window.SCATI_VAPID_PUBLIC_KEY) e avisa o backend via
+    // modules/push/subscribe.php para guardar a inscrição.
+    const btnPush = document.getElementById('scatiPushBtn');
+    if (btnPush && 'serviceWorker' in navigator && 'PushManager' in window && window.SCATI_VAPID_PUBLIC_KEY) {
+        function chavePublicaParaUint8Array(chaveBase64) {
+            const padding = '='.repeat((4 - chaveBase64.length % 4) % 4);
+            const base64 = (chaveBase64 + padding).replace(/-/g, '+').replace(/_/g, '/');
+            const bruto = window.atob(base64);
+            const array = new Uint8Array(bruto.length);
+            for (let i = 0; i < bruto.length; i++) {
+                array[i] = bruto.charCodeAt(i);
+            }
+            return array;
+        }
+
+        function atualizarBotaoPush(inscrito) {
+            btnPush.classList.toggle('btn-light', inscrito);
+            btnPush.classList.toggle('btn-outline-light', !inscrito);
+            btnPush.innerHTML = inscrito ? '<i class="bi bi-bell-fill"></i>' : '<i class="bi bi-bell-slash"></i>';
+            btnPush.title = inscrito
+                ? 'Notificações push ativadas neste dispositivo — clique para desativar'
+                : 'Ativar notificações push neste dispositivo';
+        }
+
+        navigator.serviceWorker.ready.then(function (registro) {
+            registro.pushManager.getSubscription().then(function (inscricaoAtual) {
+                atualizarBotaoPush(!!inscricaoAtual);
+            });
+
+            btnPush.addEventListener('click', function () {
+                registro.pushManager.getSubscription().then(function (inscricaoAtual) {
+                    if (inscricaoAtual) {
+                        fetch(window.SCATI_BASE_URL + '/modules/push/unsubscribe.php', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            credentials: 'same-origin',
+                            body: JSON.stringify({ endpoint: inscricaoAtual.endpoint }),
+                        }).finally(function () {
+                            inscricaoAtual.unsubscribe().then(function () {
+                                atualizarBotaoPush(false);
+                            });
+                        });
+                        return;
+                    }
+
+                    Notification.requestPermission().then(function (permissao) {
+                        if (permissao !== 'granted') {
+                            return;
+                        }
+                        registro.pushManager.subscribe({
+                            userVisibleOnly: true,
+                            applicationServerKey: chavePublicaParaUint8Array(window.SCATI_VAPID_PUBLIC_KEY),
+                        }).then(function (novaInscricao) {
+                            return fetch(window.SCATI_BASE_URL + '/modules/push/subscribe.php', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                credentials: 'same-origin',
+                                body: JSON.stringify(novaInscricao),
+                            });
+                        }).then(function () {
+                            atualizarBotaoPush(true);
+                        }).catch(function () {
+                            // usuário recusou a inscrição, ou o navegador não
+                            // conseguiu se inscrever - sem tela de erro
+                        });
+                    });
+                });
+            });
         });
     }
 

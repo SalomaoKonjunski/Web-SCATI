@@ -3,6 +3,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../includes/functions.php';
 require_once __DIR__ . '/../../includes/auth.php';
+require_once __DIR__ . '/../../includes/push.php';
 exigirLogin();
 
 $pdo = db();
@@ -162,6 +163,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$somenteLeitura) {
             // Quem abriu o chamado já sabe que ele existe, então não deve
             // aparecer como "nova solicitação" não lida para o próprio criador.
             marcarChamadoVisto($novoId, $usuarioAtual['id']);
+
+            // Notifica quem acompanha a fila de chamados (mesmo público que
+            // já vê o badge de "nova solicitação" no sino), exceto quem
+            // acabou de abrir o chamado.
+            enviarPushParaPerfis(
+                ['Administrador', 'Padrão'],
+                'Novo chamado',
+                $chamado['titulo'] . ' — ' . ($chamado['solicitante'] ?: $usuarioAtual['usuario']),
+                BASE_URL . '/modules/chamados/form.php?id=' . $novoId,
+                (int) $usuarioAtual['id']
+            );
+
             flash('success', 'Chamado registrado com sucesso.');
         }
         redirect('/modules/chamados/index.php');

@@ -1,0 +1,11 @@
+{
+    "name": "web-scati/web-scati",
+    "description": "Web SCATI - Sistema de Controle de Ativos de TI",
+    "type": "project",
+    "license": "proprietary",
+    "require": {
+        "minishlink/web-push": "^11.0",
+        "php-http/curl-client": "^2.4",
+        "nyholm/psr7": "^1.8"
+    }
+}

@@ -1,0 +1,12 @@
+# Bloqueia todo acesso via navegador a esta pasta. As bibliotecas aqui
+# dentro só são usadas por include do PHP (config/database.php), nunca
+# precisam ser acessadas direto por URL.
+
+Options -Indexes
+
+<IfModule mod_authz_core.c>
+    Require all denied
+</IfModule>
+<IfModule !mod_authz_core.c>
+    Deny from all
+</IfModule>

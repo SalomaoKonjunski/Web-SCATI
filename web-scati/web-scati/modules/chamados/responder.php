@@ -3,6 +3,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../includes/functions.php';
 require_once __DIR__ . '/../../includes/auth.php';
+require_once __DIR__ . '/../../includes/push.php';
 exigirLogin();
 
 $pdo = db();
@@ -15,7 +16,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 $chamadoId = (int) ($_POST['chamado_id'] ?? 0);
 $mensagem = trim($_POST['mensagem'] ?? '');
 
-$stmt = $pdo->prepare('SELECT id, criado_por_id FROM chamados WHERE id = :id');
+$stmt = $pdo->prepare('SELECT id, titulo, criado_por_id, responsavel_id FROM chamados WHERE id = :id');
 $stmt->execute(['id' => $chamadoId]);
 $chamado = $stmt->fetch();
 
@@ -47,6 +48,22 @@ $pdo->prepare(
 
 // Quem acabou de responder já viu o chamado até este momento.
 marcarChamadoVisto($chamadoId, $usuarioAtual['id']);
+
+// Notifica quem está diretamente envolvido no chamado (solicitante e
+// responsável), exceto quem acabou de mandar a mensagem.
+$destinatarios = array_unique(array_filter([
+    $chamado['criado_por_id'] !== null ? (int) $chamado['criado_por_id'] : null,
+    $chamado['responsavel_id'] !== null ? (int) $chamado['responsavel_id'] : null,
+]));
+$destinatarios = array_diff($destinatarios, [(int) $usuarioAtual['id']]);
+foreach ($destinatarios as $destinatarioId) {
+    enviarPushParaUsuario(
+        $destinatarioId,
+        'Nova mensagem no chamado',
+        $chamado['titulo'] . ' — ' . $usuarioAtual['usuario'] . ': ' . $mensagem,
+        BASE_URL . '/modules/chamados/form.php?id=' . $chamadoId
+    );
+}
 
 flash('success', 'Resposta enviada.');
 redirect('/modules/chamados/form.php?id=' . $chamadoId);

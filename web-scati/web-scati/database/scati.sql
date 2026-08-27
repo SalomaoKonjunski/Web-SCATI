@@ -419,6 +419,26 @@ CREATE TABLE notas (
 ) ENGINE=InnoDB;
 
 -- ---------------------------------------------------------------------
+-- Tabela: push_subscriptions
+-- Uma linha por navegador/dispositivo em que o usuário ativou notificação
+-- push (o mesmo usuário pode ter várias — celular, computador do trabalho,
+-- etc.). Preenchida por modules/push/subscribe.php, usada para enviar
+-- notificação quando chega mensagem/chamado novo (ver includes/push.php).
+-- ---------------------------------------------------------------------
+CREATE TABLE push_subscriptions (
+    id              INT AUTO_INCREMENT PRIMARY KEY,
+    usuario_id      INT          NOT NULL,
+    endpoint        VARCHAR(512) NOT NULL,
+    p256dh          VARCHAR(255) NOT NULL,
+    auth            VARCHAR(255) NOT NULL,
+    user_agent      VARCHAR(255) NULL,
+    criado_em       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_push_usuario FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE,
+    UNIQUE KEY uq_push_endpoint (endpoint)
+) ENGINE=InnoDB;
+
+-- ---------------------------------------------------------------------
 -- Tabela: configuracoes
 -- Armazenamento simples de chave/valor para parâmetros ajustáveis pela
 -- tela de Configurações (ex.: dias de antecedência do alerta de

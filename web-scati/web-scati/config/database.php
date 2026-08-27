@@ -7,6 +7,14 @@
 
 declare(strict_types=1);
 
+// Carrega as bibliotecas de terceiros (Composer) — hoje só a lib de envio
+// de notificação push (minishlink/web-push). A pasta vendor/ já vem pronta
+// no repositório, não é necessário rodar "composer install".
+$scatiAutoload = __DIR__ . '/../vendor/autoload.php';
+if (file_exists($scatiAutoload)) {
+    require_once $scatiAutoload;
+}
+
 // ---------------------------------------------------------------------
 // Dados de acesso ao MySQL - ALTERE conforme seu ambiente
 // ---------------------------------------------------------------------
@@ -32,6 +40,20 @@ define('BASE_URL', '/web-scati');
 // essas senhas antigas ilegíveis (é preciso recadastrá-las).
 // ---------------------------------------------------------------------
 define('ENCRYPTION_KEY', hex2bin('79a5a63ff45630192437fbd0fafc62bba7de1632871773b1c086fe1f7d540c6f'));
+
+// ---------------------------------------------------------------------
+// Chaves VAPID - identificam o servidor para os serviços de notificação
+// push do navegador (Chrome/Firefox/Safari). RECOMENDADO gerar um par
+// próprio antes de usar notificações em produção — gere um novo com:
+//   php -r "require 'vendor/autoload.php'; print_r(Minishlink\WebPush\VAPID::createVapidKeys());"
+// Atenção: trocar as chaves invalida as inscrições de notificação já
+// feitas pelos usuários (cada um precisaria ativar de novo).
+// ---------------------------------------------------------------------
+define('VAPID_PUBLIC_KEY', 'BJ8wNDG2l9CHsX_Zv3wEklC3gGNUKMFoc997t5EAR6qXxrtPgd6yWkzlwELQUlRRgOP5guXT1QWlBg-cEwypCFg');
+define('VAPID_PRIVATE_KEY', 'ym_7jS6Y6Qfc3Y1iOpMHxhAW2hBEdkVca2ywWpHxY44');
+// E-mail de contato exigido pelo padrão VAPID — os serviços de push podem
+// usá-lo para avisar o administrador do servidor em caso de abuso.
+define('VAPID_SUBJECT', 'mailto:admin@example.com');
 
 /**
  * Retorna uma conexão PDO única (padrão Singleton simples).
