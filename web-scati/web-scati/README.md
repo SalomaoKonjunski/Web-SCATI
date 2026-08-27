@@ -248,6 +248,22 @@ Funcional (v1.0).
    mysql --default-character-set=utf8mb4 -u root -p scati < database/migration_notas.sql
    ```
 
+   Se o banco já existia antes do **app instalável (PWA) e notificações
+   push** (ainda não tem a tabela `push_subscriptions`), rode também esta
+   migração incremental **uma única vez**:
+   ```bash
+   mysql --default-character-set=utf8mb4 -u root -p scati < database/migration_push_subscriptions.sql
+   ```
+   Antes de usar notificações push em produção, gere um par de chaves
+   VAPID próprio (o sistema já vem com um par de exemplo funcional) e
+   troque `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY` em `config/database.php`:
+   ```bash
+   php -r "require 'vendor/autoload.php'; print_r(Minishlink\WebPush\VAPID::createVapidKeys());"
+   ```
+   Também ajuste `VAPID_SUBJECT` para um e-mail de contato real. Notificação
+   push só funciona com o site em **HTTPS** (exceto em `localhost`, só
+   para testes).
+
    > Importante: ao importar qualquer um dos arquivos `.sql` deste projeto,
    > garanta que o cliente MySQL use UTF-8 (ex.: `mysql --default-character-set=utf8mb4 -u root -p < arquivo.sql`),
    > caso contrário os valores acentuados dos campos `ENUM` (como "Disponível")
@@ -510,6 +526,19 @@ web-scati/
   logado, então nem trocando o id na URL dá para acessar a nota de
   outra pessoa). Não aparece para o perfil Usuário, que só tem acesso à
   aba Chamados.
+- **App instalável (PWA) e notificações push**: o sistema pode ser
+  "instalado" pelo navegador — Chrome/Edge no computador, Chrome no
+  Android, Safari no iPhone (menu Compartilhar → "Adicionar à Tela de
+  Início") — ganhando ícone próprio e abrindo em janela própria, sem
+  barra de endereço. Um botão de sino ao lado do menu de notificações
+  (barra superior) ativa notificação push de verdade nesse dispositivo:
+  o sistema avisa quando chega mensagem nova num chamado (solicitante e
+  responsável são avisados, exceto quem respondeu) ou quando um chamado
+  novo é aberto (Administrador e Padrão são avisados, exceto quem
+  abriu) — a notificação chega mesmo com o app fechado, igual um app
+  qualquer do celular. Implementado com a biblioteca padrão do mercado
+  para Web Push (`minishlink/web-push`, já incluída no projeto — não
+  precisa rodar `composer install`). Só funciona com o site em HTTPS.
 - **Interface responsiva** com Bootstrap 5, menu lateral recolhível em
   telas pequenas.
 - **Configurações**: tela central (menu lateral) com vários ajustes do
