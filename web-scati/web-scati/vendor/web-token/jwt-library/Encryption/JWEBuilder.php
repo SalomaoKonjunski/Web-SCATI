@@ -118,6 +118,8 @@ class JWEBuilder
 
     /**
      * Set the shared protected header of the JWE to build.
+     *
+     * @param array<string, mixed> $sharedProtectedHeader
      */
     public function withSharedProtectedHeader(array $sharedProtectedHeader): self
     {
@@ -133,6 +135,8 @@ class JWEBuilder
 
     /**
      * Set the shared header of the JWE to build.
+     *
+     * @param array<string, mixed> $sharedHeader
      */
     public function withSharedHeader(array $sharedHeader): self
     {
@@ -148,6 +152,8 @@ class JWEBuilder
 
     /**
      * Adds a recipient to the JWE to build.
+     *
+     * @param array<string, mixed> $recipientHeader
      */
     public function addRecipient(JWK $recipientKey, array $recipientHeader = []): self
     {
@@ -178,7 +184,7 @@ class JWEBuilder
         return $clone;
     }
 
-    //TODO: Verify if the key is compatible with the key encryption algorithm like is done to the ECDH-ES
+    // TODO: Verify if the key is compatible with the key encryption algorithm like is done to the ECDH-ES
     /**
      * Set the sender JWK to be used instead of the internal generated JWK
      */
@@ -257,6 +263,12 @@ class JWEBuilder
         }
     }
 
+    /**
+     * The header parameters computed by the key encryption algorithm are added to the per-recipient header
+     * when there is more than one recipient. Those already set in a shared header are filtered out: the
+     * header parameter names of the three headers must be disjoint (RFC 7516 section 7.2.1), and a shared
+     * value takes precedence, as it does with a single recipient.
+     */
     private function processRecipient(array $recipient, string $cek, array &$additionalHeader): Recipient
     {
         $completeHeader = array_merge($this->sharedHeader, $recipient['header'], $this->sharedProtectedHeader);
@@ -270,10 +282,11 @@ class JWEBuilder
             $keyEncryptionAlgorithm,
             $additionalHeader,
             $recipient['key'],
-            $recipient['sender_key'] ?? $this->senderKey ?? null
+            $recipient['sender_key'] ?? $this->senderKey
         );
         $recipientHeader = $recipient['header'];
         if ((is_countable($additionalHeader) ? count($additionalHeader) : 0) !== 0 && count($this->recipients) !== 1) {
+            $additionalHeader = array_diff_key($additionalHeader, $this->sharedProtectedHeader, $this->sharedHeader);
             $recipientHeader = array_merge($recipientHeader, $additionalHeader);
             $additionalHeader = [];
         }
