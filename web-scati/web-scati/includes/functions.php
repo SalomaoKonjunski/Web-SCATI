@@ -360,7 +360,65 @@ function gruposCamposEquipamento(): array
                 'servidor_observacoes' => ['label' => 'Observações'],
             ],
         ],
+        'switch' => [
+            'coluna' => 'campo_switch',
+            'label' => 'Portas do Switch',
+            'icone' => 'bi-diagram-3',
+            'campos' => [
+                'qtd_portas_switch' => ['label' => 'Quantidade de Portas'],
+            ],
+        ],
     ];
+}
+
+/**
+ * Retorna true se o tipo de equipamento tem o grupo "switch" habilitado
+ * (ver gruposCamposEquipamento()) — decide se a aba "Mapeamento de Portas"
+ * aparece na ficha e se o campo "Quantidade de Portas" aparece no cadastro.
+ * Baseado no flag da categoria (não no nome "Switch" travado), para
+ * continuar funcionando mesmo se o admin renomear a categoria ou habilitar
+ * o mesmo recurso para outro tipo de equipamento de rede.
+ */
+function temMapeamentoPortas(string $tipo): bool
+{
+    return in_array('switch', gruposHabilitadosParaTipo($tipo), true);
+}
+
+/**
+ * Lista fixa dos status aceitos para uma porta de switch (deve refletir o ENUM do banco).
+ */
+function statusPortaSwitch(): array
+{
+    return ['Livre', 'Ocupada', 'Inativa'];
+}
+
+function statusPortaBadgeClass(string $status): string
+{
+    return match ($status) {
+        'Ocupada' => 'bg-primary',
+        'Inativa' => 'bg-danger',
+        default   => 'bg-secondary',
+    };
+}
+
+/**
+ * Garante que existam linhas em portas_switch para os números 1..$qtdPortas
+ * deste switch, sem tocar nas que já existem (INSERT IGNORE aproveita a
+ * chave única switch_id+numero). Se a quantidade configurada for reduzida
+ * depois, as portas além do novo limite simplesmente não são mais
+ * exibidas — não são apagadas, então voltam a aparecer (com o vínculo que
+ * tinham) se a quantidade for aumentada de novo.
+ */
+function sincronizarPortasSwitch(int $switchId, ?int $qtdPortas): void
+{
+    if (!$qtdPortas || $qtdPortas < 1) {
+        return;
+    }
+
+    $stmt = db()->prepare('INSERT IGNORE INTO portas_switch (switch_id, numero) VALUES (:switch_id, :numero)');
+    for ($numero = 1; $numero <= $qtdPortas; $numero++) {
+        $stmt->execute(['switch_id' => $switchId, 'numero' => $numero]);
+    }
 }
 
 /**

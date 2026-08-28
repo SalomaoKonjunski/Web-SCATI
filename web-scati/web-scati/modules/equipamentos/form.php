@@ -21,6 +21,7 @@ $equipamento = [
     'ip' => '', 'modelo_toner' => '', 'qtd_toners' => '', 'toner_duracao_dias' => '',
     'ip_fixo' => '', 'placa_mae' => '', 'placa_video' => '',
     'funcao_servidor' => '', 'servidor_status' => 'Ativo', 'servidor_observacoes' => '',
+    'qtd_portas_switch' => '',
     'valor_aquisicao' => '', 'data_compra' => '', 'fornecedor' => '', 'numero_nota_fiscal' => '',
     'garantia' => '', 'valor_atual' => '', 'observacoes_financeiras' => '',
 ];
@@ -198,6 +199,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $redeId = $equipamento['rede_id'] !== '' ? (int) $equipamento['rede_id'] : null;
         $qtdToners = $equipamento['qtd_toners'] !== '' ? (int) $equipamento['qtd_toners'] : null;
         $tonerDuracaoDias = $equipamento['toner_duracao_dias'] !== '' ? (int) $equipamento['toner_duracao_dias'] : null;
+        $qtdPortasSwitch = $equipamento['qtd_portas_switch'] !== '' ? (int) $equipamento['qtd_portas_switch'] : null;
         $valorAquisicao = $equipamento['valor_aquisicao'] !== '' ? (float) str_replace(',', '.', $equipamento['valor_aquisicao']) : null;
         $valorAtual = $equipamento['valor_atual'] !== '' ? (float) str_replace(',', '.', $equipamento['valor_atual']) : null;
         $dataCompra = $equipamento['data_compra'] !== '' ? $equipamento['data_compra'] : null;
@@ -229,6 +231,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'funcao_servidor' => $equipamento['funcao_servidor'] ?: null,
             'servidor_status' => $equipamento['servidor_status'] ?: null,
             'servidor_observacoes' => $equipamento['servidor_observacoes'] ?: null,
+            'qtd_portas_switch' => $qtdPortasSwitch,
             'valor_aquisicao' => $valorAquisicao,
             'data_compra' => $dataCompra,
             'fornecedor' => $equipamento['fornecedor'] ?: null,
@@ -271,6 +274,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $para = $dadosParaSalvar['servidor_status'] ?: '(vazio)';
                     $mudancas[] = ['Alteração', "Status do servidor alterado de \"$de\" para \"$para\""];
                 }
+                if (temMapeamentoPortas($dadosParaSalvar['tipo']) && (int) ($registro['qtd_portas_switch'] ?? 0) !== (int) ($dadosParaSalvar['qtd_portas_switch'] ?? 0)) {
+                    $mudancas[] = ['Alteração', 'Quantidade de portas do switch alterada para ' . ((int) $dadosParaSalvar['qtd_portas_switch'] ?: '0')];
+                }
                 $camposFinanceiros = ['valor_aquisicao', 'data_compra', 'fornecedor', 'numero_nota_fiscal', 'garantia', 'valor_atual', 'observacoes_financeiras'];
                 foreach ($camposFinanceiros as $campoFin) {
                     if ((string) ($registro[$campoFin] ?? '') !== (string) ($dadosParaSalvar[$campoFin] ?? '')) {
@@ -289,6 +295,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         ip_fixo = :ip_fixo, placa_mae = :placa_mae,
                         placa_video = :placa_video,
                         funcao_servidor = :funcao_servidor, servidor_status = :servidor_status, servidor_observacoes = :servidor_observacoes,
+                        qtd_portas_switch = :qtd_portas_switch,
                         valor_aquisicao = :valor_aquisicao, data_compra = :data_compra, fornecedor = :fornecedor,
                         numero_nota_fiscal = :numero_nota_fiscal, garantia = :garantia, valor_atual = :valor_atual,
                         observacoes_financeiras = :observacoes_financeiras
@@ -300,6 +307,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     registrarHistorico($id, $evento, $descricao);
                 }
 
+                if (temMapeamentoPortas($dadosParaSalvar['tipo'])) {
+                    sincronizarPortasSwitch($id, $qtdPortasSwitch);
+                }
+
                 flash('success', 'Equipamento atualizado com sucesso.');
                 redirect('/modules/equipamentos/view.php?id=' . $id);
             } else {
@@ -307,18 +318,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         (nome, patrimonio, tipo, marca, modelo, numero_serie, hostname, processador, memoria_ram,
                          armazenamento, sistema_operacional, status, localizacao, usuario_responsavel, rede_id, acesso_usb,
                          ip, modelo_toner, qtd_toners, toner_duracao_dias, ip_fixo, placa_mae, placa_video, funcao_servidor, servidor_status, servidor_observacoes,
+                         qtd_portas_switch,
                          valor_aquisicao, data_compra, fornecedor, numero_nota_fiscal,
                          garantia, valor_atual, observacoes_financeiras)
                         VALUES
                         (:nome, :patrimonio, :tipo, :marca, :modelo, :numero_serie, :hostname, :processador, :memoria_ram,
                          :armazenamento, :sistema_operacional, :status, :localizacao, :usuario_responsavel, :rede_id, :acesso_usb,
                          :ip, :modelo_toner, :qtd_toners, :toner_duracao_dias, :ip_fixo, :placa_mae, :placa_video, :funcao_servidor, :servidor_status, :servidor_observacoes,
+                         :qtd_portas_switch,
                          :valor_aquisicao, :data_compra, :fornecedor, :numero_nota_fiscal,
                          :garantia, :valor_atual, :observacoes_financeiras)';
                 $pdo->prepare($sql)->execute($dadosParaSalvar);
                 $novoId = (int) $pdo->lastInsertId();
 
                 registrarHistorico($novoId, 'Cadastro', 'Equipamento cadastrado');
+
+                if (temMapeamentoPortas($dadosParaSalvar['tipo'])) {
+                    sincronizarPortasSwitch($novoId, $qtdPortasSwitch);
+                }
 
                 flash('success', 'Equipamento cadastrado com sucesso.');
                 redirect('/modules/equipamentos/view.php?id=' . $novoId);
@@ -571,6 +588,22 @@ include __DIR__ . '/../../includes/header.php';
             <div class="col-md-12">
                 <label class="form-label">Observações</label>
                 <textarea name="servidor_observacoes" class="form-control" rows="3"><?= e($equipamento['servidor_observacoes']) ?></textarea>
+            </div>
+        </div>
+    </div>
+
+    <!-- Campos específicos de switch -->
+    <div class="card mb-3" id="grupoCampos_switch">
+        <div class="card-header bg-white"><strong><i class="bi bi-diagram-3 me-1"></i> Portas do Switch</strong></div>
+        <div class="card-body row g-3">
+            <div class="col-md-4">
+                <label class="form-label">Quantidade de Portas</label>
+                <input type="number" min="1" max="96" name="qtd_portas_switch" class="form-control" placeholder="Ex: 24" value="<?= e((string) $equipamento['qtd_portas_switch']) ?>">
+                <div class="form-text">
+                    Gera automaticamente o mapeamento de portas na aba "Mapeamento de Portas" da ficha deste
+                    equipamento. Reduzir a quantidade não apaga vínculos já feitos nas portas além do novo
+                    limite — eles só ficam ocultos até a quantidade ser aumentada de novo.
+                </div>
             </div>
         </div>
     </div>

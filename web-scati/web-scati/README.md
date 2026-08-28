@@ -264,6 +264,14 @@ Funcional (v1.0).
    push só funciona com o site em **HTTPS** (exceto em `localhost`, só
    para testes).
 
+   Se o banco já existia antes do **Mapeamento de Portas do Switch** (ainda
+   não tem a tabela `portas_switch` nem a coluna `qtd_portas_switch` em
+   `equipamentos`), rode também esta migração incremental **uma única
+   vez**:
+   ```bash
+   mysql --default-character-set=utf8mb4 -u root -p scati < database/migration_portas_switch.sql
+   ```
+
    > Importante: ao importar qualquer um dos arquivos `.sql` deste projeto,
    > garanta que o cliente MySQL use UTF-8 (ex.: `mysql --default-character-set=utf8mb4 -u root -p < arquivo.sql`),
    > caso contrário os valores acentuados dos campos `ENUM` (como "Disponível")
@@ -539,6 +547,17 @@ web-scati/
   qualquer do celular. Implementado com a biblioteca padrão do mercado
   para Web Push (`minishlink/web-push`, já incluída no projeto — não
   precisa rodar `composer install`). Só funciona com o site em HTTPS.
+- **Mapeamento de Portas do Switch**: a ficha de um equipamento do tipo
+  Switch (ou qualquer categoria com o grupo "Portas do Switch" habilitado
+  em Configurações > Categorias) ganha a aba "Mapeamento de Portas" — um
+  painel visual com todas as portas numeradas (livre / ocupada / inativa),
+  onde basta clicar numa porta para vincular, trocar ou desconectar o
+  equipamento que está ligado nela, com observação livre para VLAN ou
+  outra anotação. Um mesmo equipamento não pode ocupar duas portas ao
+  mesmo tempo. A quantidade de portas é definida na edição do equipamento
+  (campo "Quantidade de Portas"); reduzir a quantidade não apaga os
+  vínculos das portas além do novo limite, elas só ficam ocultas até a
+  quantidade ser aumentada de novo.
 - **Interface responsiva** com Bootstrap 5, menu lateral recolhível em
   telas pequenas.
 - **Configurações**: tela central (menu lateral) com vários ajustes do
@@ -563,11 +582,13 @@ web-scati/
     automaticamente o tipo de todos os equipamentos que já usavam o
     nome antigo. Cada categoria também define quais **cards de campos
     extras** aparecem no cadastro/ficha de Equipamentos dela — Hardware,
-    Dados da Impressora, Rede do Computador e Informações do Servidor —
-    marcados por checkbox; as 4 categorias protegidas têm esses campos
-    fixos (bloqueados na tela, refletindo o comportamento de sempre do
-    sistema), enquanto categorias novas ou não protegidas (Monitor,
-    Switch, Tablet criado por você, etc.) ficam livres para configurar.
+    Dados da Impressora, Rede do Computador, Informações do Servidor e
+    Portas do Switch (este último também controla se a aba "Mapeamento de
+    Portas" aparece na ficha) — marcados por checkbox; as 4 categorias
+    protegidas têm esses campos fixos (bloqueados na tela, refletindo o
+    comportamento de sempre do sistema), enquanto categorias novas ou não
+    protegidas (Monitor, Switch, Tablet criado por você, etc.) ficam
+    livres para configurar.
     Os cards aparecem/somem no formulário assim que o Tipo é trocado, e
     o servidor sempre confere de novo quais grupos o tipo escolhido tem
     antes de salvar — ignora valores de campos escondidos, mesmo se

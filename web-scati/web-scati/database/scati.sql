@@ -92,20 +92,21 @@ CREATE TABLE categorias_equipamento (
     campo_hardware          TINYINT(1) NOT NULL DEFAULT 0,
     campo_impressora        TINYINT(1) NOT NULL DEFAULT 0,
     campo_rede_computador   TINYINT(1) NOT NULL DEFAULT 0,
-    campo_servidor          TINYINT(1) NOT NULL DEFAULT 0
+    campo_servidor          TINYINT(1) NOT NULL DEFAULT 0,
+    campo_switch            TINYINT(1) NOT NULL DEFAULT 0
 ) ENGINE=InnoDB;
 
-INSERT INTO categorias_equipamento (nome, campo_hardware, campo_impressora, campo_rede_computador, campo_servidor) VALUES
-('Computador', 1, 0, 1, 0),
-('Notebook', 1, 0, 0, 0),
-('Impressora', 0, 1, 0, 0),
-('Monitor', 1, 0, 0, 0),
-('Switch', 1, 0, 0, 0),
-('Roteador', 1, 0, 0, 0),
-('Access Point', 1, 0, 0, 0),
-('Nobreak', 1, 0, 0, 0),
-('Servidor', 1, 0, 0, 1),
-('Outros', 1, 0, 0, 0);
+INSERT INTO categorias_equipamento (nome, campo_hardware, campo_impressora, campo_rede_computador, campo_servidor, campo_switch) VALUES
+('Computador', 1, 0, 1, 0, 0),
+('Notebook', 1, 0, 0, 0, 0),
+('Impressora', 0, 1, 0, 0, 0),
+('Monitor', 1, 0, 0, 0, 0),
+('Switch', 1, 0, 0, 0, 1),
+('Roteador', 1, 0, 0, 0, 0),
+('Access Point', 1, 0, 0, 0, 0),
+('Nobreak', 1, 0, 0, 0, 0),
+('Servidor', 1, 0, 0, 1, 0),
+('Outros', 1, 0, 0, 0, 0);
 
 -- ---------------------------------------------------------------------
 -- Tabela: equipamentos
@@ -153,6 +154,9 @@ CREATE TABLE equipamentos (
     servidor_status          ENUM('Ativo','Inativo') NULL,
     servidor_observacoes     TEXT NULL,
 
+    -- Campo específico de switch (gera as linhas em portas_switch)
+    qtd_portas_switch        INT NULL,
+
     -- Financeiro (opcional)
     valor_aquisicao          DECIMAL(12,2) NULL,
     data_compra              DATE NULL,
@@ -167,6 +171,29 @@ CREATE TABLE equipamentos (
 
     CONSTRAINT fk_equipamentos_rede
         FOREIGN KEY (rede_id) REFERENCES redes(id) ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+-- ---------------------------------------------------------------------
+-- Tabela: portas_switch
+-- Mapeamento de portas de um equipamento do tipo Switch (ou qualquer
+-- categoria com o grupo "switch" habilitado). As linhas de 1 até
+-- qtd_portas_switch são geradas automaticamente (ver
+-- sincronizarPortasSwitch() em includes/functions.php); cada porta pode
+-- estar livre, ocupada (vinculada a outro equipamento) ou inativa.
+-- ---------------------------------------------------------------------
+CREATE TABLE portas_switch (
+    id              INT AUTO_INCREMENT PRIMARY KEY,
+    switch_id       INT NOT NULL,
+    numero          INT NOT NULL,
+    status          ENUM('Livre','Ocupada','Inativa') NOT NULL DEFAULT 'Livre',
+    equipamento_id  INT NULL,
+    observacao      VARCHAR(120) NULL,
+
+    CONSTRAINT fk_porta_switch
+        FOREIGN KEY (switch_id) REFERENCES equipamentos(id) ON DELETE CASCADE,
+    CONSTRAINT fk_porta_equipamento
+        FOREIGN KEY (equipamento_id) REFERENCES equipamentos(id) ON DELETE SET NULL,
+    UNIQUE KEY uq_porta_switch_numero (switch_id, numero)
 ) ENGINE=InnoDB;
 
 -- ---------------------------------------------------------------------

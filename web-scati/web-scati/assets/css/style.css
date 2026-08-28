@@ -256,6 +256,78 @@ a.scati-kpi-card-link .scati-kpi-card.kpi-ativo {
 }
 
 /* =====================================================
+   Mapeamento de Portas do Switch (ficha do equipamento)
+   ===================================================== */
+.scati-switch-rack {
+    background: #1a2433;
+    border-radius: 10px;
+    padding: 22px 22px 16px;
+}
+
+.scati-porta-fileira {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.scati-porta-fileira + .scati-porta-fileira {
+    margin-top: 8px;
+}
+
+.scati-porta {
+    width: 56px;
+    height: 56px;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid transparent;
+    background: none;
+    padding: 0;
+    cursor: pointer;
+    transition: transform .1s ease;
+}
+
+.scati-porta:hover {
+    transform: translateY(-2px);
+}
+
+.scati-porta-num {
+    font-size: .72rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.scati-porta-ico {
+    font-size: .95rem;
+    margin-top: 2px;
+}
+
+.scati-porta-livre { background: #2b3648; border-color: #3b4a61; color: #8b98ab; }
+.scati-porta-ocupada { background: #1f5f8f; border-color: #2f8dff; color: #ffffff; }
+.scati-porta-ocupada .scati-porta-ico { color: #7ec4ff; }
+.scati-porta-inativa { background: #4a2530; border-color: #a83f52; color: #e79aa8; }
+
+.scati-legenda-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: .85rem;
+}
+
+.scati-porta-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.scati-porta-dot-livre { background: #2b3648; border: 2px solid #3b4a61; }
+.scati-porta-dot-ocupada { background: #1f5f8f; border: 2px solid #2f8dff; }
+.scati-porta-dot-inativa { background: #4a2530; border: 2px solid #a83f52; }
+
+/* =====================================================
    Impressão / exportação em PDF: exibe apenas o conteúdo
    principal da página, sem navbar, menu lateral ou ações.
    ===================================================== */

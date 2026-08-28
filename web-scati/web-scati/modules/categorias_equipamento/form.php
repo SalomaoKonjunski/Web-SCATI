@@ -77,7 +77,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $pdo->prepare(
                 'UPDATE categorias_equipamento SET nome = :nome,
                     campo_hardware = :campo_hardware, campo_impressora = :campo_impressora,
-                    campo_rede_computador = :campo_rede_computador, campo_servidor = :campo_servidor
+                    campo_rede_computador = :campo_rede_computador, campo_servidor = :campo_servidor,
+                    campo_switch = :campo_switch
                  WHERE id = :id'
             )->execute($params);
 
@@ -92,8 +93,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             flash('success', 'Categoria atualizada com sucesso.');
         } else {
             $pdo->prepare(
-                'INSERT INTO categorias_equipamento (nome, campo_hardware, campo_impressora, campo_rede_computador, campo_servidor)
-                 VALUES (:nome, :campo_hardware, :campo_impressora, :campo_rede_computador, :campo_servidor)'
+                'INSERT INTO categorias_equipamento (nome, campo_hardware, campo_impressora, campo_rede_computador, campo_servidor, campo_switch)
+                 VALUES (:nome, :campo_hardware, :campo_impressora, :campo_rede_computador, :campo_servidor, :campo_switch)'
             )->execute($params);
             flash('success', 'Categoria cadastrada com sucesso.');
         }

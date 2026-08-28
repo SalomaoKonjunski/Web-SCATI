@@ -474,4 +474,53 @@ document.addEventListener('DOMContentLoaded', function () {
         verificarNotificacoes();
         setInterval(verificarNotificacoes, 25000);
     }
+
+    // Mapeamento de Portas do switch (ficha do equipamento): em vez de
+    // renderizar um modal por porta (até 96), populamos um único modal
+    // compartilhado com os dados (data-*) da porta clicada.
+    const modalPortaEl = document.getElementById('modalPortaSwitch');
+    if (modalPortaEl) {
+        const modalPorta = new bootstrap.Modal(modalPortaEl);
+        const campoPortaId = document.getElementById('modalPortaId');
+        const campoPortaNumero = document.getElementById('modalPortaNumero');
+        const campoStatus = document.getElementById('modalPortaStatus');
+        const campoEquipamentoWrap = document.getElementById('modalPortaEquipamentoWrap');
+        const campoEquipamento = document.getElementById('modalPortaEquipamento');
+        const campoObservacao = document.getElementById('modalPortaObservacao');
+
+        function alternarCampoEquipamentoPorta() {
+            campoEquipamentoWrap.style.display = campoStatus.value === 'Ocupada' ? '' : 'none';
+        }
+        campoStatus.addEventListener('change', alternarCampoEquipamentoPorta);
+
+        document.querySelectorAll('.js-porta-switch').forEach(function (botao) {
+            botao.addEventListener('click', function () {
+                campoPortaId.value = botao.dataset.portaId;
+                campoPortaNumero.textContent = botao.dataset.numero;
+                campoStatus.value = botao.dataset.status;
+                campoObservacao.value = botao.dataset.observacao || '';
+
+                const equipamentoId = botao.dataset.equipamentoId;
+                if (equipamentoId && equipamentoId !== '0') {
+                    // O equipamento já vinculado a ESTA porta não está entre
+                    // as opções (a lista do servidor exclui quem já está em
+                    // qualquer porta, inclusive esta), então garantimos que
+                    // ele apareça como opção selecionável aqui.
+                    let opcao = campoEquipamento.querySelector('option[value="' + equipamentoId + '"]');
+                    if (!opcao) {
+                        opcao = document.createElement('option');
+                        opcao.value = equipamentoId;
+                        opcao.textContent = botao.dataset.equipamentoLabel;
+                        campoEquipamento.appendChild(opcao);
+                    }
+                    campoEquipamento.value = equipamentoId;
+                } else {
+                    campoEquipamento.value = '';
+                }
+
+                alternarCampoEquipamentoPorta();
+                modalPorta.show();
+            });
+        });
+    }
 });

@@ -21,6 +21,13 @@ if (!$eq) {
     redirect('/modules/equipamentos/index.php');
 }
 
+// Gera (se ainda faltar) as linhas de porta 1..qtd_portas_switch antes de
+// qualquer leitura abaixo, para que a aba já mostre as portas certas
+// mesmo na primeira visita depois de configurar a quantidade.
+if (temMapeamentoPortas($eq['tipo']) && !empty($eq['qtd_portas_switch'])) {
+    sincronizarPortasSwitch($id, (int) $eq['qtd_portas_switch']);
+}
+
 // Trata o envio do formulário de nova observação (POST nesta mesma página)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['nova_observacao'])) {
     $texto = trim($_POST['nova_observacao']);
@@ -107,6 +114,67 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['registrar_troca_toner
     registrarHistorico($id, 'Manutenção', 'Troca de toner registrada — prazo de alerta reiniciado');
     flash('success', 'Troca de toner registrada. O prazo de alerta foi reiniciado a partir de hoje.');
     redirect('/modules/equipamentos/view.php?id=' . $id . '#toner');
+}
+
+// Trata a atualização de uma porta do switch: status, equipamento
+// conectado e observação/VLAN (POST nesta mesma página, via o modal
+// compartilhado da aba "Mapeamento de Portas").
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['salvar_porta'])) {
+    $portaId = (int) ($_POST['porta_id'] ?? 0);
+    $statusPorta = $_POST['status_porta'] ?? '';
+    $equipamentoConectadoId = (int) ($_POST['equipamento_conectado_id'] ?? 0);
+    $observacaoPorta = trim($_POST['observacao_porta'] ?? '');
+
+    $stmtPorta = $pdo->prepare('SELECT * FROM portas_switch WHERE id = :id AND switch_id = :switch_id');
+    $stmtPorta->execute(['id' => $portaId, 'switch_id' => $id]);
+    $porta = $stmtPorta->fetch();
+
+    if (!$porta || !in_array($statusPorta, statusPortaSwitch(), true)) {
+        flash('danger', 'Porta inválida.');
+        redirect('/modules/equipamentos/view.php?id=' . $id . '#portas');
+    }
+
+    $equipamentoConectadoIdFinal = null;
+    if ($statusPorta === 'Ocupada' && $equipamentoConectadoId > 0) {
+        // Um mesmo equipamento não pode estar em duas portas ao mesmo tempo
+        // (nem na mesma, nem em outro switch) — valida server-side, não
+        // confia só na lista de opções filtrada no HTML.
+        $stmtCheckEq = $pdo->prepare('SELECT id FROM portas_switch WHERE equipamento_id = :equipamento_id AND id != :porta_id');
+        $stmtCheckEq->execute(['equipamento_id' => $equipamentoConectadoId, 'porta_id' => $portaId]);
+        if ($stmtCheckEq->fetch()) {
+            flash('danger', 'Este equipamento já está vinculado a outra porta.');
+            redirect('/modules/equipamentos/view.php?id=' . $id . '#portas');
+        }
+        $equipamentoConectadoIdFinal = $equipamentoConectadoId;
+    }
+
+    $pdo->prepare('UPDATE portas_switch SET status = :status, equipamento_id = :equipamento_id, observacao = :observacao WHERE id = :id')
+        ->execute([
+            'status' => $statusPorta,
+            'equipamento_id' => $equipamentoConectadoIdFinal,
+            'observacao' => $observacaoPorta ?: null,
+            'id' => $portaId,
+        ]);
+
+    registrarHistorico($id, 'Rede', 'Porta ' . (int) $porta['numero'] . ' atualizada (' . $statusPorta . ')');
+    flash('success', 'Porta ' . (int) $porta['numero'] . ' atualizada com sucesso.');
+    redirect('/modules/equipamentos/view.php?id=' . $id . '#portas');
+}
+
+// Trata a desconexão rápida de uma porta do switch (POST nesta mesma página)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['desconectar_porta'])) {
+    $portaId = (int) ($_POST['porta_id'] ?? 0);
+    $stmtPorta = $pdo->prepare('SELECT * FROM portas_switch WHERE id = :id AND switch_id = :switch_id');
+    $stmtPorta->execute(['id' => $portaId, 'switch_id' => $id]);
+    $porta = $stmtPorta->fetch();
+
+    if ($porta) {
+        $pdo->prepare("UPDATE portas_switch SET status = 'Livre', equipamento_id = NULL, observacao = NULL WHERE id = :id")
+            ->execute(['id' => $portaId]);
+        registrarHistorico($id, 'Rede', 'Porta ' . (int) $porta['numero'] . ' desconectada');
+        flash('success', 'Porta ' . (int) $porta['numero'] . ' desconectada.');
+    }
+    redirect('/modules/equipamentos/view.php?id=' . $id . '#portas');
 }
 
 // Trata o cadastro (ou reaproveitamento) de um item de estoque direto nesta
@@ -332,6 +400,51 @@ if (!empty($compartilhamentos)) {
     }
 }
 
+// Portas do switch (só busca se o tipo tiver o grupo "switch" habilitado)
+$portasSwitch = [];
+$equipamentosDisponiveisPortas = [];
+if (temMapeamentoPortas($eq['tipo'])) {
+    $stmtPortas = $pdo->prepare(
+        'SELECT p.*, ec.nome AS equip_nome, ec.patrimonio AS equip_patrimonio, ec.tipo AS equip_tipo
+         FROM portas_switch p
+         LEFT JOIN equipamentos ec ON ec.id = p.equipamento_id
+         WHERE p.switch_id = :id
+         ORDER BY p.numero'
+    );
+    $stmtPortas->execute(['id' => $id]);
+    $todasPortasSwitch = $stmtPortas->fetchAll();
+
+    // Só exibe as portas dentro da quantidade configurada atualmente —
+    // portas além do limite (de quando a quantidade era maior) ficam
+    // guardadas no banco mas ocultas, sem perder o vínculo se a
+    // quantidade for aumentada de novo depois.
+    $qtdPortasAtual = (int) ($eq['qtd_portas_switch'] ?? 0);
+    $portasSwitch = array_values(array_filter($todasPortasSwitch, fn($p) => (int) $p['numero'] <= $qtdPortasAtual));
+
+    // Equipamentos disponíveis para vincular a uma porta: qualquer um,
+    // menos o próprio switch e os que já estão em outra porta — inclusive
+    // em portas atualmente ocultas além do limite, para não deixar
+    // vincular por engano um equipamento que já está em outro lugar (o
+    // próprio equipamento já vinculado à porta que está sendo editada é
+    // reinserido nas opções via JS, direto no navegador).
+    $idsLinkados = array_values(array_filter(array_column($todasPortasSwitch, 'equipamento_id')));
+    $sqlDisponiveis = 'SELECT id, nome, patrimonio, tipo FROM equipamentos WHERE id != :switch_id';
+    $paramsDisponiveis = ['switch_id' => $id];
+    if (!empty($idsLinkados)) {
+        $placeholders = [];
+        foreach ($idsLinkados as $indice => $idLinkado) {
+            $chave = 'excl' . $indice;
+            $placeholders[] = ':' . $chave;
+            $paramsDisponiveis[$chave] = $idLinkado;
+        }
+        $sqlDisponiveis .= ' AND id NOT IN (' . implode(',', $placeholders) . ')';
+    }
+    $sqlDisponiveis .= ' ORDER BY tipo, nome';
+    $stmtDisponiveis = $pdo->prepare($sqlDisponiveis);
+    $stmtDisponiveis->execute($paramsDisponiveis);
+    $equipamentosDisponiveisPortas = $stmtDisponiveis->fetchAll();
+}
+
 $pageTitle = 'Ficha do Equipamento';
 include __DIR__ . '/../../includes/header.php';
 ?>
@@ -377,6 +490,13 @@ include __DIR__ . '/../../includes/header.php';
     <li class="nav-item" role="presentation">
         <button class="nav-link" data-bs-toggle="tab" data-bs-target="#toner" type="button">
             Toner <span class="badge bg-secondary"><?= count($tonersVinculados) ?></span>
+        </button>
+    </li>
+    <?php endif; ?>
+    <?php if (temMapeamentoPortas($eq['tipo'])): ?>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#portas" type="button">
+            Mapeamento de Portas <span class="badge bg-secondary"><?= count($portasSwitch) ?></span>
         </button>
     </li>
     <?php endif; ?>
@@ -828,6 +948,146 @@ include __DIR__ . '/../../includes/header.php';
                 </div>
             </div>
         </div>
+        <?php endif; ?>
+    </div>
+    <?php endif; ?>
+
+    <?php if (temMapeamentoPortas($eq['tipo'])): ?>
+    <!-- Mapeamento de Portas -->
+    <div class="tab-pane fade" id="portas">
+        <?php if (empty($eq['qtd_portas_switch'])): ?>
+            <p class="text-muted">
+                Defina a "Quantidade de Portas" na <a href="form.php?id=<?= (int) $eq['id'] ?>">edição deste equipamento</a>
+                para gerar o mapeamento de portas.
+            </p>
+        <?php else: ?>
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                <h6 class="text-muted text-uppercase small mb-0">Portas deste switch</h6>
+                <div class="d-flex gap-3 scati-porta-legenda">
+                    <span class="scati-legenda-item"><span class="scati-porta-dot scati-porta-dot-livre"></span> Livre</span>
+                    <span class="scati-legenda-item"><span class="scati-porta-dot scati-porta-dot-ocupada"></span> Ocupada</span>
+                    <span class="scati-legenda-item"><span class="scati-porta-dot scati-porta-dot-inativa"></span> Inativa</span>
+                </div>
+            </div>
+            <p class="text-muted small mb-3">Clique em uma porta para vincular, alterar ou desconectar um equipamento.</p>
+
+            <div class="scati-switch-rack mb-4">
+                <?php
+                    $portasImpares = array_values(array_filter($portasSwitch, fn($p) => (int) $p['numero'] % 2 === 1));
+                    $portasPares = array_values(array_filter($portasSwitch, fn($p) => (int) $p['numero'] % 2 === 0));
+                ?>
+                <?php foreach ([$portasImpares, $portasPares] as $fileira): ?>
+                    <?php if (empty($fileira)) continue; ?>
+                    <div class="scati-porta-fileira">
+                        <?php foreach ($fileira as $p): ?>
+                            <?php
+                                $classeStatus = match ($p['status']) {
+                                    'Ocupada' => 'scati-porta-ocupada',
+                                    'Inativa' => 'scati-porta-inativa',
+                                    default => 'scati-porta-livre',
+                                };
+                                $iconePorta = match ($p['status']) {
+                                    'Ocupada' => 'bi-hdd-network',
+                                    'Inativa' => 'bi-slash-circle',
+                                    default => 'bi-dash-circle',
+                                };
+                                $labelEquip = $p['equip_nome'] || $p['equip_patrimonio'] ? nomeEquipamento($p['equip_nome'], $p['equip_patrimonio']) : '';
+                            ?>
+                            <button type="button" class="scati-porta <?= $classeStatus ?> js-porta-switch"
+                                    data-porta-id="<?= (int) $p['id'] ?>"
+                                    data-numero="<?= (int) $p['numero'] ?>"
+                                    data-status="<?= e($p['status']) ?>"
+                                    data-equipamento-id="<?= (int) ($p['equipamento_id'] ?? 0) ?>"
+                                    data-equipamento-label="<?= e($labelEquip) ?>"
+                                    data-observacao="<?= e($p['observacao'] ?? '') ?>"
+                                    title="Porta <?= (int) $p['numero'] ?><?= $labelEquip !== '' ? ' — ' . e($labelEquip) : '' ?>">
+                                <span class="scati-porta-num"><?= (int) $p['numero'] ?></span>
+                                <i class="bi <?= $iconePorta ?> scati-porta-ico"></i>
+                            </button>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+
+            <h6 class="text-muted text-uppercase small mb-3 mt-4">Equipamentos conectados</h6>
+            <?php $portasOcupadasOuInativas = array_filter($portasSwitch, fn($p) => $p['status'] !== 'Livre'); ?>
+            <?php if (empty($portasOcupadasOuInativas)): ?>
+                <p class="text-muted">Nenhuma porta ocupada ou inativa.</p>
+            <?php else: ?>
+                <table class="table table-sm table-hover">
+                    <thead class="table-light">
+                        <tr><th style="width:70px">Porta</th><th>Equipamento</th><th>Status</th><th>Observação</th></tr>
+                    </thead>
+                    <tbody>
+                    <?php foreach ($portasOcupadasOuInativas as $p): ?>
+                        <tr>
+                            <td><span class="badge bg-light text-dark border"><?= (int) $p['numero'] ?></span></td>
+                            <td>
+                                <?php if ($p['equipamento_id']): ?>
+                                    <a href="view.php?id=<?= (int) $p['equipamento_id'] ?>"><?= e(nomeEquipamento($p['equip_nome'], $p['equip_patrimonio'])) ?></a>
+                                <?php else: ?>
+                                    <span class="text-muted">-</span>
+                                <?php endif; ?>
+                            </td>
+                            <td><span class="badge <?= statusPortaBadgeClass($p['status']) ?>"><?= e($p['status']) ?></span></td>
+                            <td><?= $p['observacao'] ? e($p['observacao']) : '<span class="text-muted">-</span>' ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                    </tbody>
+                </table>
+            <?php endif; ?>
+
+            <!-- Modal compartilhado de edição de porta: um único modal é
+                 populado via JS com os dados da porta clicada (ver
+                 assets/js/scripts.js), em vez de um modal por porta. -->
+            <div class="modal fade" id="modalPortaSwitch" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog">
+                    <form method="post" class="modal-content">
+                        <input type="hidden" name="porta_id" id="modalPortaId" value="">
+                        <div class="modal-header">
+                            <h5 class="modal-title"><i class="bi bi-ethernet me-2"></i>Porta <span id="modalPortaNumero"></span></h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">Status da porta</label>
+                                <select name="status_porta" id="modalPortaStatus" class="form-select">
+                                    <?php foreach (statusPortaSwitch() as $st): ?>
+                                        <option value="<?= e($st) ?>"><?= e($st) ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div class="mb-3" id="modalPortaEquipamentoWrap">
+                                <label class="form-label fw-semibold">Equipamento conectado</label>
+                                <select name="equipamento_conectado_id" id="modalPortaEquipamento" class="form-select">
+                                    <option value="">Selecione um equipamento...</option>
+                                    <?php foreach ($equipamentosDisponiveisPortas as $eqDisp): ?>
+                                        <option value="<?= (int) $eqDisp['id'] ?>">
+                                            <?= e(nomeEquipamento($eqDisp['nome'], $eqDisp['patrimonio'])) ?> — <?= e($eqDisp['tipo']) ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                                <div class="form-text">Só aparecem equipamentos ainda sem porta vinculada.</div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">Observação / VLAN</label>
+                                <input type="text" name="observacao_porta" id="modalPortaObservacao" class="form-control" maxlength="120">
+                            </div>
+                        </div>
+                        <div class="modal-footer d-flex justify-content-between">
+                            <button type="submit" name="desconectar_porta" value="1" class="btn btn-outline-danger btn-sm">
+                                <i class="bi bi-x-lg"></i> Desconectar Porta
+                            </button>
+                            <div class="d-flex gap-2">
+                                <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+                                <button type="submit" name="salvar_porta" value="1" class="btn btn-primary btn-sm">
+                                    <i class="bi bi-check-lg"></i> Salvar
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
         <?php endif; ?>
     </div>
     <?php endif; ?>
