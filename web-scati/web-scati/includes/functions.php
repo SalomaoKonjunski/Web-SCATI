@@ -263,6 +263,24 @@ function configSet(string $chave, string $valor): void
 }
 
 /**
+ * Fusos horários que o sistema aceita configurar em Configurações (chave
+ * "fuso_horario"). Fica restrito a este whitelist — usado tanto para
+ * montar o <select> da tela quanto para validar o valor salvo — porque é
+ * lido bem cedo em config/database.php, antes de qualquer coisa do
+ * sistema rodar, e um valor de fuso inválido ali quebraria a página
+ * inteira sem essa validação.
+ */
+function fusosHorariosDisponiveis(): array
+{
+    return [
+        'America/Noronha' => 'Fernando de Noronha (UTC-2)',
+        'America/Sao_Paulo' => 'Brasília — SP, RJ, MG, Sul e demais estados (UTC-3)',
+        'America/Manaus' => 'Amazonas, Mato Grosso, Rondônia (UTC-4)',
+        'America/Rio_Branco' => 'Acre, sudoeste do Amazonas (UTC-5)',
+    ];
+}
+
+/**
  * Lista fixa das extensões de arquivo aceitas como anexo de equipamento.
  */
 function extensoesAnexoPermitidas(): array

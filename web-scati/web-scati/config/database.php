@@ -7,18 +7,6 @@
 
 declare(strict_types=1);
 
-// ---------------------------------------------------------------------
-// Fuso horário do PHP - ALTERE se o servidor não estiver no Brasil.
-// Sem isso, o PHP usa o fuso horário padrão configurado no php.ini do
-// servidor (no XAMPP, geralmente "Europe/Berlin" por padrão!), o que
-// deixa TODO horário calculado pelo sistema errado por várias horas —
-// data/hora de manutenções registradas, "dias parado" dos chamados,
-// alerta de troca de toner, "gerado em" da ficha de impressão, etc.
-// Datas que vêm prontas do banco de dados (ex.: quando um chamado foi
-// criado) não são afetadas por isso, só as calculadas pelo PHP na hora.
-// ---------------------------------------------------------------------
-date_default_timezone_set('America/Sao_Paulo');
-
 // Carrega as bibliotecas de terceiros (Composer) — hoje só a lib de envio
 // de notificação push (minishlink/web-push). A pasta vendor/ já vem pronta
 // no repositório, não é necessário rodar "composer install".
@@ -90,3 +78,33 @@ function db(): PDO
 
     return $pdo;
 }
+
+// ---------------------------------------------------------------------
+// Fuso horário do PHP - configurável em Configurações > Fuso Horário
+// (tabela configuracoes, chave "fuso_horario"; ver fusosHorariosDisponiveis()
+// em includes/functions.php para a lista aceita). Sem isso definido, o PHP
+// usaria o fuso horário padrão do php.ini do servidor (no XAMPP, geralmente
+// "Europe/Berlin" por padrão!), deixando TODO horário calculado pelo
+// próprio sistema errado por várias horas — data/hora de manutenções
+// registradas, "dias parado" dos chamados, alerta de troca de toner,
+// "gerado em" da ficha de impressão, etc. Datas que já vêm prontas do
+// banco de dados (ex.: quando um chamado foi criado) não são afetadas por
+// isso, só as calculadas pelo PHP na hora.
+//
+// Lido direto do banco aqui (em vez de usar configGet(), que só é
+// carregada depois via includes/functions.php) porque o fuso precisa
+// estar certo antes de qualquer função de data ser chamada pelo resto do
+// sistema. Envolvido em try/catch para não quebrar a página inteira caso
+// a tabela configuracoes ainda não exista (banco desatualizado).
+// ---------------------------------------------------------------------
+$scatiFusoHorario = 'America/Sao_Paulo';
+try {
+    $scatiFusoSalvo = db()->query("SELECT valor FROM configuracoes WHERE chave = 'fuso_horario'")->fetchColumn();
+    if ($scatiFusoSalvo && in_array($scatiFusoSalvo, timezone_identifiers_list(), true)) {
+        $scatiFusoHorario = $scatiFusoSalvo;
+    }
+} catch (Throwable $e) {
+    // Banco ainda sem a tabela configuracoes (instalação desatualizada) -
+    // segue com o padrão America/Sao_Paulo.
+}
+date_default_timezone_set($scatiFusoHorario);

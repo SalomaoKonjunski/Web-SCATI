@@ -34,8 +34,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['salvar_dias_alerta_to
     }
 }
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['salvar_fuso_horario'])) {
+    $fusoEscolhido = $_POST['fuso_horario'] ?? '';
+
+    if (!array_key_exists($fusoEscolhido, fusosHorariosDisponiveis())) {
+        $erros[] = 'Selecione um fuso horário válido.';
+    } else {
+        configSet('fuso_horario', $fusoEscolhido);
+        flash('success', 'Fuso horário salvo com sucesso.');
+        redirect('/modules/configuracoes/index.php');
+    }
+}
+
 $diasAlertaLicenca = configGet('dias_alerta_licenca', '30');
 $diasAlertaToner = configGet('dias_alerta_toner', '7');
+$fusoHorarioAtual = configGet('fuso_horario', 'America/Sao_Paulo');
 $totalCategorias = (int) $pdo->query('SELECT COUNT(*) FROM categorias_estoque')->fetchColumn();
 $totalCategoriasEquipamento = (int) $pdo->query('SELECT COUNT(*) FROM categorias_equipamento')->fetchColumn();
 $totalTiposManutencao = (int) $pdo->query('SELECT COUNT(*) FROM tipos_manutencao')->fetchColumn();
@@ -141,6 +154,34 @@ include __DIR__ . '/../../includes/header.php';
                     </div>
                     <div class="col-6">
                         <button type="submit" name="salvar_dias_alerta_toner" value="1" class="btn btn-primary w-100">
+                            <i class="bi bi-check-lg"></i> Salvar
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title"><i class="bi bi-clock-history me-1"></i> Fuso Horário</h5>
+                <p class="card-text text-muted">
+                    Usado para calcular a data/hora sempre que o sistema precisa registrar "agora"
+                    (manutenção registrada na ficha do equipamento, "dias parado" dos chamados, alerta de
+                    troca de toner, ficha para impressão, etc.). O padrão é o horário de Brasília.
+                </p>
+                <form method="post" class="row g-2 align-items-end">
+                    <div class="col-8">
+                        <label class="form-label">Fuso horário</label>
+                        <select name="fuso_horario" class="form-select">
+                            <?php foreach (fusosHorariosDisponiveis() as $chaveFuso => $labelFuso): ?>
+                                <option value="<?= e($chaveFuso) ?>" <?= $fusoHorarioAtual === $chaveFuso ? 'selected' : '' ?>><?= e($labelFuso) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="col-4">
+                        <button type="submit" name="salvar_fuso_horario" value="1" class="btn btn-primary w-100">
                             <i class="bi bi-check-lg"></i> Salvar
                         </button>
                     </div>
