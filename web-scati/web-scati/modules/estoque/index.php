@@ -41,6 +41,12 @@ $stmt = $pdo->prepare($sql);
 $stmt->execute($params);
 $itens = $stmt->fetchAll();
 
+// Separa em duas abas conforme o item tem (ou não) alguma unidade
+// vinculada a um equipamento — mesma consulta de cima, só dividida em
+// PHP para não duplicar os filtros de busca/categoria/mínimo em duas SQLs.
+$itensNaoVinculados = array_values(array_filter($itens, fn($item) => (int) $item['qtd_vinculada'] === 0));
+$itensVinculados = array_values(array_filter($itens, fn($item) => (int) $item['qtd_vinculada'] > 0));
+
 $categorias = $pdo->query('SELECT id, nome FROM categorias_estoque ORDER BY nome')->fetchAll();
 
 include __DIR__ . '/../../includes/header.php';
@@ -81,76 +87,136 @@ include __DIR__ . '/../../includes/header.php';
     </div>
 </div>
 
-<div class="card">
-    <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0">
-            <thead class="table-light">
-                <tr>
-                    <th>Nome</th>
-                    <th>Categoria</th>
-                    <th>Marca / Modelo</th>
-                    <th class="text-center">Quantidade</th>
-                    <th class="text-center">Mínimo</th>
-                    <th>Localização</th>
-                    <th>Vinculado a</th>
-                    <th>Observações</th>
-                    <th class="text-end">Ações</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php if (empty($itens)): ?>
-                    <tr><td colspan="9" class="text-center text-muted py-4">Nenhum item encontrado.</td></tr>
-                <?php endif; ?>
-                <?php foreach ($itens as $item): ?>
-                    <?php $abaixoMinimo = $item['quantidade'] < $item['quantidade_minima']; ?>
-                    <tr class="<?= $abaixoMinimo ? 'estoque-baixo' : '' ?>" data-href="form.php?id=<?= (int) $item['id'] ?>" title="Abrir cadastro do item">
-                        <td><?= e($item['nome']) ?></td>
-                        <td><?= e($item['categoria_nome']) ?></td>
-                        <td><?= e(trim(($item['marca'] ?? '') . ' ' . ($item['modelo'] ?? ''))) ?: '-' ?></td>
-                        <td class="text-center">
-                            <form method="post" action="ajustar_quantidade.php" class="d-inline-flex align-items-center gap-1">
-                                <input type="hidden" name="id" value="<?= (int) $item['id'] ?>">
-                                <button type="submit" name="acao" value="diminuir" class="btn btn-sm btn-outline-secondary px-2" title="Diminuir quantidade" <?= (int) $item['quantidade'] <= 0 ? 'disabled' : '' ?>>
-                                    <i class="bi bi-dash-lg"></i>
-                                </button>
-                                <span class="fw-semibold mx-1" style="min-width: 1.6em; display: inline-block;"><?= (int) $item['quantidade'] ?></span>
-                                <input type="number" name="valor" value="1" min="1" class="form-control form-control-sm text-center" style="width: 4.2em;" title="Quantidade a ajustar">
-                                <button type="submit" name="acao" value="aumentar" class="btn btn-sm btn-outline-secondary px-2" title="Aumentar quantidade">
-                                    <i class="bi bi-plus-lg"></i>
-                                </button>
-                            </form>
-                        </td>
-                        <td class="text-center text-muted"><?= (int) $item['quantidade_minima'] ?></td>
-                        <td><?= e($item['localizacao']) ?: '-' ?></td>
-                        <td>
-                            <?php if ((int) $item['qtd_vinculada'] > 0): ?>
-                                <span class="badge bg-primary"><?= (int) $item['qtd_vinculada'] ?> unidade(s)</span>
-                                <div class="small text-muted mt-1"><?= e($item['equipamentos_vinculados']) ?></div>
-                            <?php else: ?>
-                                -
-                            <?php endif; ?>
-                        </td>
-                        <td>
-                            <?php if (!empty($item['observacoes'])): ?>
-                                <div class="small text-muted text-truncate" style="max-width: 220px;" title="<?= e($item['observacoes']) ?>">
-                                    <i class="bi bi-sticky-fill text-warning"></i> <?= e($item['observacoes']) ?>
-                                </div>
-                            <?php else: ?>
-                                <span class="text-muted">-</span>
-                            <?php endif; ?>
-                        </td>
-                        <td class="text-end">
-                            <?php if ($abaixoMinimo): ?>
-                                <span class="badge bg-danger me-2"><i class="bi bi-exclamation-triangle"></i> Baixo</span>
-                            <?php endif; ?>
-                            <a href="form.php?id=<?= (int) $item['id'] ?>" class="btn btn-sm btn-outline-primary"><i class="bi bi-pencil"></i></a>
-                            <a href="delete.php?id=<?= (int) $item['id'] ?>" class="btn btn-sm btn-outline-danger" title="Excluir"><i class="bi bi-trash"></i></a>
-                        </td>
-                    </tr>
-                <?php endforeach; ?>
-            </tbody>
-        </table>
+<ul class="nav nav-tabs" id="estoqueTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#naoVinculados" type="button">
+            Não Vinculados <span class="badge bg-secondary"><?= count($itensNaoVinculados) ?></span>
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#vinculados" type="button">
+            Vinculados <span class="badge bg-secondary"><?= count($itensVinculados) ?></span>
+        </button>
+    </li>
+</ul>
+
+<div class="tab-content">
+
+    <!-- Não Vinculados -->
+    <div class="tab-pane fade show active" id="naoVinculados">
+        <div class="card border-top-0 rounded-top-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Nome</th>
+                            <th>Categoria</th>
+                            <th>Marca / Modelo</th>
+                            <th class="text-center">Quantidade</th>
+                            <th class="text-center">Mínimo</th>
+                            <th>Localização</th>
+                            <th>Observações</th>
+                            <th class="text-end">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php if (empty($itensNaoVinculados)): ?>
+                            <tr><td colspan="8" class="text-center text-muted py-4">Nenhum item sem vínculo encontrado.</td></tr>
+                        <?php endif; ?>
+                        <?php foreach ($itensNaoVinculados as $item): ?>
+                            <?php $abaixoMinimo = $item['quantidade'] < $item['quantidade_minima']; ?>
+                            <tr class="<?= $abaixoMinimo ? 'estoque-baixo' : '' ?>" data-href="form.php?id=<?= (int) $item['id'] ?>" title="Abrir cadastro do item">
+                                <td><?= e($item['nome']) ?></td>
+                                <td><?= e($item['categoria_nome']) ?></td>
+                                <td><?= e(trim(($item['marca'] ?? '') . ' ' . ($item['modelo'] ?? ''))) ?: '-' ?></td>
+                                <td class="text-center">
+                                    <form method="post" action="ajustar_quantidade.php" class="d-inline-flex align-items-center gap-1">
+                                        <input type="hidden" name="id" value="<?= (int) $item['id'] ?>">
+                                        <button type="submit" name="acao" value="diminuir" class="btn btn-sm btn-outline-secondary px-2" title="Diminuir quantidade" <?= (int) $item['quantidade'] <= 0 ? 'disabled' : '' ?>>
+                                            <i class="bi bi-dash-lg"></i>
+                                        </button>
+                                        <span class="fw-semibold mx-1" style="min-width: 1.6em; display: inline-block;"><?= (int) $item['quantidade'] ?></span>
+                                        <input type="number" name="valor" value="1" min="1" class="form-control form-control-sm text-center" style="width: 4.2em;" title="Quantidade a ajustar">
+                                        <button type="submit" name="acao" value="aumentar" class="btn btn-sm btn-outline-secondary px-2" title="Aumentar quantidade">
+                                            <i class="bi bi-plus-lg"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                                <td class="text-center text-muted"><?= (int) $item['quantidade_minima'] ?></td>
+                                <td><?= e($item['localizacao']) ?: '-' ?></td>
+                                <td>
+                                    <?php if (!empty($item['observacoes'])): ?>
+                                        <div class="small text-muted text-truncate" style="max-width: 220px;" title="<?= e($item['observacoes']) ?>">
+                                            <i class="bi bi-sticky-fill text-warning"></i> <?= e($item['observacoes']) ?>
+                                        </div>
+                                    <?php else: ?>
+                                        <span class="text-muted">-</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td class="text-end">
+                                    <?php if ($abaixoMinimo): ?>
+                                        <span class="badge bg-danger me-2"><i class="bi bi-exclamation-triangle"></i> Baixo</span>
+                                    <?php endif; ?>
+                                    <a href="form.php?id=<?= (int) $item['id'] ?>" class="btn btn-sm btn-outline-primary"><i class="bi bi-pencil"></i></a>
+                                    <a href="delete.php?id=<?= (int) $item['id'] ?>" class="btn btn-sm btn-outline-danger" title="Excluir"><i class="bi bi-trash"></i></a>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <p class="text-muted small mt-2">
+            <i class="bi bi-info-circle"></i> Itens sem nenhuma unidade vinculada a um equipamento — disponíveis para uso.
+        </p>
     </div>
+
+    <!-- Vinculados -->
+    <div class="tab-pane fade" id="vinculados">
+        <div class="card border-top-0 rounded-top-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Nome</th>
+                            <th>Categoria</th>
+                            <th>Marca / Modelo</th>
+                            <th class="text-center">Qtd. Vinculada</th>
+                            <th>Localização</th>
+                            <th>Vinculado a</th>
+                            <th class="text-end">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php if (empty($itensVinculados)): ?>
+                            <tr><td colspan="7" class="text-center text-muted py-4">Nenhum item vinculado encontrado.</td></tr>
+                        <?php endif; ?>
+                        <?php foreach ($itensVinculados as $item): ?>
+                            <tr data-href="form.php?id=<?= (int) $item['id'] ?>" title="Abrir cadastro do item">
+                                <td><?= e($item['nome']) ?></td>
+                                <td><?= e($item['categoria_nome']) ?></td>
+                                <td><?= e(trim(($item['marca'] ?? '') . ' ' . ($item['modelo'] ?? ''))) ?: '-' ?></td>
+                                <td class="text-center fw-semibold"><?= (int) $item['qtd_vinculada'] ?></td>
+                                <td><?= e($item['localizacao']) ?: '-' ?></td>
+                                <td>
+                                    <span class="badge bg-primary"><?= (int) $item['qtd_vinculada'] ?> unidade(s)</span>
+                                    <div class="small text-muted mt-1"><?= e($item['equipamentos_vinculados']) ?></div>
+                                </td>
+                                <td class="text-end">
+                                    <a href="form.php?id=<?= (int) $item['id'] ?>" class="btn btn-sm btn-outline-primary"><i class="bi bi-pencil"></i></a>
+                                    <a href="delete.php?id=<?= (int) $item['id'] ?>" class="btn btn-sm btn-outline-danger" title="Excluir"><i class="bi bi-trash"></i></a>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <p class="text-muted small mt-2">
+            <i class="bi bi-info-circle"></i> Itens com pelo menos 1 unidade vinculada a algum equipamento — a quantidade aqui é só a parte já em uso.
+        </p>
+    </div>
+
 </div>
 
 <?php include __DIR__ . '/../../includes/footer.php'; ?>
