@@ -86,6 +86,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$somenteLeitura) {
     if (!in_array($chamado['status'], statusChamado(), true)) {
         $erros[] = 'Status inválido.';
     }
+    // Solicitante agora é escolhido num dropdown fechado (igual ao
+    // Responsável) — valida contra a lista de usuários reais, não confia
+    // só no que veio selecionado no POST.
+    if (!$edicao && $chamado['solicitante'] !== '' && !in_array($chamado['solicitante'], array_column($usuarios, 'usuario'), true)) {
+        $erros[] = 'Selecione um usuário solicitante válido.';
+    }
 
     if (empty($erros)) {
         // O Solicitante não escolhe andamento/responsável: todo chamado novo
@@ -293,13 +299,18 @@ include __DIR__ . '/../../includes/header.php';
             <div class="col-md-4">
                 <label class="form-label">Usuário</label>
                 <?php if (!$podeEscolherSolicitante): ?>
-                    <input type="text" name="solicitante" class="form-control" value="<?= e($chamado['solicitante']) ?>" readonly>
+                    <select class="form-select" disabled>
+                        <option selected><?= e($chamado['solicitante']) ?></option>
+                    </select>
+                    <input type="hidden" name="solicitante" value="<?= e($chamado['solicitante']) ?>">
                     <div class="form-text">Definido automaticamente como o seu usuário.</div>
                 <?php else: ?>
-                    <input type="text" name="solicitante" class="form-control" placeholder="Quem pediu / nome, setor..." value="<?= e($chamado['solicitante']) ?>">
-                    <?php if (!$edicao): ?>
-                        <div class="form-text">Já vem com seu usuário — troque se estiver abrindo em nome de outra pessoa.</div>
-                    <?php endif; ?>
+                    <select name="solicitante" class="form-select">
+                        <?php foreach ($usuarios as $u): ?>
+                            <option value="<?= e($u['usuario']) ?>" <?= $chamado['solicitante'] === $u['usuario'] ? 'selected' : '' ?>><?= e($u['usuario']) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                    <div class="form-text">Já vem com seu usuário — troque se estiver abrindo em nome de outra pessoa.</div>
                 <?php endif; ?>
             </div>
             <div class="col-md-12">
