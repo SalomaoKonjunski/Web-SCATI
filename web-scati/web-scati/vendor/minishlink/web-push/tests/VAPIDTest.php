@@ -1,4 +1,7 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
+
 /*
  * This file is part of the WebPush library.
  *
@@ -8,16 +11,12 @@
  * file that was distributed with this source code.
  */
 
-use Minishlink\WebPush\ContentEncoding;
 use Minishlink\WebPush\Utils;
 use Minishlink\WebPush\VAPID;
-use PHPUnit\Framework\Attributes\CoversClass;
-use PHPUnit\Framework\Attributes\DataProvider;
 
-#[CoversClass(VAPID::class)]
 final class VAPIDTest extends PHPUnit\Framework\TestCase
 {
-    public static function vapidProvider(): array
+    public function vapidProvider() : array
     {
         return [
             [
@@ -27,7 +26,7 @@ final class VAPIDTest extends PHPUnit\Framework\TestCase
                     'publicKey' => 'BA6jvk34k6YjElHQ6S0oZwmrsqHdCNajxcod6KJnI77Dagikfb--O_kYXcR2eflRz6l3PcI2r8fPCH3BElLQHDk',
                     'privateKey' => '-3CdhFOqjzixgAbUSa0Zv9zi-dwDVmWO7672aBxSFPQ',
                 ],
-                ContentEncoding::aesgcm,
+                "aesgcm",
                 1475452165,
                 'WebPush eyJ0eXAiOiJKV1QiLCJhbGciOiJFUzI1NiJ9.eyJhdWQiOiJodHRwOi8vcHVzaC5jb20iLCJleHAiOjE0NzU0NTIxNjUsInN1YiI6Imh0dHA6Ly90ZXN0LmNvbSJ9.4F3ZKjeru4P9XM20rHPNvGBcr9zxhz8_ViyNfe11_xcuy7A9y7KfEPt6yuNikyW7eT9zYYD5mQZubDGa-5H2cA',
                 'p256ecdsa=BA6jvk34k6YjElHQ6S0oZwmrsqHdCNajxcod6KJnI77Dagikfb--O_kYXcR2eflRz6l3PcI2r8fPCH3BElLQHDk',
@@ -38,7 +37,7 @@ final class VAPIDTest extends PHPUnit\Framework\TestCase
                     'publicKey' => 'BA6jvk34k6YjElHQ6S0oZwmrsqHdCNajxcod6KJnI77Dagikfb--O_kYXcR2eflRz6l3PcI2r8fPCH3BElLQHDk',
                     'privateKey' => '-3CdhFOqjzixgAbUSa0Zv9zi-dwDVmWO7672aBxSFPQ',
                 ],
-                ContentEncoding::aes128gcm,
+                "aes128gcm",
                 1475452165,
                 'vapid t=eyJ0eXAiOiJKV1QiLCJhbGciOiJFUzI1NiJ9.eyJhdWQiOiJodHRwOi8vcHVzaC5jb20iLCJleHAiOjE0NzU0NTIxNjUsInN1YiI6Imh0dHA6Ly90ZXN0LmNvbSJ9.4F3ZKjeru4P9XM20rHPNvGBcr9zxhz8_ViyNfe11_xcuy7A9y7KfEPt6yuNikyW7eT9zYYD5mQZubDGa-5H2cA, k=BA6jvk34k6YjElHQ6S0oZwmrsqHdCNajxcod6KJnI77Dagikfb--O_kYXcR2eflRz6l3PcI2r8fPCH3BElLQHDk',
                 null,
@@ -47,10 +46,11 @@ final class VAPIDTest extends PHPUnit\Framework\TestCase
     }
 
     /**
+     * @dataProvider vapidProvider
+     *
      * @throws ErrorException
      */
-    #[dataProvider('vapidProvider')]
-    public function testGetVapidHeaders(string $audience, array $vapid, ContentEncoding $contentEncoding, int $expiration, string $expectedAuthorization, ?string $expectedCryptoKey): void
+    public function testGetVapidHeaders(string $audience, array $vapid, string $contentEncoding, int $expiration, string $expectedAuthorization, ?string $expectedCryptoKey)
     {
         $vapid = VAPID::validate($vapid);
         $headers = VAPID::getVapidHeaders(
@@ -74,14 +74,17 @@ final class VAPIDTest extends PHPUnit\Framework\TestCase
         }
     }
 
-    private function explodeAuthorization(string $auth): array
+    /**
+     * @return array|string
+     */
+    private function explodeAuthorization(string $auth)
     {
         $auth = explode('.', $auth);
         array_pop($auth); // delete the signature which changes each time
         return $auth;
     }
 
-    public function testCreateVapidKeys(): void
+    public function testCreateVapidKeys()
     {
         $keys = VAPID::createVapidKeys();
         $this->assertArrayHasKey('publicKey', $keys);

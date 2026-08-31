@@ -5,143 +5,103 @@ declare(strict_types=1);
 namespace Brick\Math;
 
 /**
- * Specifies rounding behavior by defining how discarded digits affect the returned result when an exact value cannot
- * be represented at the requested scale.
+ * Specifies a rounding behavior for numerical operations capable of discarding precision.
+ *
+ * Each rounding mode indicates how the least significant returned digit of a rounded result
+ * is to be calculated. If fewer digits are returned than the digits needed to represent the
+ * exact numerical result, the discarded digits will be referred to as the discarded fraction
+ * regardless the digits' contribution to the value of the number. In other words, considered
+ * as a numerical value, the discarded fraction could have an absolute value greater than one.
  */
-enum RoundingMode
+final class RoundingMode
 {
+    /**
+     * Private constructor. This class is not instantiable.
+     *
+     * @codeCoverageIgnore
+     */
+    private function __construct()
+    {
+    }
+
     /**
      * Asserts that the requested operation has an exact result, hence no rounding is necessary.
      *
      * If this rounding mode is specified on an operation that yields a result that
      * cannot be represented at the requested scale, a RoundingNecessaryException is thrown.
-     *
-     * Equivalent native PHP rounding mode: none.
      */
-    case Unnecessary;
+    public const UNNECESSARY = 0;
 
     /**
      * Rounds away from zero.
      *
      * Always increments the digit prior to a nonzero discarded fraction.
      * Note that this rounding mode never decreases the magnitude of the calculated value.
-     *
-     * Equivalent native PHP rounding mode: {@see \RoundingMode::AwayFromZero}.
      */
-    case Up;
+    public const UP = 1;
 
     /**
      * Rounds towards zero.
      *
      * Never increments the digit prior to a discarded fraction (i.e., truncates).
      * Note that this rounding mode never increases the magnitude of the calculated value.
-     *
-     * Equivalent native PHP rounding mode: {@see \RoundingMode::TowardsZero}.
      */
-    case Down;
+    public const DOWN = 2;
 
     /**
      * Rounds towards positive infinity.
      *
-     * If the result is positive, behaves as for Up; if negative, behaves as for Down.
+     * If the result is positive, behaves as for UP; if negative, behaves as for DOWN.
      * Note that this rounding mode never decreases the calculated value.
-     *
-     * Equivalent native PHP rounding mode: {@see \RoundingMode::PositiveInfinity}.
      */
-    case Ceiling;
+    public const CEILING = 3;
 
     /**
      * Rounds towards negative infinity.
      *
-     * If the result is positive, behaves as for Down; if negative, behaves as for Up.
+     * If the result is positive, behave as for DOWN; if negative, behave as for UP.
      * Note that this rounding mode never increases the calculated value.
-     *
-     * Equivalent native PHP rounding mode: {@see \RoundingMode::NegativeInfinity}.
      */
-    case Floor;
+    public const FLOOR = 4;
 
     /**
      * Rounds towards "nearest neighbor" unless both neighbors are equidistant, in which case round up.
      *
-     * Behaves as for Up if the discarded fraction is >= 0.5; otherwise, behaves as for Down.
+     * Behaves as for UP if the discarded fraction is >= 0.5; otherwise, behaves as for DOWN.
      * Note that this is the rounding mode commonly taught at school.
-     *
-     * Equivalent native PHP rounding mode: {@see \RoundingMode::HalfAwayFromZero}.
      */
-    case HalfUp;
+    public const HALF_UP = 5;
 
     /**
      * Rounds towards "nearest neighbor" unless both neighbors are equidistant, in which case round down.
      *
-     * Behaves as for Up if the discarded fraction is > 0.5; otherwise, behaves as for Down.
-     *
-     * Equivalent native PHP rounding mode: {@see \RoundingMode::HalfTowardsZero}.
+     * Behaves as for UP if the discarded fraction is > 0.5; otherwise, behaves as for DOWN.
      */
-    case HalfDown;
+    public const HALF_DOWN = 6;
 
     /**
      * Rounds towards "nearest neighbor" unless both neighbors are equidistant, in which case round towards positive infinity.
      *
-     * If the result is positive, behaves as for HalfUp; if negative, behaves as for HalfDown.
-     *
-     * Equivalent native PHP rounding mode: none.
+     * If the result is positive, behaves as for HALF_UP; if negative, behaves as for HALF_DOWN.
      */
-    case HalfCeiling;
+    public const HALF_CEILING = 7;
 
     /**
      * Rounds towards "nearest neighbor" unless both neighbors are equidistant, in which case round towards negative infinity.
      *
-     * If the result is positive, behaves as for HalfDown; if negative, behaves as for HalfUp.
-     *
-     * Equivalent native PHP rounding mode: none.
+     * If the result is positive, behaves as for HALF_DOWN; if negative, behaves as for HALF_UP.
      */
-    case HalfFloor;
+    public const HALF_FLOOR = 8;
 
     /**
      * Rounds towards the "nearest neighbor" unless both neighbors are equidistant, in which case rounds towards the even neighbor.
      *
-     * Behaves as for HalfUp if the digit to the left of the discarded fraction is odd;
-     * behaves as for HalfDown if it's even.
+     * Behaves as for HALF_UP if the digit to the left of the discarded fraction is odd;
+     * behaves as for HALF_DOWN if it's even.
      *
      * Note that this is the rounding mode that statistically minimizes
      * cumulative error when applied repeatedly over a sequence of calculations.
-     * It is sometimes known as "Banker's rounding", and is the default rounding mode in IEEE 754.
-     *
-     * Equivalent native PHP rounding mode: {@see \RoundingMode::HalfEven}.
+     * It is sometimes known as "Banker's rounding", and is chiefly used in the USA.
      */
-    case HalfEven;
-
-    /**
-     * Rounds towards the "nearest neighbor" unless both neighbors are equidistant, in which case rounds towards the odd neighbor.
-     *
-     * Behaves as for HalfUp if the digit to the left of the discarded fraction is even;
-     * behaves as for HalfDown if it's odd.
-     *
-     * Like HalfEven, this rounding mode is free of bias towards or away from zero on ties;
-     * unlike HalfEven, ties never round to an even digit — in particular, never to zero or to a multiple of ten.
-     *
-     * Equivalent native PHP rounding mode: {@see \RoundingMode::HalfOdd}.
-     */
-    case HalfOdd;
-
-    /**
-     * Returns the equivalent of the given native PHP rounding mode.
-     *
-     * Note that PHP's RoundingMode enum is only available on PHP 8.4 and later.
-     *
-     * @pure
-     */
-    public static function fromNativeRoundingMode(\RoundingMode $roundingMode): self
-    {
-        return match ($roundingMode) {
-            \RoundingMode::AwayFromZero => self::Up,
-            \RoundingMode::TowardsZero => self::Down,
-            \RoundingMode::PositiveInfinity => self::Ceiling,
-            \RoundingMode::NegativeInfinity => self::Floor,
-            \RoundingMode::HalfAwayFromZero => self::HalfUp,
-            \RoundingMode::HalfTowardsZero => self::HalfDown,
-            \RoundingMode::HalfEven => self::HalfEven,
-            \RoundingMode::HalfOdd => self::HalfOdd,
-        };
-    }
+    public const HALF_EVEN = 9;
 }

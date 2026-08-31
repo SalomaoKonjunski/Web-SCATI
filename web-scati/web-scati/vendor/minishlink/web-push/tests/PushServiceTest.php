@@ -1,4 +1,7 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
+
 /*
  * This file is part of the WebPush library.
  *
@@ -8,39 +11,32 @@
  * file that was distributed with this source code.
  */
 
-use Minishlink\WebPush\MessageSentReport;
-use Minishlink\WebPush\Subscription;
 use Minishlink\WebPush\WebPush;
-use PHPUnit\Framework\Attributes\CoversNothing;
-use PHPUnit\Framework\Attributes\DataProvider;
-use PHPUnit\Framework\Attributes\Group;
+use Minishlink\WebPush\Subscription;
 
-/**
- * Test with test server.
- */
-#[group('online')]
-#[CoversNothing]
 final class PushServiceTest extends PHPUnit\Framework\TestCase
 {
-    private static int    $timeout    = 30;
-    private static int    $portNumber = 9012;
-    private static string $testServiceUrl;
-    public static array   $vapidKeys  = [
+    private static $timeout = 30;
+    private static $portNumber = 9012;
+    private static $testServiceUrl;
+    public static $vapidKeys = [
         'subject' => 'http://test.com',
         'publicKey' => 'BA6jvk34k6YjElHQ6S0oZwmrsqHdCNajxcod6KJnI77Dagikfb--O_kYXcR2eflRz6l3PcI2r8fPCH3BElLQHDk',
         'privateKey' => '-3CdhFOqjzixgAbUSa0Zv9zi-dwDVmWO7672aBxSFPQ',
     ];
 
     /** @var WebPush WebPush with correct api keys */
-    private WebPush $webPush;
+    private $webPush;
 
-    #[\Override]
+    /**
+     * {@inheritdoc}
+     */
     public static function setUpBeforeClass(): void
     {
         self::$testServiceUrl = 'http://localhost:'.self::$portNumber;
     }
 
-    public static function browserProvider(): array
+    public function browserProvider()
     {
         return [
             ['firefox', ['VAPID' => self::$vapidKeys]],
@@ -53,7 +49,7 @@ final class PushServiceTest extends PHPUnit\Framework\TestCase
     /**
      * Selenium tests are flakey so add retries.
      */
-    public function retryTest(int $retryCount, callable $test): void
+    public function retryTest($retryCount, $test)
     {
         // just like above without checking the annotation
         for ($i = 0; $i < $retryCount; $i++) {
@@ -71,17 +67,17 @@ final class PushServiceTest extends PHPUnit\Framework\TestCase
     }
 
     /**
+     * @dataProvider browserProvider
      * Run integration tests with browsers
      */
-    #[dataProvider('browserProvider')]
-    public function testBrowsers(string $browserId, array $options): void
+    public function testBrowsers($browserId, $options)
     {
         $this->retryTest(2, $this->createClosureTest($browserId, $options));
     }
 
-    protected function createClosureTest(string $browserId, array $options): callable
+    protected function createClosureTest($browserId, $options)
     {
-        return function () use ($browserId, $options): void {
+        return function () use ($browserId, $options) {
             $this->webPush = new WebPush($options);
             $this->webPush->setAutomaticPadding(false);
             $subscriptionParameters = [];
@@ -118,13 +114,20 @@ final class PushServiceTest extends PHPUnit\Framework\TestCase
             $messageIndex = 0;
 
             foreach ($supportedContentEncodings as $contentEncoding) {
+                if (!in_array($contentEncoding, ['aesgcm', 'aes128gcm'])) {
+                    $this->expectException(\ErrorException::class);
+                    $this->expectExceptionMessage('This content encoding ('.$contentEncoding.') is not supported.');
+                    $this->markTestIncomplete('Unsupported content encoding: '.$contentEncoding);
+                }
+
                 $subscription = new Subscription($endpoint, $p256dh, $auth, $contentEncoding);
                 $report = $this->webPush->sendOneNotification($subscription, $payload);
+                $this->assertInstanceOf(\Minishlink\WebPush\MessageSentReport::class, $report);
                 $this->assertTrue($report->isSuccess());
 
                 $dataString = json_encode([
                     'clientHash' => $clientHash,
-                ], JSON_THROW_ON_ERROR);
+                ]);
 
                 $getNotificationCurl = curl_init(self::$testServiceUrl.'/get-notifications');
                 curl_setopt_array($getNotificationCurl, [
@@ -141,7 +144,7 @@ final class PushServiceTest extends PHPUnit\Framework\TestCase
                 $parsedResp = $this->getResponse($getNotificationCurl);
 
                 if (!property_exists($parsedResp->{'data'}, 'messages')) {
-                    throw new RuntimeException('web-push-testing error, no messages: '.json_encode($parsedResp, JSON_THROW_ON_ERROR));
+                    throw new Exception('web-push-testing error, no messages: '.json_encode($parsedResp));
                 }
 
                 $messages = $parsedResp->{'data'}->{'messages'};
@@ -151,20 +154,24 @@ final class PushServiceTest extends PHPUnit\Framework\TestCase
         };
     }
 
-    private function getResponse(CurlHandle $ch): mixed
+    private function getResponse($ch)
     {
         $resp = curl_exec($ch);
 
         if (!$resp) {
             $error = 'Curl error: n'.curl_errno($ch).' - '.curl_error($ch);
-            throw new RuntimeException($error);
+            curl_close($ch);
+            throw new Exception($error);
         }
 
         $parsedResp = json_decode($resp, null, 512, JSON_THROW_ON_ERROR);
 
         if (!property_exists($parsedResp, 'data')) {
-            throw new RuntimeException('web-push-testing-service error: '.$resp);
+            throw new Exception('web-push-testing-service error: '.$resp);
         }
+
+        // Close request to clear up some resources
+        curl_close($ch);
 
         return $parsedResp;
     }

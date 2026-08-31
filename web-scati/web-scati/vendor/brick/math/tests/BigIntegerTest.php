@@ -4,39 +4,17 @@ declare(strict_types=1);
 
 namespace Brick\Math\Tests;
 
-use Brick\Math\BigDecimal;
 use Brick\Math\BigInteger;
-use Brick\Math\BigNumber;
-use Brick\Math\Exception\DivisionByZeroException;
 use Brick\Math\Exception\IntegerOverflowException;
-use Brick\Math\Exception\InvalidArgumentException;
+use Brick\Math\Exception\MathException;
 use Brick\Math\Exception\NegativeNumberException;
-use Brick\Math\Exception\NoInverseException;
 use Brick\Math\Exception\NumberFormatException;
-use Brick\Math\Exception\RandomSourceException;
+use Brick\Math\Exception\DivisionByZeroException;
 use Brick\Math\Exception\RoundingNecessaryException;
 use Brick\Math\Internal\Calculator;
-use Brick\Math\Internal\CalculatorRegistry;
 use Brick\Math\RoundingMode;
+
 use Generator;
-use LogicException;
-use PHPUnit\Framework\Attributes\DataProvider;
-
-use function abs;
-use function bin2hex;
-use function count;
-use function getenv;
-use function hex2bin;
-use function in_array;
-use function serialize;
-use function sprintf;
-use function strlen;
-use function strtoupper;
-use function unserialize;
-
-use const INF;
-use const PHP_INT_MAX;
-use const PHP_INT_MIN;
 
 /**
  * Unit tests for class BigInteger.
@@ -44,34 +22,17 @@ use const PHP_INT_MIN;
 class BigIntegerTest extends AbstractTestCase
 {
     /**
-     * @param int|string $value    The value to convert to a BigInteger.
-     * @param string     $expected The expected string value of the result.
+     * @dataProvider providerOf
+     *
+     * @param string|number $value    The value to convert to a BigInteger.
+     * @param string        $expected The expected string value of the result.
      */
-    #[DataProvider('providerOf')]
-    public function testOf(int|string $value, string $expected): void
+    public function testOf($value, string $expected) : void
     {
         self::assertBigIntegerEquals($expected, BigInteger::of($value));
     }
 
-    /**
-     * @param int|string $value    The value to convert to a BigInteger.
-     * @param string     $expected The expected string value of the result.
-     */
-    #[DataProvider('providerOf')]
-    public function testOfNullableWithValidInputBehavesLikeOf(mixed $value, string $expected): void
-    {
-        $result = BigInteger::ofNullable($value);
-
-        self::assertNotNull($result);
-        self::assertBigIntegerEquals($expected, $result);
-    }
-
-    public function testOfNullableWithNullInput(): void
-    {
-        self::assertNull(BigInteger::ofNullable(null));
-    }
-
-    public static function providerOf(): array
+    public function providerOf() : array
     {
         return [
             [0, '0'],
@@ -82,6 +43,11 @@ class BigIntegerTest extends AbstractTestCase
             [PHP_INT_MAX, (string) PHP_INT_MAX],
             [PHP_INT_MIN, (string) PHP_INT_MIN],
 
+            [0.0, '0'],
+            [1.0, '1'],
+            [-0.0, '0'],
+            [-1.0, '-1'],
+
             ['0.0', '0'],
             ['1.0', '1'],
             ['-1.00', '-1'],
@@ -89,8 +55,8 @@ class BigIntegerTest extends AbstractTestCase
             ['.0', '0'],
             ['.00', '0'],
 
-            ['1.2e5', '120000'],
-            ['-1.2e5', '-120000'],
+            [1.2e5, '120000'],
+            [-1.2e5, '-120000'],
 
             ['1e20', '100000000000000000000'],
             ['-3e+50', '-300000000000000000000000000000000000000000000000000'],
@@ -138,38 +104,31 @@ class BigIntegerTest extends AbstractTestCase
         ];
     }
 
-    public function testOfBigIntegerReturnsThis(): void
+    public function testOfBigIntegerReturnsThis() : void
     {
         $decimal = BigInteger::of(123);
 
         self::assertSame($decimal, BigInteger::of($decimal));
     }
 
-    public function testOfEmptyStringThrowsException(): void
+    /**
+     * @dataProvider providerOfInvalidFormatThrowsException
+     *
+     * @param string|number $value
+     */
+    public function testOfInvalidFormatThrowsException($value) : void
     {
         $this->expectException(NumberFormatException::class);
-        $this->expectExceptionMessageExact('The number must not be empty.');
-
-        BigInteger::of('');
-    }
-
-    #[DataProvider('providerOfInvalidFormatThrowsException')]
-    public function testOfInvalidFormatThrowsException(string $value): void
-    {
-        $this->expectException(NumberFormatException::class);
-        $this->expectExceptionMessageExact(sprintf('Value "%s" does not represent a valid number.', $value));
-
         BigInteger::of($value);
     }
 
-    public static function providerOfInvalidFormatThrowsException(): array
+    public function providerOfInvalidFormatThrowsException() : array
     {
         return [
+            [''],
             ['a'],
             [' 1'],
             ['1 '],
-            ["\n123"],
-            ["123\n"],
             ['+'],
             ['-'],
             ['+a'],
@@ -181,36 +140,42 @@ class BigIntegerTest extends AbstractTestCase
         ];
     }
 
-    #[DataProvider('providerOfNonConvertibleValueThrowsException')]
-    public function testOfNonConvertibleValueThrowsException(string $value, string $expectedExceptionMessage): void
+    /**
+     * @dataProvider providerOfNonConvertibleValueThrowsException
+     *
+     * @param float|string $value
+     */
+    public function testOfNonConvertibleValueThrowsException($value) : void
     {
         $this->expectException(RoundingNecessaryException::class);
-        $this->expectExceptionMessageExact($expectedExceptionMessage);
-
         BigInteger::of($value);
     }
 
-    public static function providerOfNonConvertibleValueThrowsException(): array
+    public function providerOfNonConvertibleValueThrowsException() : array
     {
         return [
-            ['1.1', 'This decimal number cannot be represented as an integer without rounding.'],
-            ['1e-1', 'This decimal number cannot be represented as an integer without rounding.'],
-            ['7/9', 'This rational number cannot be represented as an integer without rounding.'],
+            [1.1],
+            ['1e-1'],
+            ['7/9'],
         ];
     }
 
     /**
+     * @dataProvider providerFromBase
+     *
      * @param string $number   The number to create.
      * @param int    $base     The base of the number.
      * @param string $expected The expected result in base 10.
      */
-    #[DataProvider('providerFromBase')]
-    public function testFromBase(string $number, int $base, string $expected): void
+    public function testFromBase(string $number, int $base, string $expected) : void
     {
         self::assertBigIntegerEquals($expected, BigInteger::fromBase($number, $base));
     }
 
-    public static function providerFromBase(): array
+    /**
+     * @return array
+     */
+    public function providerFromBase() : array
     {
         return [
             ['0', 10, '0'],
@@ -315,191 +280,112 @@ class BigIntegerTest extends AbstractTestCase
         ];
     }
 
-    #[DataProvider('providerFromBaseWithInvalidValue')]
-    public function testFromBaseWithInvalidValue(string $value, int $base, string $expectedExceptionMessage): void
+    /**
+     * @dataProvider providerFromBaseWithInvalidValue
+     */
+    public function testFromBaseWithInvalidValue(string $value, int $base) : void
     {
         $this->expectException(NumberFormatException::class);
-        $this->expectExceptionMessageExact($expectedExceptionMessage);
-
         BigInteger::fromBase($value, $base);
     }
 
-    public static function providerFromBaseWithInvalidValue(): array
+    public function providerFromBaseWithInvalidValue() : array
     {
         return [
-            ['', 10, 'The number must not be empty.'],
-            [' ', 10, 'Character " " is not valid in base 10.'],
-            ['+', 10, 'Value "+" does not represent a valid number.'],
-            ['-', 10, 'Value "-" does not represent a valid number.'],
-            ['1 ', 10, 'Character " " is not valid in base 10.'],
-            [' 1', 10, 'Character " " is not valid in base 10.'],
+            ['', 10],
+            [' ', 10],
+            ['+', 10],
+            ['-', 10],
+            ['1 ', 10],
+            [' 1', 10],
 
-            ['Z', 35, 'Character "Z" is not valid in base 35.'],
-            ['y', 34, 'Character "y" is not valid in base 34.'],
-            ['X', 33, 'Character "X" is not valid in base 33.'],
-            ['w', 32, 'Character "w" is not valid in base 32.'],
-            ['V', 31, 'Character "V" is not valid in base 31.'],
-            ['u', 30, 'Character "u" is not valid in base 30.'],
-            ['T', 29, 'Character "T" is not valid in base 29.'],
-            ['s', 28, 'Character "s" is not valid in base 28.'],
-            ['R', 27, 'Character "R" is not valid in base 27.'],
-            ['q', 26, 'Character "q" is not valid in base 26.'],
-            ['P', 25, 'Character "P" is not valid in base 25.'],
-            ['o', 24, 'Character "o" is not valid in base 24.'],
-            ['N', 23, 'Character "N" is not valid in base 23.'],
-            ['m', 22, 'Character "m" is not valid in base 22.'],
-            ['L', 21, 'Character "L" is not valid in base 21.'],
-            ['k', 20, 'Character "k" is not valid in base 20.'],
-            ['J', 19, 'Character "J" is not valid in base 19.'],
-            ['i', 18, 'Character "i" is not valid in base 18.'],
-            ['H', 17, 'Character "H" is not valid in base 17.'],
-            ['g', 16, 'Character "g" is not valid in base 16.'],
-            ['F', 15, 'Character "F" is not valid in base 15.'],
-            ['e', 14, 'Character "e" is not valid in base 14.'],
-            ['D', 13, 'Character "D" is not valid in base 13.'],
-            ['c', 12, 'Character "c" is not valid in base 12.'],
-            ['B', 11, 'Character "B" is not valid in base 11.'],
-            ['a', 10, 'Character "a" is not valid in base 10.'],
-            ['9', 9, 'Character "9" is not valid in base 9.'],
-            ['8', 8, 'Character "8" is not valid in base 8.'],
-            ['7', 7, 'Character "7" is not valid in base 7.'],
-            ['6', 6, 'Character "6" is not valid in base 6.'],
-            ['5', 5, 'Character "5" is not valid in base 5.'],
-            ['4', 4, 'Character "4" is not valid in base 4.'],
-            ['3', 3, 'Character "3" is not valid in base 3.'],
-            ['2', 2, 'Character "2" is not valid in base 2.'],
-
-            ['12G34g56', 16, 'Character "G" is not valid in base 16.'],
-            ['12g34G56', 16, 'Character "g" is not valid in base 16.'],
-            ['-12k34', 20, 'Character "k" is not valid in base 20.'],
-            ['+12K34', 20, 'Character "K" is not valid in base 20.'],
-            ["+\0", 10, 'Character 0x00 is not valid in base 10.'],
-            ["+\x01", 10, 'Character 0x01 is not valid in base 10.'],
+            ['Z', 35],
+            ['y', 34],
+            ['X', 33],
+            ['w', 32],
+            ['V', 31],
+            ['u', 30],
+            ['T', 29],
+            ['s', 28],
+            ['R', 27],
+            ['q', 26],
+            ['P', 25],
+            ['o', 24],
+            ['N', 23],
+            ['m', 22],
+            ['L', 21],
+            ['k', 20],
+            ['J', 19],
+            ['i', 18],
+            ['H', 17],
+            ['g', 16],
+            ['F', 15],
+            ['e', 14],
+            ['D', 13],
+            ['c', 12],
+            ['B', 11],
+            ['a', 10],
+            ['9', 9],
+            ['8', 8],
+            ['7', 7],
+            ['6', 6],
+            ['5', 5],
+            ['4', 4],
+            ['3', 3],
+            ['2', 2]
         ];
     }
 
-    #[DataProvider('providerFromBaseWithInvalidBase')]
-    public function testFromBaseWithInvalidBase(int $base): void
+    /**
+     * @dataProvider providerFromBaseWithInvalidBase
+     */
+    public function testFromBaseWithInvalidBase(int $base) : void
     {
-        $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessageExact(sprintf('Base %d is out of range [2, 36].', $base));
-
+        $this->expectException(\InvalidArgumentException::class);
         BigInteger::fromBase('0', $base);
     }
 
-    public static function providerFromBaseWithInvalidBase(): array
+    public function providerFromBaseWithInvalidBase() : array
     {
         return [
             [-2],
             [-1],
             [0],
             [1],
-            [37],
+            [37]
         ];
     }
 
-    public function testZero(): void
+    public function testZero() : void
     {
         self::assertBigIntegerEquals('0', BigInteger::zero());
         self::assertSame(BigInteger::zero(), BigInteger::zero());
     }
 
-    public function testOne(): void
+    public function testOne() : void
     {
         self::assertBigIntegerEquals('1', BigInteger::one());
         self::assertSame(BigInteger::one(), BigInteger::one());
     }
 
-    public function testTen(): void
+    public function testTen() : void
     {
         self::assertBigIntegerEquals('10', BigInteger::ten());
         self::assertSame(BigInteger::ten(), BigInteger::ten());
     }
 
-    #[DataProvider('providerGcdAll')]
-    public function testGcdAll(array $values, string|int $expectedGCD): void
-    {
-        self::assertBigIntegerEquals((string) $expectedGCD, BigInteger::gcdAll(...$values));
-    }
-
-    public static function providerGcdAll(): Generator
-    {
-        // 1 value
-        foreach ([-4, -3, -2, -1, 0, 1, 2, 3, 4] as $value) {
-            yield [[$value], abs($value)];
-        }
-
-        // 2 values
-        foreach (self::providerGcd() as [$a, $b, $gcd]) {
-            yield [[$a, $b], $gcd];
-        }
-
-        // n values
-        yield [['2', '4', '7'], '1'];
-        yield [['2', '4', '8'], '2'];
-        yield [['2', '4', '-7'], '1'];
-        yield [['2', '4', '-8'], '2'];
-        yield [['28', '56', '77777'], '7'];
-        yield [['-28', '56', '77777'], '7'];
-        yield [['-28', '-56', '77777'], '7'];
-        yield [['-28', '-56', '-77777'], '7'];
-        yield [['28', '56', '77778'], '2'];
-        yield [['28', '56', '77782'], '2'];
-        yield [['28', '56', '77783'], '1'];
-        yield [['28', '56', '77784'], '28'];
-        yield [['28', '56', '77784', '4'], '4'];
-        yield [['28', '56', '77784', '14'], '14'];
-        yield [['28', '56', '77784', '14', '4'], '2'];
-
-        // mixed types
-        yield [[12, 14, '18', BigInteger::of(20)], '2'];
-    }
-
-    #[DataProvider('providerLcmAll')]
-    public function testLcmAll(array $values, string|int $expectedLCM): void
-    {
-        self::assertBigIntegerEquals((string) $expectedLCM, BigInteger::lcmAll(...$values));
-    }
-
-    public static function providerLcmAll(): Generator
-    {
-        // 1 value
-        foreach ([-4, -3, -2, -1, 0, 1, 2, 3, 4] as $value) {
-            yield [[$value], abs($value)];
-        }
-
-        // 2 values
-        foreach (self::providerLcm() as [$a, $b, $lcm]) {
-            yield [[$a, $b], $lcm];
-        }
-
-        // n values
-        yield [['2', '4', '7'], '28'];
-        yield [['2', '4', '8'], '8'];
-        yield [['2', '4', '-7'], '28'];
-        yield [['2', '4', '-8'], '8'];
-        yield [['3', '5', '7'], '105'];
-        yield [['6', '10', '15'], '30'];
-        yield [['12', '18', '30'], '180'];
-        yield [['12', '18', '30', '7'], '1260'];
-        yield [['12', '18', '30', '15'], '180'];
-        yield [['0', '4', '7'], '0'];
-
-        // mixed types
-        yield [[12, '18', BigInteger::of(20), BigDecimal::of('14.0')], '1260'];
-    }
-
     /**
+     * @dataProvider providerMin
+     *
      * @param array  $values The values to compare.
      * @param string $min    The expected minimum value.
      */
-    #[DataProvider('providerMin')]
-    public function testMin(array $values, string $min): void
+    public function testMin(array $values, string $min) : void
     {
-        self::assertBigIntegerEquals($min, BigInteger::min(...$values));
+        self::assertBigIntegerEquals($min, BigInteger::min(... $values));
     }
 
-    public static function providerMin(): array
+    public function providerMin() : array
     {
         return [
             [[0, 1, -1], '-1'],
@@ -508,122 +394,110 @@ class BigIntegerTest extends AbstractTestCase
             [['-2/2', '1'], '-1'],
             [['-1.0', '1', '2', '-300/4', '-100'], '-100'],
             [['999999999999999999999999999', '1000000000000000000000000000'], '999999999999999999999999999'],
-            [['-999999999999999999999999999', '-1000000000000000000000000000'], '-1000000000000000000000000000'],
+            [['-999999999999999999999999999', '-1000000000000000000000000000'], '-1000000000000000000000000000']
         ];
     }
 
-    #[DataProvider('providerMinOfNonIntegerValuesThrowsException')]
-    public function testMinOfNonIntegerValuesThrowsException(string $number, string $expectedExceptionMessage): void
+    public function testMinOfZeroValuesThrowsException() : void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        BigInteger::min();
+    }
+
+    public function testMinOfNonIntegerValuesThrowsException() : void
     {
         $this->expectException(RoundingNecessaryException::class);
-        $this->expectExceptionMessageExact($expectedExceptionMessage);
-
-        BigInteger::min(1, $number);
-    }
-
-    public static function providerMinOfNonIntegerValuesThrowsException(): array
-    {
-        return [
-            ['1.2', 'This decimal number cannot be represented as an integer without rounding.'],
-            ['2/3', 'This rational number cannot be represented as an integer without rounding.'],
-        ];
+        BigInteger::min(1, 1.2);
     }
 
     /**
+     * @dataProvider providerMax
+     *
      * @param array  $values The values to compare.
      * @param string $max    The expected maximum value.
      */
-    #[DataProvider('providerMax')]
-    public function testMax(array $values, string $max): void
+    public function testMax(array $values, string $max) : void
     {
-        self::assertBigIntegerEquals($max, BigInteger::max(...$values));
+        self::assertBigIntegerEquals($max, BigInteger::max(... $values));
     }
 
-    public static function providerMax(): array
+    public function providerMax() : array
     {
         return [
             [[0, 1, -1], '1'],
             [[0, '10', '5989.0'], '5989'],
             [[0, '10', '5989', '-1'], '5989'],
-            [[0, '10', '5989', '-1', '6000'], '6000'],
+            [[0, '10', '5989', '-1', 6000.0], '6000'],
             [['-1', '0'], '0'],
             [['-1', '1', '2', '27/9', '-100'], '3'],
             [['999999999999999999999999999', '1000000000000000000000000000'], '1000000000000000000000000000'],
-            [['-999999999999999999999999999', '-1000000000000000000000000000'], '-999999999999999999999999999'],
+            [['-999999999999999999999999999', '-1000000000000000000000000000'], '-999999999999999999999999999']
         ];
     }
 
-    #[DataProvider('providerMaxOfNonIntegerValuesThrowsException')]
-    public function testMaxOfNonIntegerValuesThrowsException(string $number, string $expectedExceptionMessage): void
+    public function testMaxOfZeroValuesThrowsException() : void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        BigInteger::max();
+    }
+
+    public function testMaxOfNonIntegerValuesThrowsException() : void
     {
         $this->expectException(RoundingNecessaryException::class);
-        $this->expectExceptionMessageExact($expectedExceptionMessage);
-
-        BigInteger::max(1, $number);
-    }
-
-    public static function providerMaxOfNonIntegerValuesThrowsException(): array
-    {
-        return [
-            ['1.2', 'This decimal number cannot be represented as an integer without rounding.'],
-            ['2/3', 'This rational number cannot be represented as an integer without rounding.'],
-        ];
+        BigInteger::max(1, '3/2');
     }
 
     /**
+     * @dataProvider providerSum
+     *
      * @param array  $values The values to add.
      * @param string $sum    The expected sum.
      */
-    #[DataProvider('providerSum')]
-    public function testSum(array $values, string $sum): void
+    public function testSum(array $values, string $sum) : void
     {
-        self::assertBigIntegerEquals($sum, BigInteger::sum(...$values));
+        self::assertBigIntegerEquals($sum, BigInteger::sum(... $values));
     }
 
-    public static function providerSum(): array
+    public function providerSum() : array
     {
         return [
             [[-1], '-1'],
             [[0, 1, -1], '0'],
             [[0, '10', '5989.0'], '5999'],
             [[0, '10', '5989', '-1'], '5998'],
-            [[0, '10', '5989', '-1', '6000'], '11998'],
+            [[0, '10', '5989', '-1', 6000.0], '11998'],
             [['-1', '0'], '-1'],
             [['-1', '1', '2', '27/9', '-100'], '-95'],
-            [['1234567', '-1233.00', 137, '406847567975012457258945126'], '406847567975012457260178597'],
-            [['-165504564654654879742303821254754', '-4455454', 455879563], '-165504564654654879742303369830645'],
+            [['1234567', '-1233.00', 137, '406847567975012457258945126', ], '406847567975012457260178597'],
+            [['-165504564654654879742303821254754', '-4455454', 455879563], '-165504564654654879742303369830645']
         ];
     }
 
-    #[DataProvider('providerSumOfNonIntegerValuesThrowsException')]
-    public function testSumOfNonIntegerValuesThrowsException(string $number, string $expectedExceptionMessage): void
+    public function testSumOfZeroValuesThrowsException() : void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        BigInteger::sum();
+    }
+
+    public function testSumOfNonIntegerValuesThrowsException() : void
     {
         $this->expectException(RoundingNecessaryException::class);
-        $this->expectExceptionMessageExact($expectedExceptionMessage);
-
-        BigInteger::sum(1, $number);
-    }
-
-    public static function providerSumOfNonIntegerValuesThrowsException(): array
-    {
-        return [
-            ['1.2', 'This decimal number cannot be represented as an integer without rounding.'],
-            ['2/3', 'This rational number cannot be represented as an integer without rounding.'],
-        ];
+        BigInteger::sum(1, '3/2');
     }
 
     /**
+     * @dataProvider providerPlus
+     *
      * @param string $a The base number.
      * @param string $b The number to add.
      * @param string $r The expected result.
      */
-    #[DataProvider('providerPlus')]
-    public function testPlus(string $a, string $b, string $r): void
+    public function testPlus(string $a, string $b, string $r) : void
     {
         self::assertBigIntegerEquals($r, BigInteger::of($a)->plus($b));
     }
 
-    public static function providerPlus(): array
+    public function providerPlus() : array
     {
         return [
             ['5165450198704521651351654564564089798441', '0', '5165450198704521651351654564564089798441'],
@@ -633,26 +507,26 @@ class BigIntegerTest extends AbstractTestCase
             ['5165450198704521651351654564564089798441', '-5165450198704521651351654564564089798441', '0'],
             ['-5165450198704521651351654564564089798441', '5165450198704521651351654564564089798441', '0'],
 
-            ['1234567891234567889999999', '1234567891234567889999999', '2469135782469135779999998'],
             ['3493049309220392055810', '9918493493849898938928310121', '9918496986899208159320365931'],
             ['546254089287665464650654', '-4654654565726542654005465', '-4108400476438877189354811'],
             ['-54654654625426504062224', '406546504670332465465435004', '406491850015707038961372780'],
-            ['-78706406576549688403246', '-3064672987984605465406546', '-3143379394561155153809792'],
+            ['-78706406576549688403246', '-3064672987984605465406546', '-3143379394561155153809792']
         ];
     }
 
     /**
+     * @dataProvider providerMinus
+     *
      * @param string $a The base number.
      * @param string $b The number to subtract.
      * @param string $r The expected result.
      */
-    #[DataProvider('providerMinus')]
-    public function testMinus(string $a, string $b, string $r): void
+    public function testMinus(string $a, string $b, string $r) : void
     {
         self::assertBigIntegerEquals($r, BigInteger::of($a)->minus($b));
     }
 
-    public static function providerMinus(): array
+    public function providerMinus() : array
     {
         return [
             ['5165450198704521651351654564564089798441', '0', '5165450198704521651351654564564089798441'],
@@ -663,30 +537,25 @@ class BigIntegerTest extends AbstractTestCase
             ['879798276565798787646', '2345178709879804654605406456', '-2345177830081528088806618810'],
             ['99465465545004066406868767', '-79870987954654608076067608768', '79970453420199612142474477535'],
             ['-46465465478979879230745664', '21316504468760001807687078994', '-21362969934238981686917824658'],
-            ['-2154799048440940949896046', '-9000454956465465424345404846624', '9000452801666416983404454950578'],
+            ['-2154799048440940949896046', '-9000454956465465424345404846624', '9000452801666416983404454950578']
         ];
     }
 
     /**
+     * @dataProvider providerMultipliedBy
+     *
      * @param string     $a The base number.
-     * @param int|string $b The number to multiply.
+     * @param string|int $b The number to multiply.
      * @param string     $r The expected result.
      */
-    #[DataProvider('providerMultipliedBy')]
-    public function testMultipliedBy(string $a, int|string $b, string $r): void
+    public function testMultipliedBy(string $a, $b, string $r) : void
     {
         self::assertBigIntegerEquals($r, BigInteger::of($a)->multipliedBy($b));
     }
 
-    public static function providerMultipliedBy(): array
+    public function providerMultipliedBy() : array
     {
         return [
-            ['0', '0', '0'],
-            ['0', '-1', '0'],
-            ['0', '1', '0'],
-            ['-1', '0', '0'],
-            ['1', '0', '0'],
-
             ['123456789098765432101234567890987654321', '1', '123456789098765432101234567890987654321'],
             ['123456789098765432101234567890987654321', '-1', '-123456789098765432101234567890987654321'],
             ['1', '123456789098765432101234567890987654321', '123456789098765432101234567890987654321'],
@@ -694,12 +563,12 @@ class BigIntegerTest extends AbstractTestCase
             ['341581435989834012309', '-91050393818389238433', '-31101124267925302088072082300643257871797'],
             ['-1204902920503999920003', '1984389583950290232332', '-2390996805119422027350037939263960284136996'],
             ['-991230349304902390122', '-3483910549230593053437', '3453357870660875087266990729629471366949314'],
-            ['0', '1234567891234567889999999', '0'],
-            ['1234567891234567889999999', '0', '0'],
             ['0', '-3483910549230593053437', '0'],
             ['-991230349304902390122', '0', '0'],
 
+
             ['1274837942798479387498237897498734984', 30, '38245138283954381624947136924962049520'],
+            ['1274837942798479387498237897498734984', 30.0, '38245138283954381624947136924962049520'],
             ['1274837942798479387498237897498734984', '30', '38245138283954381624947136924962049520'],
             ['1274837942798479387498237897498734984', '30.0', '38245138283954381624947136924962049520'],
             ['1274837942798479387498237897498734984', '90/3', '38245138283954381624947136924962049520'],
@@ -707,21 +576,18 @@ class BigIntegerTest extends AbstractTestCase
     }
 
     /**
-     * @param string     $number   The base number.
-     * @param int|string $divisor  The divisor.
-     * @param string     $expected The expected result, or a class name if an exception is expected.
+     * @dataProvider providerDividedBy
+     *
+     * @param string           $number   The base number.
+     * @param string|int|float $divisor  The divisor.
+     * @param string           $expected The expected result, or a class name if an exception is expected.
      */
-    #[DataProvider('providerDividedBy')]
-    public function testDividedBy(string $number, int|string $divisor, string $expected): void
+    public function testDividedBy(string $number, $divisor, string $expected) : void
     {
         $number = BigInteger::of($number);
 
         if (self::isException($expected)) {
             $this->expectException($expected);
-
-            if ($expected === DivisionByZeroException::class) {
-                $this->expectExceptionMessageExact('Division by zero.');
-            }
         }
 
         $actual = $number->dividedBy($divisor);
@@ -731,15 +597,16 @@ class BigIntegerTest extends AbstractTestCase
         }
     }
 
-    public static function providerDividedBy(): array
+    public function providerDividedBy() : array
     {
         return [
             ['123456789098765432101234567890987654321', 1, '123456789098765432101234567890987654321'],
             ['123456789098765432101234567890987654321', 2, RoundingNecessaryException::class],
             ['123456789098765432101234567890987654321', 0, DivisionByZeroException::class],
-            ['123456789098765432101234567890987654321', '0.0', DivisionByZeroException::class],
-            ['123456789098765432101234567890987654321', '0.1', RoundingNecessaryException::class],
+            ['123456789098765432101234567890987654321', 0.0, DivisionByZeroException::class],
+            ['123456789098765432101234567890987654321', 0.1, RoundingNecessaryException::class],
             ['123456789098765432101234567890987654322', 2, '61728394549382716050617283945493827161'],
+            ['123456789098765432101234567890987654322', 2.0, '61728394549382716050617283945493827161'],
             ['123456789098765432101234567890987654322', '2', '61728394549382716050617283945493827161'],
             ['123456789098765432101234567890987654322', '2.0', '61728394549382716050617283945493827161'],
             ['123456789098765432101234567890987654322', '14/7', '61728394549382716050617283945493827161'],
@@ -753,15 +620,22 @@ class BigIntegerTest extends AbstractTestCase
         ];
     }
 
+    public function testDividedByWithInvalidRoundingModeThrowsException() : void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        BigInteger::of(1)->dividedBy(2, -1);
+    }
+
     /**
-     * @param RoundingMode $roundingMode The rounding mode.
-     * @param string       $number       The number to round.
-     * @param string|null  $ten          The expected rounding divided by 10, or null if an exception is expected.
-     * @param string|null  $hundred      The expected rounding divided by 100 or null if an exception is expected.
-     * @param string|null  $thousand     The expected rounding divided by 1000, or null if an exception is expected.
+     * @dataProvider providerDividedByWithRoundingMode
+     *
+     * @param int         $roundingMode The rounding mode.
+     * @param string      $number       The number to round.
+     * @param string|null $ten          The expected rounding divided by 10, or null if an exception is expected.
+     * @param string|null $hundred      The expected rounding divided by 100 or null if an exception is expected.
+     * @param string|null $thousand     The expected rounding divided by 1000, or null if an exception is expected.
      */
-    #[DataProvider('providerDividedByWithRoundingMode')]
-    public function testDividedByWithRoundingMode(RoundingMode $roundingMode, string $number, ?string $ten, ?string $hundred, ?string $thousand): void
+    public function testDividedByWithRoundingMode(int $roundingMode, string $number, ?string $ten, ?string $hundred, ?string $thousand) : void
     {
         $number = BigInteger::of($number);
 
@@ -769,794 +643,542 @@ class BigIntegerTest extends AbstractTestCase
         $this->doTestDividedByWithRoundingMode($roundingMode, $number->negated(), '-1', $ten, $hundred, $thousand);
     }
 
-    public static function providerDividedByWithRoundingMode(): array
+    /**
+     * @param int         $roundingMode The rounding mode.
+     * @param BigInteger  $number       The number to round.
+     * @param string      $divisor      The divisor.
+     * @param string|null $ten          The expected rounding to a scale of two, or null if an exception is expected.
+     * @param string|null $hundred      The expected rounding to a scale of one, or null if an exception is expected.
+     * @param string|null $thousand     The expected rounding to a scale of zero, or null if an exception is expected.
+     */
+    private function doTestDividedByWithRoundingMode(int $roundingMode, BigInteger $number, string $divisor, ?string $ten, ?string $hundred, ?string $thousand) : void
+    {
+        foreach ([$ten, $hundred, $thousand] as $expected) {
+            $divisor .= '0';
+
+            if ($expected === null) {
+                $this->expectException(RoundingNecessaryException::class);
+            }
+
+            $actual = $number->dividedBy($divisor, $roundingMode);
+
+            if ($expected !== null) {
+                self::assertBigIntegerEquals($expected, $actual);
+            }
+        }
+    }
+
+    public function providerDividedByWithRoundingMode() : array
     {
         return [
-            [RoundingMode::Unnecessary,  '3501',   null,  null, null],
-            [RoundingMode::Up,           '3501',  '351',  '36',  '4'],
-            [RoundingMode::Down,         '3501',  '350',  '35',  '3'],
-            [RoundingMode::Ceiling,      '3501',  '351',  '36',  '4'],
-            [RoundingMode::Floor,        '3501',  '350',  '35',  '3'],
-            [RoundingMode::HalfUp,       '3501',  '350',  '35',  '4'],
-            [RoundingMode::HalfDown,     '3501',  '350',  '35',  '4'],
-            [RoundingMode::HalfCeiling,  '3501',  '350',  '35',  '4'],
-            [RoundingMode::HalfFloor,    '3501',  '350',  '35',  '4'],
-            [RoundingMode::HalfEven,     '3501',  '350',  '35',  '4'],
-            [RoundingMode::HalfOdd,      '3501',  '350',  '35',  '4'],
+            [RoundingMode::UP,  '3501',  '351',  '36',  '4'],
+            [RoundingMode::UP,  '3500',  '350',  '35',  '4'],
+            [RoundingMode::UP,  '3499',  '350',  '35',  '4'],
+            [RoundingMode::UP,  '3001',  '301',  '31',  '4'],
+            [RoundingMode::UP,  '3000',  '300',  '30',  '3'],
+            [RoundingMode::UP,  '2999',  '300',  '30',  '3'],
+            [RoundingMode::UP,  '2501',  '251',  '26',  '3'],
+            [RoundingMode::UP,  '2500',  '250',  '25',  '3'],
+            [RoundingMode::UP,  '2499',  '250',  '25',  '3'],
+            [RoundingMode::UP,  '2001',  '201',  '21',  '3'],
+            [RoundingMode::UP,  '2000',  '200',  '20',  '2'],
+            [RoundingMode::UP,  '1999',  '200',  '20',  '2'],
+            [RoundingMode::UP,  '1501',  '151',  '16',  '2'],
+            [RoundingMode::UP,  '1500',  '150',  '15',  '2'],
+            [RoundingMode::UP,  '1499',  '150',  '15',  '2'],
+            [RoundingMode::UP,  '1001',  '101',  '11',  '2'],
+            [RoundingMode::UP,  '1000',  '100',  '10',  '1'],
+            [RoundingMode::UP,   '999',  '100',  '10',  '1'],
+            [RoundingMode::UP,   '501',   '51',   '6',  '1'],
+            [RoundingMode::UP,   '500',   '50',   '5',  '1'],
+            [RoundingMode::UP,   '499',   '50',   '5',  '1'],
+            [RoundingMode::UP,     '1',    '1',   '1',  '1'],
+            [RoundingMode::UP,     '0',    '0',   '0',  '0'],
+            [RoundingMode::UP,    '-1',   '-1',  '-1', '-1'],
+            [RoundingMode::UP,  '-499',  '-50',  '-5', '-1'],
+            [RoundingMode::UP,  '-500',  '-50',  '-5', '-1'],
+            [RoundingMode::UP,  '-501',  '-51',  '-6', '-1'],
+            [RoundingMode::UP,  '-999', '-100', '-10', '-1'],
+            [RoundingMode::UP, '-1000', '-100', '-10', '-1'],
+            [RoundingMode::UP, '-1001', '-101', '-11', '-2'],
+            [RoundingMode::UP, '-1499', '-150', '-15', '-2'],
+            [RoundingMode::UP, '-1500', '-150', '-15', '-2'],
+            [RoundingMode::UP, '-1501', '-151', '-16', '-2'],
+            [RoundingMode::UP, '-1999', '-200', '-20', '-2'],
+            [RoundingMode::UP, '-2000', '-200', '-20', '-2'],
+            [RoundingMode::UP, '-2001', '-201', '-21', '-3'],
+            [RoundingMode::UP, '-2499', '-250', '-25', '-3'],
+            [RoundingMode::UP, '-2500', '-250', '-25', '-3'],
+            [RoundingMode::UP, '-2501', '-251', '-26', '-3'],
+            [RoundingMode::UP, '-2999', '-300', '-30', '-3'],
+            [RoundingMode::UP, '-3000', '-300', '-30', '-3'],
+            [RoundingMode::UP, '-3001', '-301', '-31', '-4'],
+            [RoundingMode::UP, '-3499', '-350', '-35', '-4'],
+            [RoundingMode::UP, '-3500', '-350', '-35', '-4'],
+            [RoundingMode::UP, '-3501', '-351', '-36', '-4'],
 
-            [RoundingMode::Unnecessary,  '3500',  '350',  '35', null],
-            [RoundingMode::Up,           '3500',  '350',  '35',  '4'],
-            [RoundingMode::Down,         '3500',  '350',  '35',  '3'],
-            [RoundingMode::Ceiling,      '3500',  '350',  '35',  '4'],
-            [RoundingMode::Floor,        '3500',  '350',  '35',  '3'],
-            [RoundingMode::HalfUp,       '3500',  '350',  '35',  '4'],
-            [RoundingMode::HalfDown,     '3500',  '350',  '35',  '3'],
-            [RoundingMode::HalfCeiling,  '3500',  '350',  '35',  '4'],
-            [RoundingMode::HalfFloor,    '3500',  '350',  '35',  '3'],
-            [RoundingMode::HalfEven,     '3500',  '350',  '35',  '4'],
-            [RoundingMode::HalfOdd,      '3500',  '350',  '35',  '3'],
+            [RoundingMode::DOWN,  '3501',  '350',  '35',  '3'],
+            [RoundingMode::DOWN,  '3500',  '350',  '35',  '3'],
+            [RoundingMode::DOWN,  '3499',  '349',  '34',  '3'],
+            [RoundingMode::DOWN,  '3001',  '300',  '30',  '3'],
+            [RoundingMode::DOWN,  '3000',  '300',  '30',  '3'],
+            [RoundingMode::DOWN,  '2999',  '299',  '29',  '2'],
+            [RoundingMode::DOWN,  '2501',  '250',  '25',  '2'],
+            [RoundingMode::DOWN,  '2500',  '250',  '25',  '2'],
+            [RoundingMode::DOWN,  '2499',  '249',  '24',  '2'],
+            [RoundingMode::DOWN,  '2001',  '200',  '20',  '2'],
+            [RoundingMode::DOWN,  '2000',  '200',  '20',  '2'],
+            [RoundingMode::DOWN,  '1999',  '199',  '19',  '1'],
+            [RoundingMode::DOWN,  '1501',  '150',  '15',  '1'],
+            [RoundingMode::DOWN,  '1500',  '150',  '15',  '1'],
+            [RoundingMode::DOWN,  '1499',  '149',  '14',  '1'],
+            [RoundingMode::DOWN,  '1001',  '100',  '10',  '1'],
+            [RoundingMode::DOWN,  '1000',  '100',  '10',  '1'],
+            [RoundingMode::DOWN,   '999',   '99',   '9',  '0'],
+            [RoundingMode::DOWN,   '501',   '50',   '5',  '0'],
+            [RoundingMode::DOWN,   '500',   '50',   '5',  '0'],
+            [RoundingMode::DOWN,   '499',   '49',   '4',  '0'],
+            [RoundingMode::DOWN,     '1',    '0',   '0',  '0'],
+            [RoundingMode::DOWN,     '0',    '0',   '0',  '0'],
+            [RoundingMode::DOWN,    '-1',    '0',   '0',  '0'],
+            [RoundingMode::DOWN,  '-499',  '-49',  '-4',  '0'],
+            [RoundingMode::DOWN,  '-500',  '-50',  '-5',  '0'],
+            [RoundingMode::DOWN,  '-501',  '-50',  '-5',  '0'],
+            [RoundingMode::DOWN,  '-999',  '-99',  '-9',  '0'],
+            [RoundingMode::DOWN, '-1000', '-100', '-10', '-1'],
+            [RoundingMode::DOWN, '-1001', '-100', '-10', '-1'],
+            [RoundingMode::DOWN, '-1499', '-149', '-14', '-1'],
+            [RoundingMode::DOWN, '-1500', '-150', '-15', '-1'],
+            [RoundingMode::DOWN, '-1501', '-150', '-15', '-1'],
+            [RoundingMode::DOWN, '-1999', '-199', '-19', '-1'],
+            [RoundingMode::DOWN, '-2000', '-200', '-20', '-2'],
+            [RoundingMode::DOWN, '-2001', '-200', '-20', '-2'],
+            [RoundingMode::DOWN, '-2499', '-249', '-24', '-2'],
+            [RoundingMode::DOWN, '-2500', '-250', '-25', '-2'],
+            [RoundingMode::DOWN, '-2501', '-250', '-25', '-2'],
+            [RoundingMode::DOWN, '-2999', '-299', '-29', '-2'],
+            [RoundingMode::DOWN, '-3000', '-300', '-30', '-3'],
+            [RoundingMode::DOWN, '-3001', '-300', '-30', '-3'],
+            [RoundingMode::DOWN, '-3499', '-349', '-34', '-3'],
+            [RoundingMode::DOWN, '-3500', '-350', '-35', '-3'],
+            [RoundingMode::DOWN, '-3501', '-350', '-35', '-3'],
 
-            [RoundingMode::Unnecessary,  '3499',   null,  null, null],
-            [RoundingMode::Up,           '3499',  '350',  '35',  '4'],
-            [RoundingMode::Down,         '3499',  '349',  '34',  '3'],
-            [RoundingMode::Ceiling,      '3499',  '350',  '35',  '4'],
-            [RoundingMode::Floor,        '3499',  '349',  '34',  '3'],
-            [RoundingMode::HalfUp,       '3499',  '350',  '35',  '3'],
-            [RoundingMode::HalfDown,     '3499',  '350',  '35',  '3'],
-            [RoundingMode::HalfCeiling,  '3499',  '350',  '35',  '3'],
-            [RoundingMode::HalfFloor,    '3499',  '350',  '35',  '3'],
-            [RoundingMode::HalfEven,     '3499',  '350',  '35',  '3'],
-            [RoundingMode::HalfOdd,      '3499',  '350',  '35',  '3'],
+            [RoundingMode::CEILING,  '3501',  '351',  '36',  '4'],
+            [RoundingMode::CEILING,  '3500',  '350',  '35',  '4'],
+            [RoundingMode::CEILING,  '3499',  '350',  '35',  '4'],
+            [RoundingMode::CEILING,  '3001',  '301',  '31',  '4'],
+            [RoundingMode::CEILING,  '3000',  '300',  '30',  '3'],
+            [RoundingMode::CEILING,  '2999',  '300',  '30',  '3'],
+            [RoundingMode::CEILING,  '2501',  '251',  '26',  '3'],
+            [RoundingMode::CEILING,  '2500',  '250',  '25',  '3'],
+            [RoundingMode::CEILING,  '2499',  '250',  '25',  '3'],
+            [RoundingMode::CEILING,  '2001',  '201',  '21',  '3'],
+            [RoundingMode::CEILING,  '2000',  '200',  '20',  '2'],
+            [RoundingMode::CEILING,  '1999',  '200',  '20',  '2'],
+            [RoundingMode::CEILING,  '1501',  '151',  '16',  '2'],
+            [RoundingMode::CEILING,  '1500',  '150',  '15',  '2'],
+            [RoundingMode::CEILING,  '1499',  '150',  '15',  '2'],
+            [RoundingMode::CEILING,  '1001',  '101',  '11',  '2'],
+            [RoundingMode::CEILING,  '1000',  '100',  '10',  '1'],
+            [RoundingMode::CEILING,   '999',  '100',  '10',  '1'],
+            [RoundingMode::CEILING,   '501',   '51',   '6',  '1'],
+            [RoundingMode::CEILING,   '500',   '50',   '5',  '1'],
+            [RoundingMode::CEILING,   '499',   '50',   '5',  '1'],
+            [RoundingMode::CEILING,     '1',    '1',   '1',  '1'],
+            [RoundingMode::CEILING,     '0',    '0',   '0',  '0'],
+            [RoundingMode::CEILING,    '-1',    '0',   '0',  '0'],
+            [RoundingMode::CEILING,  '-499',  '-49' , '-4',  '0'],
+            [RoundingMode::CEILING,  '-500',  '-50' , '-5',  '0'],
+            [RoundingMode::CEILING,  '-501',  '-50',  '-5',  '0'],
+            [RoundingMode::CEILING,  '-999',  '-99',  '-9',  '0'],
+            [RoundingMode::CEILING, '-1000', '-100', '-10', '-1'],
+            [RoundingMode::CEILING, '-1001', '-100', '-10', '-1'],
+            [RoundingMode::CEILING, '-1499', '-149', '-14', '-1'],
+            [RoundingMode::CEILING, '-1500', '-150', '-15', '-1'],
+            [RoundingMode::CEILING, '-1501', '-150', '-15', '-1'],
+            [RoundingMode::CEILING, '-1999', '-199', '-19', '-1'],
+            [RoundingMode::CEILING, '-2000', '-200', '-20', '-2'],
+            [RoundingMode::CEILING, '-2001', '-200', '-20', '-2'],
+            [RoundingMode::CEILING, '-2499', '-249', '-24', '-2'],
+            [RoundingMode::CEILING, '-2500', '-250', '-25', '-2'],
+            [RoundingMode::CEILING, '-2501', '-250', '-25', '-2'],
+            [RoundingMode::CEILING, '-2999', '-299', '-29', '-2'],
+            [RoundingMode::CEILING, '-3000', '-300', '-30', '-3'],
+            [RoundingMode::CEILING, '-3001', '-300', '-30', '-3'],
+            [RoundingMode::CEILING, '-3499', '-349', '-34', '-3'],
+            [RoundingMode::CEILING, '-3500', '-350', '-35', '-3'],
+            [RoundingMode::CEILING, '-3501', '-350', '-35', '-3'],
 
-            [RoundingMode::Unnecessary,  '3001',   null,  null, null],
-            [RoundingMode::Up,           '3001',  '301',  '31',  '4'],
-            [RoundingMode::Down,         '3001',  '300',  '30',  '3'],
-            [RoundingMode::Ceiling,      '3001',  '301',  '31',  '4'],
-            [RoundingMode::Floor,        '3001',  '300',  '30',  '3'],
-            [RoundingMode::HalfUp,       '3001',  '300',  '30',  '3'],
-            [RoundingMode::HalfDown,     '3001',  '300',  '30',  '3'],
-            [RoundingMode::HalfCeiling,  '3001',  '300',  '30',  '3'],
-            [RoundingMode::HalfFloor,    '3001',  '300',  '30',  '3'],
-            [RoundingMode::HalfEven,     '3001',  '300',  '30',  '3'],
-            [RoundingMode::HalfOdd,      '3001',  '300',  '30',  '3'],
+            [RoundingMode::FLOOR,  '3501',  '350',  '35',  '3'],
+            [RoundingMode::FLOOR,  '3500',  '350',  '35',  '3'],
+            [RoundingMode::FLOOR,  '3499',  '349',  '34',  '3'],
+            [RoundingMode::FLOOR,  '3001',  '300',  '30',  '3'],
+            [RoundingMode::FLOOR,  '3000',  '300',  '30',  '3'],
+            [RoundingMode::FLOOR,  '2999',  '299',  '29',  '2'],
+            [RoundingMode::FLOOR,  '2501',  '250',  '25',  '2'],
+            [RoundingMode::FLOOR,  '2500',  '250',  '25',  '2'],
+            [RoundingMode::FLOOR,  '2499',  '249',  '24',  '2'],
+            [RoundingMode::FLOOR,  '2001',  '200',  '20',  '2'],
+            [RoundingMode::FLOOR,  '2000',  '200',  '20',  '2'],
+            [RoundingMode::FLOOR,  '1999',  '199',  '19',  '1'],
+            [RoundingMode::FLOOR,  '1501',  '150',  '15',  '1'],
+            [RoundingMode::FLOOR,  '1500',  '150',  '15',  '1'],
+            [RoundingMode::FLOOR,  '1499',  '149',  '14',  '1'],
+            [RoundingMode::FLOOR,  '1001',  '100',  '10',  '1'],
+            [RoundingMode::FLOOR,  '1000',  '100',  '10',  '1'],
+            [RoundingMode::FLOOR,   '999',   '99',   '9',  '0'],
+            [RoundingMode::FLOOR,   '501',   '50',   '5',  '0'],
+            [RoundingMode::FLOOR,   '500',   '50',   '5',  '0'],
+            [RoundingMode::FLOOR,   '499',   '49',   '4',  '0'],
+            [RoundingMode::FLOOR,     '1',    '0',   '0',  '0'],
+            [RoundingMode::FLOOR,     '0',    '0',   '0',  '0'],
+            [RoundingMode::FLOOR,    '-1',   '-1',  '-1', '-1'],
+            [RoundingMode::FLOOR,  '-499',  '-50',  '-5', '-1'],
+            [RoundingMode::FLOOR,  '-500',  '-50',  '-5', '-1'],
+            [RoundingMode::FLOOR,  '-501',  '-51',  '-6', '-1'],
+            [RoundingMode::FLOOR,  '-999', '-100', '-10', '-1'],
+            [RoundingMode::FLOOR, '-1000', '-100', '-10', '-1'],
+            [RoundingMode::FLOOR, '-1001', '-101', '-11', '-2'],
+            [RoundingMode::FLOOR, '-1499', '-150', '-15', '-2'],
+            [RoundingMode::FLOOR, '-1500', '-150', '-15', '-2'],
+            [RoundingMode::FLOOR, '-1501', '-151', '-16', '-2'],
+            [RoundingMode::FLOOR, '-1999', '-200', '-20', '-2'],
+            [RoundingMode::FLOOR, '-2000', '-200', '-20', '-2'],
+            [RoundingMode::FLOOR, '-2001', '-201', '-21', '-3'],
+            [RoundingMode::FLOOR, '-2499', '-250', '-25', '-3'],
+            [RoundingMode::FLOOR, '-2500', '-250', '-25', '-3'],
+            [RoundingMode::FLOOR, '-2501', '-251', '-26', '-3'],
+            [RoundingMode::FLOOR, '-2999', '-300', '-30', '-3'],
+            [RoundingMode::FLOOR, '-3000', '-300', '-30', '-3'],
+            [RoundingMode::FLOOR, '-3001', '-301', '-31', '-4'],
+            [RoundingMode::FLOOR, '-3499', '-350', '-35', '-4'],
+            [RoundingMode::FLOOR, '-3500', '-350', '-35', '-4'],
+            [RoundingMode::FLOOR, '-3501', '-351', '-36', '-4'],
 
-            [RoundingMode::Unnecessary,  '3000',  '300',  '30',  '3'],
-            [RoundingMode::Up,           '3000',  '300',  '30',  '3'],
-            [RoundingMode::Down,         '3000',  '300',  '30',  '3'],
-            [RoundingMode::Ceiling,      '3000',  '300',  '30',  '3'],
-            [RoundingMode::Floor,        '3000',  '300',  '30',  '3'],
-            [RoundingMode::HalfUp,       '3000',  '300',  '30',  '3'],
-            [RoundingMode::HalfDown,     '3000',  '300',  '30',  '3'],
-            [RoundingMode::HalfCeiling,  '3000',  '300',  '30',  '3'],
-            [RoundingMode::HalfFloor,    '3000',  '300',  '30',  '3'],
-            [RoundingMode::HalfEven,     '3000',  '300',  '30',  '3'],
-            [RoundingMode::HalfOdd,      '3000',  '300',  '30',  '3'],
+            [RoundingMode::HALF_UP,  '3501',  '350',  '35',  '4'],
+            [RoundingMode::HALF_UP,  '3500',  '350',  '35',  '4'],
+            [RoundingMode::HALF_UP,  '3499',  '350',  '35',  '3'],
+            [RoundingMode::HALF_UP,  '3001',  '300',  '30',  '3'],
+            [RoundingMode::HALF_UP,  '3000',  '300',  '30',  '3'],
+            [RoundingMode::HALF_UP,  '2999',  '300',  '30',  '3'],
+            [RoundingMode::HALF_UP,  '2501',  '250',  '25',  '3'],
+            [RoundingMode::HALF_UP,  '2500',  '250',  '25',  '3'],
+            [RoundingMode::HALF_UP,  '2499',  '250',  '25',  '2'],
+            [RoundingMode::HALF_UP,  '2001',  '200',  '20',  '2'],
+            [RoundingMode::HALF_UP,  '2000',  '200',  '20',  '2'],
+            [RoundingMode::HALF_UP,  '1999',  '200',  '20',  '2'],
+            [RoundingMode::HALF_UP,  '1501',  '150',  '15',  '2'],
+            [RoundingMode::HALF_UP,  '1500',  '150',  '15',  '2'],
+            [RoundingMode::HALF_UP,  '1499',  '150',  '15',  '1'],
+            [RoundingMode::HALF_UP,  '1001',  '100',  '10',  '1'],
+            [RoundingMode::HALF_UP,  '1000',  '100',  '10',  '1'],
+            [RoundingMode::HALF_UP,   '999',  '100',  '10',  '1'],
+            [RoundingMode::HALF_UP,   '501',   '50',   '5',  '1'],
+            [RoundingMode::HALF_UP,   '500',   '50',   '5',  '1'],
+            [RoundingMode::HALF_UP,   '499',   '50',   '5',  '0'],
+            [RoundingMode::HALF_UP,     '1',    '0',   '0',  '0'],
+            [RoundingMode::HALF_UP,     '0',    '0',   '0',  '0'],
+            [RoundingMode::HALF_UP,    '-1',    '0',   '0',  '0'],
+            [RoundingMode::HALF_UP,  '-499',  '-50',  '-5',  '0'],
+            [RoundingMode::HALF_UP,  '-500',  '-50',  '-5', '-1'],
+            [RoundingMode::HALF_UP,  '-501',  '-50',  '-5', '-1'],
+            [RoundingMode::HALF_UP,  '-999', '-100', '-10', '-1'],
+            [RoundingMode::HALF_UP, '-1000', '-100', '-10', '-1'],
+            [RoundingMode::HALF_UP, '-1001', '-100', '-10', '-1'],
+            [RoundingMode::HALF_UP, '-1499', '-150', '-15', '-1'],
+            [RoundingMode::HALF_UP, '-1500', '-150', '-15', '-2'],
+            [RoundingMode::HALF_UP, '-1501', '-150', '-15', '-2'],
+            [RoundingMode::HALF_UP, '-1999', '-200', '-20', '-2'],
+            [RoundingMode::HALF_UP, '-2000', '-200', '-20', '-2'],
+            [RoundingMode::HALF_UP, '-2001', '-200', '-20', '-2'],
+            [RoundingMode::HALF_UP, '-2499', '-250', '-25', '-2'],
+            [RoundingMode::HALF_UP, '-2500', '-250', '-25', '-3'],
+            [RoundingMode::HALF_UP, '-2501', '-250', '-25', '-3'],
+            [RoundingMode::HALF_UP, '-2999', '-300', '-30', '-3'],
+            [RoundingMode::HALF_UP, '-3000', '-300', '-30', '-3'],
+            [RoundingMode::HALF_UP, '-3001', '-300', '-30', '-3'],
+            [RoundingMode::HALF_UP, '-3499', '-350', '-35', '-3'],
+            [RoundingMode::HALF_UP, '-3500', '-350', '-35', '-4'],
+            [RoundingMode::HALF_UP, '-3501', '-350', '-35', '-4'],
 
-            [RoundingMode::Unnecessary,  '2999',   null,  null, null],
-            [RoundingMode::Up,           '2999',  '300',  '30',  '3'],
-            [RoundingMode::Down,         '2999',  '299',  '29',  '2'],
-            [RoundingMode::Ceiling,      '2999',  '300',  '30',  '3'],
-            [RoundingMode::Floor,        '2999',  '299',  '29',  '2'],
-            [RoundingMode::HalfUp,       '2999',  '300',  '30',  '3'],
-            [RoundingMode::HalfDown,     '2999',  '300',  '30',  '3'],
-            [RoundingMode::HalfCeiling,  '2999',  '300',  '30',  '3'],
-            [RoundingMode::HalfFloor,    '2999',  '300',  '30',  '3'],
-            [RoundingMode::HalfEven,     '2999',  '300',  '30',  '3'],
-            [RoundingMode::HalfOdd,      '2999',  '300',  '30',  '3'],
+            [RoundingMode::HALF_DOWN,  '3501',  '350',  '35',  '4'],
+            [RoundingMode::HALF_DOWN,  '3500',  '350',  '35',  '3'],
+            [RoundingMode::HALF_DOWN,  '3499',  '350',  '35',  '3'],
+            [RoundingMode::HALF_DOWN,  '3001',  '300',  '30',  '3'],
+            [RoundingMode::HALF_DOWN,  '3000',  '300',  '30',  '3'],
+            [RoundingMode::HALF_DOWN,  '2999',  '300',  '30',  '3'],
+            [RoundingMode::HALF_DOWN,  '2501',  '250',  '25',  '3'],
+            [RoundingMode::HALF_DOWN,  '2500',  '250',  '25',  '2'],
+            [RoundingMode::HALF_DOWN,  '2499',  '250',  '25',  '2'],
+            [RoundingMode::HALF_DOWN,  '2001',  '200',  '20',  '2'],
+            [RoundingMode::HALF_DOWN,  '2000',  '200',  '20',  '2'],
+            [RoundingMode::HALF_DOWN,  '1999',  '200',  '20',  '2'],
+            [RoundingMode::HALF_DOWN,  '1501',  '150',  '15',  '2'],
+            [RoundingMode::HALF_DOWN,  '1500',  '150',  '15',  '1'],
+            [RoundingMode::HALF_DOWN,  '1499',  '150',  '15',  '1'],
+            [RoundingMode::HALF_DOWN,  '1001',  '100',  '10',  '1'],
+            [RoundingMode::HALF_DOWN,  '1000',  '100',  '10',  '1'],
+            [RoundingMode::HALF_DOWN,   '999',  '100',  '10',  '1'],
+            [RoundingMode::HALF_DOWN,   '501',   '50',   '5',  '1'],
+            [RoundingMode::HALF_DOWN,   '500',   '50',   '5',  '0'],
+            [RoundingMode::HALF_DOWN,   '499',   '50',   '5',  '0'],
+            [RoundingMode::HALF_DOWN,     '1',    '0',   '0',  '0'],
+            [RoundingMode::HALF_DOWN,     '0',    '0',   '0',  '0'],
+            [RoundingMode::HALF_DOWN,    '-1',    '0',   '0',  '0'],
+            [RoundingMode::HALF_DOWN,  '-499',  '-50',  '-5',  '0'],
+            [RoundingMode::HALF_DOWN,  '-500',  '-50',  '-5',  '0'],
+            [RoundingMode::HALF_DOWN,  '-501',  '-50',  '-5', '-1'],
+            [RoundingMode::HALF_DOWN,  '-999', '-100', '-10', '-1'],
+            [RoundingMode::HALF_DOWN, '-1000', '-100', '-10', '-1'],
+            [RoundingMode::HALF_DOWN, '-1001', '-100', '-10', '-1'],
+            [RoundingMode::HALF_DOWN, '-1499', '-150', '-15', '-1'],
+            [RoundingMode::HALF_DOWN, '-1500', '-150', '-15', '-1'],
+            [RoundingMode::HALF_DOWN, '-1501', '-150', '-15', '-2'],
+            [RoundingMode::HALF_DOWN, '-1999', '-200', '-20', '-2'],
+            [RoundingMode::HALF_DOWN, '-2000', '-200', '-20', '-2'],
+            [RoundingMode::HALF_DOWN, '-2001', '-200', '-20', '-2'],
+            [RoundingMode::HALF_DOWN, '-2499', '-250', '-25', '-2'],
+            [RoundingMode::HALF_DOWN, '-2500', '-250', '-25', '-2'],
+            [RoundingMode::HALF_DOWN, '-2501', '-250', '-25', '-3'],
+            [RoundingMode::HALF_DOWN, '-2999', '-300', '-30', '-3'],
+            [RoundingMode::HALF_DOWN, '-3000', '-300', '-30', '-3'],
+            [RoundingMode::HALF_DOWN, '-3001', '-300', '-30', '-3'],
+            [RoundingMode::HALF_DOWN, '-3499', '-350', '-35', '-3'],
+            [RoundingMode::HALF_DOWN, '-3500', '-350', '-35', '-3'],
+            [RoundingMode::HALF_DOWN, '-3501', '-350', '-35', '-4'],
 
-            [RoundingMode::Unnecessary,  '2501',   null,  null, null],
-            [RoundingMode::Up,           '2501',  '251',  '26',  '3'],
-            [RoundingMode::Down,         '2501',  '250',  '25',  '2'],
-            [RoundingMode::Ceiling,      '2501',  '251',  '26',  '3'],
-            [RoundingMode::Floor,        '2501',  '250',  '25',  '2'],
-            [RoundingMode::HalfUp,       '2501',  '250',  '25',  '3'],
-            [RoundingMode::HalfDown,     '2501',  '250',  '25',  '3'],
-            [RoundingMode::HalfCeiling,  '2501',  '250',  '25',  '3'],
-            [RoundingMode::HalfFloor,    '2501',  '250',  '25',  '3'],
-            [RoundingMode::HalfEven,     '2501',  '250',  '25',  '3'],
-            [RoundingMode::HalfOdd,      '2501',  '250',  '25',  '3'],
+            [RoundingMode::HALF_CEILING,  '3501',  '350',  '35',  '4'],
+            [RoundingMode::HALF_CEILING,  '3500',  '350',  '35',  '4'],
+            [RoundingMode::HALF_CEILING,  '3499',  '350',  '35',  '3'],
+            [RoundingMode::HALF_CEILING,  '3001',  '300',  '30',  '3'],
+            [RoundingMode::HALF_CEILING,  '3000',  '300',  '30',  '3'],
+            [RoundingMode::HALF_CEILING,  '2999',  '300',  '30',  '3'],
+            [RoundingMode::HALF_CEILING,  '2501',  '250',  '25',  '3'],
+            [RoundingMode::HALF_CEILING,  '2500',  '250',  '25',  '3'],
+            [RoundingMode::HALF_CEILING,  '2499',  '250',  '25',  '2'],
+            [RoundingMode::HALF_CEILING,  '2001',  '200',  '20',  '2'],
+            [RoundingMode::HALF_CEILING,  '2000',  '200',  '20',  '2'],
+            [RoundingMode::HALF_CEILING,  '1999',  '200',  '20',  '2'],
+            [RoundingMode::HALF_CEILING,  '1501',  '150',  '15',  '2'],
+            [RoundingMode::HALF_CEILING,  '1500',  '150',  '15',  '2'],
+            [RoundingMode::HALF_CEILING,  '1499',  '150',  '15',  '1'],
+            [RoundingMode::HALF_CEILING,  '1001',  '100',  '10',  '1'],
+            [RoundingMode::HALF_CEILING,  '1000',  '100',  '10',  '1'],
+            [RoundingMode::HALF_CEILING,   '999',  '100',  '10',  '1'],
+            [RoundingMode::HALF_CEILING,   '501',   '50',   '5',  '1'],
+            [RoundingMode::HALF_CEILING,   '500',   '50',   '5',  '1'],
+            [RoundingMode::HALF_CEILING,   '499',   '50',   '5',  '0'],
+            [RoundingMode::HALF_CEILING,     '1',    '0',   '0',  '0'],
+            [RoundingMode::HALF_CEILING,     '0',    '0',   '0',  '0'],
+            [RoundingMode::HALF_CEILING,    '-1',    '0',   '0',  '0'],
+            [RoundingMode::HALF_CEILING,  '-499',  '-50',  '-5',  '0'],
+            [RoundingMode::HALF_CEILING,  '-500',  '-50',  '-5',  '0'],
+            [RoundingMode::HALF_CEILING,  '-501',  '-50',  '-5', '-1'],
+            [RoundingMode::HALF_CEILING,  '-999', '-100', '-10', '-1'],
+            [RoundingMode::HALF_CEILING, '-1000', '-100', '-10', '-1'],
+            [RoundingMode::HALF_CEILING, '-1001', '-100', '-10', '-1'],
+            [RoundingMode::HALF_CEILING, '-1499', '-150', '-15', '-1'],
+            [RoundingMode::HALF_CEILING, '-1500', '-150', '-15', '-1'],
+            [RoundingMode::HALF_CEILING, '-1501', '-150', '-15', '-2'],
+            [RoundingMode::HALF_CEILING, '-1999', '-200', '-20', '-2'],
+            [RoundingMode::HALF_CEILING, '-2000', '-200', '-20', '-2'],
+            [RoundingMode::HALF_CEILING, '-2001', '-200', '-20', '-2'],
+            [RoundingMode::HALF_CEILING, '-2499', '-250', '-25', '-2'],
+            [RoundingMode::HALF_CEILING, '-2500', '-250', '-25', '-2'],
+            [RoundingMode::HALF_CEILING, '-2501', '-250', '-25', '-3'],
+            [RoundingMode::HALF_CEILING, '-2999', '-300', '-30', '-3'],
+            [RoundingMode::HALF_CEILING, '-3000', '-300', '-30', '-3'],
+            [RoundingMode::HALF_CEILING, '-3001', '-300', '-30', '-3'],
+            [RoundingMode::HALF_CEILING, '-3499', '-350', '-35', '-3'],
+            [RoundingMode::HALF_CEILING, '-3500', '-350', '-35', '-3'],
+            [RoundingMode::HALF_CEILING, '-3501', '-350', '-35', '-4'],
 
-            [RoundingMode::Unnecessary,  '2500',  '250',  '25', null],
-            [RoundingMode::Up,           '2500',  '250',  '25',  '3'],
-            [RoundingMode::Down,         '2500',  '250',  '25',  '2'],
-            [RoundingMode::Ceiling,      '2500',  '250',  '25',  '3'],
-            [RoundingMode::Floor,        '2500',  '250',  '25',  '2'],
-            [RoundingMode::HalfUp,       '2500',  '250',  '25',  '3'],
-            [RoundingMode::HalfDown,     '2500',  '250',  '25',  '2'],
-            [RoundingMode::HalfCeiling,  '2500',  '250',  '25',  '3'],
-            [RoundingMode::HalfFloor,    '2500',  '250',  '25',  '2'],
-            [RoundingMode::HalfEven,     '2500',  '250',  '25',  '2'],
-            [RoundingMode::HalfOdd,      '2500',  '250',  '25',  '3'],
+            [RoundingMode::HALF_FLOOR,  '3501',  '350',  '35',  '4'],
+            [RoundingMode::HALF_FLOOR,  '3500',  '350',  '35',  '3'],
+            [RoundingMode::HALF_FLOOR,  '3499',  '350',  '35',  '3'],
+            [RoundingMode::HALF_FLOOR,  '3001',  '300',  '30',  '3'],
+            [RoundingMode::HALF_FLOOR,  '3000',  '300',  '30',  '3'],
+            [RoundingMode::HALF_FLOOR,  '2999',  '300',  '30',  '3'],
+            [RoundingMode::HALF_FLOOR,  '2501',  '250',  '25',  '3'],
+            [RoundingMode::HALF_FLOOR,  '2500',  '250',  '25',  '2'],
+            [RoundingMode::HALF_FLOOR,  '2499',  '250',  '25',  '2'],
+            [RoundingMode::HALF_FLOOR,  '2001',  '200',  '20',  '2'],
+            [RoundingMode::HALF_FLOOR,  '2000',  '200',  '20',  '2'],
+            [RoundingMode::HALF_FLOOR,  '1999',  '200',  '20',  '2'],
+            [RoundingMode::HALF_FLOOR,  '1501',  '150',  '15',  '2'],
+            [RoundingMode::HALF_FLOOR,  '1500',  '150',  '15',  '1'],
+            [RoundingMode::HALF_FLOOR,  '1499',  '150',  '15',  '1'],
+            [RoundingMode::HALF_FLOOR,  '1001',  '100',  '10',  '1'],
+            [RoundingMode::HALF_FLOOR,  '1000',  '100',  '10',  '1'],
+            [RoundingMode::HALF_FLOOR,   '999',  '100',  '10',  '1'],
+            [RoundingMode::HALF_FLOOR,   '501',   '50',   '5',  '1'],
+            [RoundingMode::HALF_FLOOR,   '500',   '50',   '5',  '0'],
+            [RoundingMode::HALF_FLOOR,   '499',   '50',   '5',  '0'],
+            [RoundingMode::HALF_FLOOR,     '1',    '0',   '0',  '0'],
+            [RoundingMode::HALF_FLOOR,     '0',    '0',   '0',  '0'],
+            [RoundingMode::HALF_FLOOR,    '-1',    '0',   '0',  '0'],
+            [RoundingMode::HALF_FLOOR,  '-499',  '-50',  '-5',  '0'],
+            [RoundingMode::HALF_FLOOR,  '-500',  '-50',  '-5', '-1'],
+            [RoundingMode::HALF_FLOOR,  '-501',  '-50',  '-5', '-1'],
+            [RoundingMode::HALF_FLOOR,  '-999', '-100', '-10', '-1'],
+            [RoundingMode::HALF_FLOOR, '-1000', '-100', '-10', '-1'],
+            [RoundingMode::HALF_FLOOR, '-1001', '-100', '-10', '-1'],
+            [RoundingMode::HALF_FLOOR, '-1499', '-150', '-15', '-1'],
+            [RoundingMode::HALF_FLOOR, '-1500', '-150', '-15', '-2'],
+            [RoundingMode::HALF_FLOOR, '-1501', '-150', '-15', '-2'],
+            [RoundingMode::HALF_FLOOR, '-1999', '-200', '-20', '-2'],
+            [RoundingMode::HALF_FLOOR, '-2000', '-200', '-20', '-2'],
+            [RoundingMode::HALF_FLOOR, '-2001', '-200', '-20', '-2'],
+            [RoundingMode::HALF_FLOOR, '-2499', '-250', '-25', '-2'],
+            [RoundingMode::HALF_FLOOR, '-2500', '-250', '-25', '-3'],
+            [RoundingMode::HALF_FLOOR, '-2501', '-250', '-25', '-3'],
+            [RoundingMode::HALF_FLOOR, '-2999', '-300', '-30', '-3'],
+            [RoundingMode::HALF_FLOOR, '-3000', '-300', '-30', '-3'],
+            [RoundingMode::HALF_FLOOR, '-3001', '-300', '-30', '-3'],
+            [RoundingMode::HALF_FLOOR, '-3499', '-350', '-35', '-3'],
+            [RoundingMode::HALF_FLOOR, '-3500', '-350', '-35', '-4'],
+            [RoundingMode::HALF_FLOOR, '-3501', '-350', '-35', '-4'],
 
-            [RoundingMode::Unnecessary,  '2499',   null,  null, null],
-            [RoundingMode::Up,           '2499',  '250',  '25',  '3'],
-            [RoundingMode::Down,         '2499',  '249',  '24',  '2'],
-            [RoundingMode::Ceiling,      '2499',  '250',  '25',  '3'],
-            [RoundingMode::Floor,        '2499',  '249',  '24',  '2'],
-            [RoundingMode::HalfUp,       '2499',  '250',  '25',  '2'],
-            [RoundingMode::HalfDown,     '2499',  '250',  '25',  '2'],
-            [RoundingMode::HalfCeiling,  '2499',  '250',  '25',  '2'],
-            [RoundingMode::HalfFloor,    '2499',  '250',  '25',  '2'],
-            [RoundingMode::HalfEven,     '2499',  '250',  '25',  '2'],
-            [RoundingMode::HalfOdd,      '2499',  '250',  '25',  '2'],
+            [RoundingMode::HALF_EVEN,  '3501',  '350',  '35',  '4'],
+            [RoundingMode::HALF_EVEN,  '3500',  '350',  '35',  '4'],
+            [RoundingMode::HALF_EVEN,  '3499',  '350',  '35',  '3'],
+            [RoundingMode::HALF_EVEN,  '3001',  '300',  '30',  '3'],
+            [RoundingMode::HALF_EVEN,  '3000',  '300',  '30',  '3'],
+            [RoundingMode::HALF_EVEN,  '2999',  '300',  '30',  '3'],
+            [RoundingMode::HALF_EVEN,  '2501',  '250',  '25',  '3'],
+            [RoundingMode::HALF_EVEN,  '2500',  '250',  '25',  '2'],
+            [RoundingMode::HALF_EVEN,  '2499',  '250',  '25',  '2'],
+            [RoundingMode::HALF_EVEN,  '2001',  '200',  '20',  '2'],
+            [RoundingMode::HALF_EVEN,  '2000',  '200',  '20',  '2'],
+            [RoundingMode::HALF_EVEN,  '1999',  '200',  '20',  '2'],
+            [RoundingMode::HALF_EVEN,  '1501',  '150',  '15',  '2'],
+            [RoundingMode::HALF_EVEN,  '1500',  '150',  '15',  '2'],
+            [RoundingMode::HALF_EVEN,  '1499',  '150',  '15',  '1'],
+            [RoundingMode::HALF_EVEN,  '1001',  '100',  '10',  '1'],
+            [RoundingMode::HALF_EVEN,  '1000',  '100',  '10',  '1'],
+            [RoundingMode::HALF_EVEN,   '999',  '100',  '10',  '1'],
+            [RoundingMode::HALF_EVEN,   '501',   '50',   '5',  '1'],
+            [RoundingMode::HALF_EVEN,   '500',   '50',   '5',  '0'],
+            [RoundingMode::HALF_EVEN,   '499',   '50',   '5',  '0'],
+            [RoundingMode::HALF_EVEN,     '1',    '0',   '0',  '0'],
+            [RoundingMode::HALF_EVEN,     '0',    '0',   '0',  '0'],
+            [RoundingMode::HALF_EVEN,    '-1',    '0',   '0',  '0'],
+            [RoundingMode::HALF_EVEN,  '-499',  '-50',  '-5',  '0'],
+            [RoundingMode::HALF_EVEN,  '-500',  '-50',  '-5',  '0'],
+            [RoundingMode::HALF_EVEN,  '-501',  '-50',  '-5', '-1'],
+            [RoundingMode::HALF_EVEN,  '-999', '-100', '-10', '-1'],
+            [RoundingMode::HALF_EVEN, '-1000', '-100', '-10', '-1'],
+            [RoundingMode::HALF_EVEN, '-1001', '-100', '-10', '-1'],
+            [RoundingMode::HALF_EVEN, '-1499', '-150', '-15', '-1'],
+            [RoundingMode::HALF_EVEN, '-1500', '-150', '-15', '-2'],
+            [RoundingMode::HALF_EVEN, '-1501', '-150', '-15', '-2'],
+            [RoundingMode::HALF_EVEN, '-1999', '-200', '-20', '-2'],
+            [RoundingMode::HALF_EVEN, '-2000', '-200', '-20', '-2'],
+            [RoundingMode::HALF_EVEN, '-2001', '-200', '-20', '-2'],
+            [RoundingMode::HALF_EVEN, '-2499', '-250', '-25', '-2'],
+            [RoundingMode::HALF_EVEN, '-2500', '-250', '-25', '-2'],
+            [RoundingMode::HALF_EVEN, '-2501', '-250', '-25', '-3'],
+            [RoundingMode::HALF_EVEN, '-2999', '-300', '-30', '-3'],
+            [RoundingMode::HALF_EVEN, '-3000', '-300', '-30', '-3'],
+            [RoundingMode::HALF_EVEN, '-3001', '-300', '-30', '-3'],
+            [RoundingMode::HALF_EVEN, '-3499', '-350', '-35', '-3'],
+            [RoundingMode::HALF_EVEN, '-3500', '-350', '-35', '-4'],
+            [RoundingMode::HALF_EVEN, '-3501', '-350', '-35', '-4'],
 
-            [RoundingMode::Unnecessary,  '2001',   null,  null, null],
-            [RoundingMode::Up,           '2001',  '201',  '21',  '3'],
-            [RoundingMode::Down,         '2001',  '200',  '20',  '2'],
-            [RoundingMode::Ceiling,      '2001',  '201',  '21',  '3'],
-            [RoundingMode::Floor,        '2001',  '200',  '20',  '2'],
-            [RoundingMode::HalfUp,       '2001',  '200',  '20',  '2'],
-            [RoundingMode::HalfDown,     '2001',  '200',  '20',  '2'],
-            [RoundingMode::HalfCeiling,  '2001',  '200',  '20',  '2'],
-            [RoundingMode::HalfFloor,    '2001',  '200',  '20',  '2'],
-            [RoundingMode::HalfEven,     '2001',  '200',  '20',  '2'],
-            [RoundingMode::HalfOdd,      '2001',  '200',  '20',  '2'],
-
-            [RoundingMode::Unnecessary,  '2000',  '200',  '20',  '2'],
-            [RoundingMode::Up,           '2000',  '200',  '20',  '2'],
-            [RoundingMode::Down,         '2000',  '200',  '20',  '2'],
-            [RoundingMode::Ceiling,      '2000',  '200',  '20',  '2'],
-            [RoundingMode::Floor,        '2000',  '200',  '20',  '2'],
-            [RoundingMode::HalfUp,       '2000',  '200',  '20',  '2'],
-            [RoundingMode::HalfDown,     '2000',  '200',  '20',  '2'],
-            [RoundingMode::HalfCeiling,  '2000',  '200',  '20',  '2'],
-            [RoundingMode::HalfFloor,    '2000',  '200',  '20',  '2'],
-            [RoundingMode::HalfEven,     '2000',  '200',  '20',  '2'],
-            [RoundingMode::HalfOdd,      '2000',  '200',  '20',  '2'],
-
-            [RoundingMode::Unnecessary,  '1999',   null,  null, null],
-            [RoundingMode::Up,           '1999',  '200',  '20',  '2'],
-            [RoundingMode::Down,         '1999',  '199',  '19',  '1'],
-            [RoundingMode::Ceiling,      '1999',  '200',  '20',  '2'],
-            [RoundingMode::Floor,        '1999',  '199',  '19',  '1'],
-            [RoundingMode::HalfUp,       '1999',  '200',  '20',  '2'],
-            [RoundingMode::HalfDown,     '1999',  '200',  '20',  '2'],
-            [RoundingMode::HalfCeiling,  '1999',  '200',  '20',  '2'],
-            [RoundingMode::HalfFloor,    '1999',  '200',  '20',  '2'],
-            [RoundingMode::HalfEven,     '1999',  '200',  '20',  '2'],
-            [RoundingMode::HalfOdd,      '1999',  '200',  '20',  '2'],
-
-            [RoundingMode::Unnecessary,  '1501',   null,  null, null],
-            [RoundingMode::Up,           '1501',  '151',  '16',  '2'],
-            [RoundingMode::Down,         '1501',  '150',  '15',  '1'],
-            [RoundingMode::Ceiling,      '1501',  '151',  '16',  '2'],
-            [RoundingMode::Floor,        '1501',  '150',  '15',  '1'],
-            [RoundingMode::HalfUp,       '1501',  '150',  '15',  '2'],
-            [RoundingMode::HalfDown,     '1501',  '150',  '15',  '2'],
-            [RoundingMode::HalfCeiling,  '1501',  '150',  '15',  '2'],
-            [RoundingMode::HalfFloor,    '1501',  '150',  '15',  '2'],
-            [RoundingMode::HalfEven,     '1501',  '150',  '15',  '2'],
-            [RoundingMode::HalfOdd,      '1501',  '150',  '15',  '2'],
-
-            [RoundingMode::Unnecessary,  '1500',  '150',  '15', null],
-            [RoundingMode::Up,           '1500',  '150',  '15',  '2'],
-            [RoundingMode::Down,         '1500',  '150',  '15',  '1'],
-            [RoundingMode::Ceiling,      '1500',  '150',  '15',  '2'],
-            [RoundingMode::Floor,        '1500',  '150',  '15',  '1'],
-            [RoundingMode::HalfUp,       '1500',  '150',  '15',  '2'],
-            [RoundingMode::HalfDown,     '1500',  '150',  '15',  '1'],
-            [RoundingMode::HalfCeiling,  '1500',  '150',  '15',  '2'],
-            [RoundingMode::HalfFloor,    '1500',  '150',  '15',  '1'],
-            [RoundingMode::HalfEven,     '1500',  '150',  '15',  '2'],
-            [RoundingMode::HalfOdd,      '1500',  '150',  '15',  '1'],
-
-            [RoundingMode::Unnecessary,  '1499',   null,  null, null],
-            [RoundingMode::Up,           '1499',  '150',  '15',  '2'],
-            [RoundingMode::Down,         '1499',  '149',  '14',  '1'],
-            [RoundingMode::Ceiling,      '1499',  '150',  '15',  '2'],
-            [RoundingMode::Floor,        '1499',  '149',  '14',  '1'],
-            [RoundingMode::HalfUp,       '1499',  '150',  '15',  '1'],
-            [RoundingMode::HalfDown,     '1499',  '150',  '15',  '1'],
-            [RoundingMode::HalfCeiling,  '1499',  '150',  '15',  '1'],
-            [RoundingMode::HalfFloor,    '1499',  '150',  '15',  '1'],
-            [RoundingMode::HalfEven,     '1499',  '150',  '15',  '1'],
-            [RoundingMode::HalfOdd,      '1499',  '150',  '15',  '1'],
-
-            [RoundingMode::Unnecessary,  '1001',   null,  null, null],
-            [RoundingMode::Up,           '1001',  '101',  '11',  '2'],
-            [RoundingMode::Down,         '1001',  '100',  '10',  '1'],
-            [RoundingMode::Ceiling,      '1001',  '101',  '11',  '2'],
-            [RoundingMode::Floor,        '1001',  '100',  '10',  '1'],
-            [RoundingMode::HalfUp,       '1001',  '100',  '10',  '1'],
-            [RoundingMode::HalfDown,     '1001',  '100',  '10',  '1'],
-            [RoundingMode::HalfCeiling,  '1001',  '100',  '10',  '1'],
-            [RoundingMode::HalfFloor,    '1001',  '100',  '10',  '1'],
-            [RoundingMode::HalfEven,     '1001',  '100',  '10',  '1'],
-            [RoundingMode::HalfOdd,      '1001',  '100',  '10',  '1'],
-
-            [RoundingMode::Unnecessary,  '1000',  '100',  '10',  '1'],
-            [RoundingMode::Up,           '1000',  '100',  '10',  '1'],
-            [RoundingMode::Down,         '1000',  '100',  '10',  '1'],
-            [RoundingMode::Ceiling,      '1000',  '100',  '10',  '1'],
-            [RoundingMode::Floor,        '1000',  '100',  '10',  '1'],
-            [RoundingMode::HalfUp,       '1000',  '100',  '10',  '1'],
-            [RoundingMode::HalfDown,     '1000',  '100',  '10',  '1'],
-            [RoundingMode::HalfCeiling,  '1000',  '100',  '10',  '1'],
-            [RoundingMode::HalfFloor,    '1000',  '100',  '10',  '1'],
-            [RoundingMode::HalfEven,     '1000',  '100',  '10',  '1'],
-            [RoundingMode::HalfOdd,      '1000',  '100',  '10',  '1'],
-
-            [RoundingMode::Unnecessary,   '999',   null,  null, null],
-            [RoundingMode::Up,            '999',  '100',  '10',  '1'],
-            [RoundingMode::Down,          '999',   '99',   '9',  '0'],
-            [RoundingMode::Ceiling,       '999',  '100',  '10',  '1'],
-            [RoundingMode::Floor,         '999',   '99',   '9',  '0'],
-            [RoundingMode::HalfUp,        '999',  '100',  '10',  '1'],
-            [RoundingMode::HalfDown,      '999',  '100',  '10',  '1'],
-            [RoundingMode::HalfCeiling,   '999',  '100',  '10',  '1'],
-            [RoundingMode::HalfFloor,     '999',  '100',  '10',  '1'],
-            [RoundingMode::HalfEven,      '999',  '100',  '10',  '1'],
-            [RoundingMode::HalfOdd,       '999',  '100',  '10',  '1'],
-
-            [RoundingMode::Unnecessary,   '501',   null,  null, null],
-            [RoundingMode::Up,            '501',   '51',   '6',  '1'],
-            [RoundingMode::Down,          '501',   '50',   '5',  '0'],
-            [RoundingMode::Ceiling,       '501',   '51',   '6',  '1'],
-            [RoundingMode::Floor,         '501',   '50',   '5',  '0'],
-            [RoundingMode::HalfUp,        '501',   '50',   '5',  '1'],
-            [RoundingMode::HalfDown,      '501',   '50',   '5',  '1'],
-            [RoundingMode::HalfCeiling,   '501',   '50',   '5',  '1'],
-            [RoundingMode::HalfFloor,     '501',   '50',   '5',  '1'],
-            [RoundingMode::HalfEven,      '501',   '50',   '5',  '1'],
-            [RoundingMode::HalfOdd,       '501',   '50',   '5',  '1'],
-
-            [RoundingMode::Unnecessary,   '500',   '50',   '5', null],
-            [RoundingMode::Up,            '500',   '50',   '5',  '1'],
-            [RoundingMode::Down,          '500',   '50',   '5',  '0'],
-            [RoundingMode::Ceiling,       '500',   '50',   '5',  '1'],
-            [RoundingMode::Floor,         '500',   '50',   '5',  '0'],
-            [RoundingMode::HalfUp,        '500',   '50',   '5',  '1'],
-            [RoundingMode::HalfDown,      '500',   '50',   '5',  '0'],
-            [RoundingMode::HalfCeiling,   '500',   '50',   '5',  '1'],
-            [RoundingMode::HalfFloor,     '500',   '50',   '5',  '0'],
-            [RoundingMode::HalfEven,      '500',   '50',   '5',  '0'],
-            [RoundingMode::HalfOdd,       '500',   '50',   '5',  '1'],
-
-            [RoundingMode::Unnecessary,   '499',   null,  null, null],
-            [RoundingMode::Up,            '499',   '50',   '5',  '1'],
-            [RoundingMode::Down,          '499',   '49',   '4',  '0'],
-            [RoundingMode::Ceiling,       '499',   '50',   '5',  '1'],
-            [RoundingMode::Floor,         '499',   '49',   '4',  '0'],
-            [RoundingMode::HalfUp,        '499',   '50',   '5',  '0'],
-            [RoundingMode::HalfDown,      '499',   '50',   '5',  '0'],
-            [RoundingMode::HalfCeiling,   '499',   '50',   '5',  '0'],
-            [RoundingMode::HalfFloor,     '499',   '50',   '5',  '0'],
-            [RoundingMode::HalfEven,      '499',   '50',   '5',  '0'],
-            [RoundingMode::HalfOdd,       '499',   '50',   '5',  '0'],
-
-            [RoundingMode::Unnecessary,     '1',   null,  null, null],
-            [RoundingMode::Up,              '1',    '1',   '1',  '1'],
-            [RoundingMode::Down,            '1',    '0',   '0',  '0'],
-            [RoundingMode::Ceiling,         '1',    '1',   '1',  '1'],
-            [RoundingMode::Floor,           '1',    '0',   '0',  '0'],
-            [RoundingMode::HalfUp,          '1',    '0',   '0',  '0'],
-            [RoundingMode::HalfDown,        '1',    '0',   '0',  '0'],
-            [RoundingMode::HalfCeiling,     '1',    '0',   '0',  '0'],
-            [RoundingMode::HalfFloor,       '1',    '0',   '0',  '0'],
-            [RoundingMode::HalfEven,        '1',    '0',   '0',  '0'],
-            [RoundingMode::HalfOdd,         '1',    '0',   '0',  '0'],
-
-            [RoundingMode::Unnecessary,     '0',    '0',   '0',  '0'],
-            [RoundingMode::Up,              '0',    '0',   '0',  '0'],
-            [RoundingMode::Down,            '0',    '0',   '0',  '0'],
-            [RoundingMode::Ceiling,         '0',    '0',   '0',  '0'],
-            [RoundingMode::Floor,           '0',    '0',   '0',  '0'],
-            [RoundingMode::HalfUp,          '0',    '0',   '0',  '0'],
-            [RoundingMode::HalfDown,        '0',    '0',   '0',  '0'],
-            [RoundingMode::HalfCeiling,     '0',    '0',   '0',  '0'],
-            [RoundingMode::HalfFloor,       '0',    '0',   '0',  '0'],
-            [RoundingMode::HalfEven,        '0',    '0',   '0',  '0'],
-            [RoundingMode::HalfOdd,         '0',    '0',   '0',  '0'],
-
-            [RoundingMode::Unnecessary,    '-1',   null,  null, null],
-            [RoundingMode::Up,             '-1',   '-1',  '-1', '-1'],
-            [RoundingMode::Down,           '-1',    '0',   '0',  '0'],
-            [RoundingMode::Ceiling,        '-1',    '0',   '0',  '0'],
-            [RoundingMode::Floor,          '-1',   '-1',  '-1', '-1'],
-            [RoundingMode::HalfUp,         '-1',    '0',   '0',  '0'],
-            [RoundingMode::HalfDown,       '-1',    '0',   '0',  '0'],
-            [RoundingMode::HalfCeiling,    '-1',    '0',   '0',  '0'],
-            [RoundingMode::HalfFloor,      '-1',    '0',   '0',  '0'],
-            [RoundingMode::HalfEven,       '-1',    '0',   '0',  '0'],
-            [RoundingMode::HalfOdd,        '-1',    '0',   '0',  '0'],
-
-            [RoundingMode::Unnecessary,  '-499',   null,  null, null],
-            [RoundingMode::Up,           '-499',  '-50',  '-5', '-1'],
-            [RoundingMode::Down,         '-499',  '-49',  '-4',  '0'],
-            [RoundingMode::Ceiling,      '-499',  '-49',  '-4',  '0'],
-            [RoundingMode::Floor,        '-499',  '-50',  '-5', '-1'],
-            [RoundingMode::HalfUp,       '-499',  '-50',  '-5',  '0'],
-            [RoundingMode::HalfDown,     '-499',  '-50',  '-5',  '0'],
-            [RoundingMode::HalfCeiling,  '-499',  '-50',  '-5',  '0'],
-            [RoundingMode::HalfFloor,    '-499',  '-50',  '-5',  '0'],
-            [RoundingMode::HalfEven,     '-499',  '-50',  '-5',  '0'],
-            [RoundingMode::HalfOdd,      '-499',  '-50',  '-5',  '0'],
-
-            [RoundingMode::Unnecessary,  '-500',  '-50',  '-5', null],
-            [RoundingMode::Up,           '-500',  '-50',  '-5', '-1'],
-            [RoundingMode::Down,         '-500',  '-50',  '-5',  '0'],
-            [RoundingMode::Ceiling,      '-500',  '-50',  '-5',  '0'],
-            [RoundingMode::Floor,        '-500',  '-50',  '-5', '-1'],
-            [RoundingMode::HalfUp,       '-500',  '-50',  '-5', '-1'],
-            [RoundingMode::HalfDown,     '-500',  '-50',  '-5',  '0'],
-            [RoundingMode::HalfCeiling,  '-500',  '-50',  '-5',  '0'],
-            [RoundingMode::HalfFloor,    '-500',  '-50',  '-5', '-1'],
-            [RoundingMode::HalfEven,     '-500',  '-50',  '-5',  '0'],
-            [RoundingMode::HalfOdd,      '-500',  '-50',  '-5', '-1'],
-
-            [RoundingMode::Unnecessary,  '-501',   null,  null, null],
-            [RoundingMode::Up,           '-501',  '-51',  '-6', '-1'],
-            [RoundingMode::Down,         '-501',  '-50',  '-5',  '0'],
-            [RoundingMode::Ceiling,      '-501',  '-50',  '-5',  '0'],
-            [RoundingMode::Floor,        '-501',  '-51',  '-6', '-1'],
-            [RoundingMode::HalfUp,       '-501',  '-50',  '-5', '-1'],
-            [RoundingMode::HalfDown,     '-501',  '-50',  '-5', '-1'],
-            [RoundingMode::HalfCeiling,  '-501',  '-50',  '-5', '-1'],
-            [RoundingMode::HalfFloor,    '-501',  '-50',  '-5', '-1'],
-            [RoundingMode::HalfEven,     '-501',  '-50',  '-5', '-1'],
-            [RoundingMode::HalfOdd,      '-501',  '-50',  '-5', '-1'],
-
-            [RoundingMode::Unnecessary,  '-999',   null,  null, null],
-            [RoundingMode::Up,           '-999', '-100', '-10', '-1'],
-            [RoundingMode::Down,         '-999',  '-99',  '-9',  '0'],
-            [RoundingMode::Ceiling,      '-999',  '-99',  '-9',  '0'],
-            [RoundingMode::Floor,        '-999', '-100', '-10', '-1'],
-            [RoundingMode::HalfUp,       '-999', '-100', '-10', '-1'],
-            [RoundingMode::HalfDown,     '-999', '-100', '-10', '-1'],
-            [RoundingMode::HalfCeiling,  '-999', '-100', '-10', '-1'],
-            [RoundingMode::HalfFloor,    '-999', '-100', '-10', '-1'],
-            [RoundingMode::HalfEven,     '-999', '-100', '-10', '-1'],
-            [RoundingMode::HalfOdd,      '-999', '-100', '-10', '-1'],
-
-            [RoundingMode::Unnecessary, '-1000', '-100', '-10', '-1'],
-            [RoundingMode::Up,          '-1000', '-100', '-10', '-1'],
-            [RoundingMode::Down,        '-1000', '-100', '-10', '-1'],
-            [RoundingMode::Ceiling,     '-1000', '-100', '-10', '-1'],
-            [RoundingMode::Floor,       '-1000', '-100', '-10', '-1'],
-            [RoundingMode::HalfUp,      '-1000', '-100', '-10', '-1'],
-            [RoundingMode::HalfDown,    '-1000', '-100', '-10', '-1'],
-            [RoundingMode::HalfCeiling, '-1000', '-100', '-10', '-1'],
-            [RoundingMode::HalfFloor,   '-1000', '-100', '-10', '-1'],
-            [RoundingMode::HalfEven,    '-1000', '-100', '-10', '-1'],
-            [RoundingMode::HalfOdd,     '-1000', '-100', '-10', '-1'],
-
-            [RoundingMode::Unnecessary, '-1001',   null,  null, null],
-            [RoundingMode::Up,          '-1001', '-101', '-11', '-2'],
-            [RoundingMode::Down,        '-1001', '-100', '-10', '-1'],
-            [RoundingMode::Ceiling,     '-1001', '-100', '-10', '-1'],
-            [RoundingMode::Floor,       '-1001', '-101', '-11', '-2'],
-            [RoundingMode::HalfUp,      '-1001', '-100', '-10', '-1'],
-            [RoundingMode::HalfDown,    '-1001', '-100', '-10', '-1'],
-            [RoundingMode::HalfCeiling, '-1001', '-100', '-10', '-1'],
-            [RoundingMode::HalfFloor,   '-1001', '-100', '-10', '-1'],
-            [RoundingMode::HalfEven,    '-1001', '-100', '-10', '-1'],
-            [RoundingMode::HalfOdd,     '-1001', '-100', '-10', '-1'],
-
-            [RoundingMode::Unnecessary, '-1499',   null,  null, null],
-            [RoundingMode::Up,          '-1499', '-150', '-15', '-2'],
-            [RoundingMode::Down,        '-1499', '-149', '-14', '-1'],
-            [RoundingMode::Ceiling,     '-1499', '-149', '-14', '-1'],
-            [RoundingMode::Floor,       '-1499', '-150', '-15', '-2'],
-            [RoundingMode::HalfUp,      '-1499', '-150', '-15', '-1'],
-            [RoundingMode::HalfDown,    '-1499', '-150', '-15', '-1'],
-            [RoundingMode::HalfCeiling, '-1499', '-150', '-15', '-1'],
-            [RoundingMode::HalfFloor,   '-1499', '-150', '-15', '-1'],
-            [RoundingMode::HalfEven,    '-1499', '-150', '-15', '-1'],
-            [RoundingMode::HalfOdd,     '-1499', '-150', '-15', '-1'],
-
-            [RoundingMode::Unnecessary, '-1500', '-150', '-15', null],
-            [RoundingMode::Up,          '-1500', '-150', '-15', '-2'],
-            [RoundingMode::Down,        '-1500', '-150', '-15', '-1'],
-            [RoundingMode::Ceiling,     '-1500', '-150', '-15', '-1'],
-            [RoundingMode::Floor,       '-1500', '-150', '-15', '-2'],
-            [RoundingMode::HalfUp,      '-1500', '-150', '-15', '-2'],
-            [RoundingMode::HalfDown,    '-1500', '-150', '-15', '-1'],
-            [RoundingMode::HalfCeiling, '-1500', '-150', '-15', '-1'],
-            [RoundingMode::HalfFloor,   '-1500', '-150', '-15', '-2'],
-            [RoundingMode::HalfEven,    '-1500', '-150', '-15', '-2'],
-            [RoundingMode::HalfOdd,     '-1500', '-150', '-15', '-1'],
-
-            [RoundingMode::Unnecessary, '-1501',   null,  null, null],
-            [RoundingMode::Up,          '-1501', '-151', '-16', '-2'],
-            [RoundingMode::Down,        '-1501', '-150', '-15', '-1'],
-            [RoundingMode::Ceiling,     '-1501', '-150', '-15', '-1'],
-            [RoundingMode::Floor,       '-1501', '-151', '-16', '-2'],
-            [RoundingMode::HalfUp,      '-1501', '-150', '-15', '-2'],
-            [RoundingMode::HalfDown,    '-1501', '-150', '-15', '-2'],
-            [RoundingMode::HalfCeiling, '-1501', '-150', '-15', '-2'],
-            [RoundingMode::HalfFloor,   '-1501', '-150', '-15', '-2'],
-            [RoundingMode::HalfEven,    '-1501', '-150', '-15', '-2'],
-            [RoundingMode::HalfOdd,     '-1501', '-150', '-15', '-2'],
-
-            [RoundingMode::Unnecessary, '-1999',   null,  null, null],
-            [RoundingMode::Up,          '-1999', '-200', '-20', '-2'],
-            [RoundingMode::Down,        '-1999', '-199', '-19', '-1'],
-            [RoundingMode::Ceiling,     '-1999', '-199', '-19', '-1'],
-            [RoundingMode::Floor,       '-1999', '-200', '-20', '-2'],
-            [RoundingMode::HalfUp,      '-1999', '-200', '-20', '-2'],
-            [RoundingMode::HalfDown,    '-1999', '-200', '-20', '-2'],
-            [RoundingMode::HalfCeiling, '-1999', '-200', '-20', '-2'],
-            [RoundingMode::HalfFloor,   '-1999', '-200', '-20', '-2'],
-            [RoundingMode::HalfEven,    '-1999', '-200', '-20', '-2'],
-            [RoundingMode::HalfOdd,     '-1999', '-200', '-20', '-2'],
-
-            [RoundingMode::Unnecessary, '-2000', '-200', '-20', '-2'],
-            [RoundingMode::Up,          '-2000', '-200', '-20', '-2'],
-            [RoundingMode::Down,        '-2000', '-200', '-20', '-2'],
-            [RoundingMode::Ceiling,     '-2000', '-200', '-20', '-2'],
-            [RoundingMode::Floor,       '-2000', '-200', '-20', '-2'],
-            [RoundingMode::HalfUp,      '-2000', '-200', '-20', '-2'],
-            [RoundingMode::HalfDown,    '-2000', '-200', '-20', '-2'],
-            [RoundingMode::HalfCeiling, '-2000', '-200', '-20', '-2'],
-            [RoundingMode::HalfFloor,   '-2000', '-200', '-20', '-2'],
-            [RoundingMode::HalfEven,    '-2000', '-200', '-20', '-2'],
-            [RoundingMode::HalfOdd,     '-2000', '-200', '-20', '-2'],
-
-            [RoundingMode::Unnecessary, '-2001',   null,  null, null],
-            [RoundingMode::Up,          '-2001', '-201', '-21', '-3'],
-            [RoundingMode::Down,        '-2001', '-200', '-20', '-2'],
-            [RoundingMode::Ceiling,     '-2001', '-200', '-20', '-2'],
-            [RoundingMode::Floor,       '-2001', '-201', '-21', '-3'],
-            [RoundingMode::HalfUp,      '-2001', '-200', '-20', '-2'],
-            [RoundingMode::HalfDown,    '-2001', '-200', '-20', '-2'],
-            [RoundingMode::HalfCeiling, '-2001', '-200', '-20', '-2'],
-            [RoundingMode::HalfFloor,   '-2001', '-200', '-20', '-2'],
-            [RoundingMode::HalfEven,    '-2001', '-200', '-20', '-2'],
-            [RoundingMode::HalfOdd,     '-2001', '-200', '-20', '-2'],
-
-            [RoundingMode::Unnecessary, '-2499',   null,  null, null],
-            [RoundingMode::Up,          '-2499', '-250', '-25', '-3'],
-            [RoundingMode::Down,        '-2499', '-249', '-24', '-2'],
-            [RoundingMode::Ceiling,     '-2499', '-249', '-24', '-2'],
-            [RoundingMode::Floor,       '-2499', '-250', '-25', '-3'],
-            [RoundingMode::HalfUp,      '-2499', '-250', '-25', '-2'],
-            [RoundingMode::HalfDown,    '-2499', '-250', '-25', '-2'],
-            [RoundingMode::HalfCeiling, '-2499', '-250', '-25', '-2'],
-            [RoundingMode::HalfFloor,   '-2499', '-250', '-25', '-2'],
-            [RoundingMode::HalfEven,    '-2499', '-250', '-25', '-2'],
-            [RoundingMode::HalfOdd,     '-2499', '-250', '-25', '-2'],
-
-            [RoundingMode::Unnecessary, '-2500', '-250', '-25', null],
-            [RoundingMode::Up,          '-2500', '-250', '-25', '-3'],
-            [RoundingMode::Down,        '-2500', '-250', '-25', '-2'],
-            [RoundingMode::Ceiling,     '-2500', '-250', '-25', '-2'],
-            [RoundingMode::Floor,       '-2500', '-250', '-25', '-3'],
-            [RoundingMode::HalfUp,      '-2500', '-250', '-25', '-3'],
-            [RoundingMode::HalfDown,    '-2500', '-250', '-25', '-2'],
-            [RoundingMode::HalfCeiling, '-2500', '-250', '-25', '-2'],
-            [RoundingMode::HalfFloor,   '-2500', '-250', '-25', '-3'],
-            [RoundingMode::HalfEven,    '-2500', '-250', '-25', '-2'],
-            [RoundingMode::HalfOdd,     '-2500', '-250', '-25', '-3'],
-
-            [RoundingMode::Unnecessary, '-2501',   null,  null, null],
-            [RoundingMode::Up,          '-2501', '-251', '-26', '-3'],
-            [RoundingMode::Down,        '-2501', '-250', '-25', '-2'],
-            [RoundingMode::Ceiling,     '-2501', '-250', '-25', '-2'],
-            [RoundingMode::Floor,       '-2501', '-251', '-26', '-3'],
-            [RoundingMode::HalfUp,      '-2501', '-250', '-25', '-3'],
-            [RoundingMode::HalfDown,    '-2501', '-250', '-25', '-3'],
-            [RoundingMode::HalfCeiling, '-2501', '-250', '-25', '-3'],
-            [RoundingMode::HalfFloor,   '-2501', '-250', '-25', '-3'],
-            [RoundingMode::HalfEven,    '-2501', '-250', '-25', '-3'],
-            [RoundingMode::HalfOdd,     '-2501', '-250', '-25', '-3'],
-
-            [RoundingMode::Unnecessary, '-2999',   null,  null, null],
-            [RoundingMode::Up,          '-2999', '-300', '-30', '-3'],
-            [RoundingMode::Down,        '-2999', '-299', '-29', '-2'],
-            [RoundingMode::Ceiling,     '-2999', '-299', '-29', '-2'],
-            [RoundingMode::Floor,       '-2999', '-300', '-30', '-3'],
-            [RoundingMode::HalfUp,      '-2999', '-300', '-30', '-3'],
-            [RoundingMode::HalfDown,    '-2999', '-300', '-30', '-3'],
-            [RoundingMode::HalfCeiling, '-2999', '-300', '-30', '-3'],
-            [RoundingMode::HalfFloor,   '-2999', '-300', '-30', '-3'],
-            [RoundingMode::HalfEven,    '-2999', '-300', '-30', '-3'],
-            [RoundingMode::HalfOdd,     '-2999', '-300', '-30', '-3'],
-
-            [RoundingMode::Unnecessary, '-3000', '-300', '-30', '-3'],
-            [RoundingMode::Up,          '-3000', '-300', '-30', '-3'],
-            [RoundingMode::Down,        '-3000', '-300', '-30', '-3'],
-            [RoundingMode::Ceiling,     '-3000', '-300', '-30', '-3'],
-            [RoundingMode::Floor,       '-3000', '-300', '-30', '-3'],
-            [RoundingMode::HalfUp,      '-3000', '-300', '-30', '-3'],
-            [RoundingMode::HalfDown,    '-3000', '-300', '-30', '-3'],
-            [RoundingMode::HalfCeiling, '-3000', '-300', '-30', '-3'],
-            [RoundingMode::HalfFloor,   '-3000', '-300', '-30', '-3'],
-            [RoundingMode::HalfEven,    '-3000', '-300', '-30', '-3'],
-            [RoundingMode::HalfOdd,     '-3000', '-300', '-30', '-3'],
-
-            [RoundingMode::Unnecessary, '-3001',   null,  null, null],
-            [RoundingMode::Up,          '-3001', '-301', '-31', '-4'],
-            [RoundingMode::Down,        '-3001', '-300', '-30', '-3'],
-            [RoundingMode::Ceiling,     '-3001', '-300', '-30', '-3'],
-            [RoundingMode::Floor,       '-3001', '-301', '-31', '-4'],
-            [RoundingMode::HalfUp,      '-3001', '-300', '-30', '-3'],
-            [RoundingMode::HalfDown,    '-3001', '-300', '-30', '-3'],
-            [RoundingMode::HalfCeiling, '-3001', '-300', '-30', '-3'],
-            [RoundingMode::HalfFloor,   '-3001', '-300', '-30', '-3'],
-            [RoundingMode::HalfEven,    '-3001', '-300', '-30', '-3'],
-            [RoundingMode::HalfOdd,     '-3001', '-300', '-30', '-3'],
-
-            [RoundingMode::Unnecessary, '-3499',   null,  null, null],
-            [RoundingMode::Up,          '-3499', '-350', '-35', '-4'],
-            [RoundingMode::Down,        '-3499', '-349', '-34', '-3'],
-            [RoundingMode::Ceiling,     '-3499', '-349', '-34', '-3'],
-            [RoundingMode::Floor,       '-3499', '-350', '-35', '-4'],
-            [RoundingMode::HalfUp,      '-3499', '-350', '-35', '-3'],
-            [RoundingMode::HalfDown,    '-3499', '-350', '-35', '-3'],
-            [RoundingMode::HalfCeiling, '-3499', '-350', '-35', '-3'],
-            [RoundingMode::HalfFloor,   '-3499', '-350', '-35', '-3'],
-            [RoundingMode::HalfEven,    '-3499', '-350', '-35', '-3'],
-            [RoundingMode::HalfOdd,     '-3499', '-350', '-35', '-3'],
-
-            [RoundingMode::Unnecessary, '-3500', '-350', '-35', null],
-            [RoundingMode::Up,          '-3500', '-350', '-35', '-4'],
-            [RoundingMode::Down,        '-3500', '-350', '-35', '-3'],
-            [RoundingMode::Ceiling,     '-3500', '-350', '-35', '-3'],
-            [RoundingMode::Floor,       '-3500', '-350', '-35', '-4'],
-            [RoundingMode::HalfUp,      '-3500', '-350', '-35', '-4'],
-            [RoundingMode::HalfDown,    '-3500', '-350', '-35', '-3'],
-            [RoundingMode::HalfCeiling, '-3500', '-350', '-35', '-3'],
-            [RoundingMode::HalfFloor,   '-3500', '-350', '-35', '-4'],
-            [RoundingMode::HalfEven,    '-3500', '-350', '-35', '-4'],
-            [RoundingMode::HalfOdd,     '-3500', '-350', '-35', '-3'],
-
-            [RoundingMode::Unnecessary, '-3501',   null,  null, null],
-            [RoundingMode::Up,          '-3501', '-351', '-36', '-4'],
-            [RoundingMode::Down,        '-3501', '-350', '-35', '-3'],
-            [RoundingMode::Ceiling,     '-3501', '-350', '-35', '-3'],
-            [RoundingMode::Floor,       '-3501', '-351', '-36', '-4'],
-            [RoundingMode::HalfUp,      '-3501', '-350', '-35', '-4'],
-            [RoundingMode::HalfDown,    '-3501', '-350', '-35', '-4'],
-            [RoundingMode::HalfCeiling, '-3501', '-350', '-35', '-4'],
-            [RoundingMode::HalfFloor,   '-3501', '-350', '-35', '-4'],
-            [RoundingMode::HalfEven,    '-3501', '-350', '-35', '-4'],
-            [RoundingMode::HalfOdd,     '-3501', '-350', '-35', '-4'],
-
-            [RoundingMode::Unnecessary,    '45',   null,  null, null],
-            [RoundingMode::Up,             '45',    '5',   '1',  '1'],
-            [RoundingMode::Down,           '45',    '4',   '0',  '0'],
-            [RoundingMode::Ceiling,        '45',    '5',   '1',  '1'],
-            [RoundingMode::Floor,          '45',    '4',   '0',  '0'],
-            [RoundingMode::HalfUp,         '45',    '5',   '0',  '0'],
-            [RoundingMode::HalfDown,       '45',    '4',   '0',  '0'],
-            [RoundingMode::HalfCeiling,    '45',    '5',   '0',  '0'],
-            [RoundingMode::HalfFloor,      '45',    '4',   '0',  '0'],
-            [RoundingMode::HalfEven,       '45',    '4',   '0',  '0'],
-            [RoundingMode::HalfOdd,        '45',    '5',   '0',  '0'],
-
-            [RoundingMode::Unnecessary,    '55',   null,  null, null],
-            [RoundingMode::Up,             '55',    '6',   '1',  '1'],
-            [RoundingMode::Down,           '55',    '5',   '0',  '0'],
-            [RoundingMode::Ceiling,        '55',    '6',   '1',  '1'],
-            [RoundingMode::Floor,          '55',    '5',   '0',  '0'],
-            [RoundingMode::HalfUp,         '55',    '6',   '1',  '0'],
-            [RoundingMode::HalfDown,       '55',    '5',   '1',  '0'],
-            [RoundingMode::HalfCeiling,    '55',    '6',   '1',  '0'],
-            [RoundingMode::HalfFloor,      '55',    '5',   '1',  '0'],
-            [RoundingMode::HalfEven,       '55',    '6',   '1',  '0'],
-            [RoundingMode::HalfOdd,        '55',    '5',   '1',  '0'],
-
-            [RoundingMode::Unnecessary,   '995',   null,  null, null],
-            [RoundingMode::Up,            '995',  '100',  '10',  '1'],
-            [RoundingMode::Down,          '995',   '99',   '9',  '0'],
-            [RoundingMode::Ceiling,       '995',  '100',  '10',  '1'],
-            [RoundingMode::Floor,         '995',   '99',   '9',  '0'],
-            [RoundingMode::HalfUp,        '995',  '100',  '10',  '1'],
-            [RoundingMode::HalfDown,      '995',   '99',  '10',  '1'],
-            [RoundingMode::HalfCeiling,   '995',  '100',  '10',  '1'],
-            [RoundingMode::HalfFloor,     '995',   '99',  '10',  '1'],
-            [RoundingMode::HalfEven,      '995',  '100',  '10',  '1'],
-            [RoundingMode::HalfOdd,       '995',   '99',  '10',  '1'],
-
-            [RoundingMode::Unnecessary,  '1005',   null,  null, null],
-            [RoundingMode::Up,           '1005',  '101',  '11',  '2'],
-            [RoundingMode::Down,         '1005',  '100',  '10',  '1'],
-            [RoundingMode::Ceiling,      '1005',  '101',  '11',  '2'],
-            [RoundingMode::Floor,        '1005',  '100',  '10',  '1'],
-            [RoundingMode::HalfUp,       '1005',  '101',  '10',  '1'],
-            [RoundingMode::HalfDown,     '1005',  '100',  '10',  '1'],
-            [RoundingMode::HalfCeiling,  '1005',  '101',  '10',  '1'],
-            [RoundingMode::HalfFloor,    '1005',  '100',  '10',  '1'],
-            [RoundingMode::HalfEven,     '1005',  '100',  '10',  '1'],
-            [RoundingMode::HalfOdd,      '1005',  '101',  '10',  '1'],
-
-            [RoundingMode::Unnecessary,  '2450',  '245',  null, null],
-            [RoundingMode::Up,           '2450',  '245',  '25',  '3'],
-            [RoundingMode::Down,         '2450',  '245',  '24',  '2'],
-            [RoundingMode::Ceiling,      '2450',  '245',  '25',  '3'],
-            [RoundingMode::Floor,        '2450',  '245',  '24',  '2'],
-            [RoundingMode::HalfUp,       '2450',  '245',  '25',  '2'],
-            [RoundingMode::HalfDown,     '2450',  '245',  '24',  '2'],
-            [RoundingMode::HalfCeiling,  '2450',  '245',  '25',  '2'],
-            [RoundingMode::HalfFloor,    '2450',  '245',  '24',  '2'],
-            [RoundingMode::HalfEven,     '2450',  '245',  '24',  '2'],
-            [RoundingMode::HalfOdd,      '2450',  '245',  '25',  '2'],
-
-            [RoundingMode::Unnecessary,  '2550',  '255',  null, null],
-            [RoundingMode::Up,           '2550',  '255',  '26',  '3'],
-            [RoundingMode::Down,         '2550',  '255',  '25',  '2'],
-            [RoundingMode::Ceiling,      '2550',  '255',  '26',  '3'],
-            [RoundingMode::Floor,        '2550',  '255',  '25',  '2'],
-            [RoundingMode::HalfUp,       '2550',  '255',  '26',  '3'],
-            [RoundingMode::HalfDown,     '2550',  '255',  '25',  '3'],
-            [RoundingMode::HalfCeiling,  '2550',  '255',  '26',  '3'],
-            [RoundingMode::HalfFloor,    '2550',  '255',  '25',  '3'],
-            [RoundingMode::HalfEven,     '2550',  '255',  '26',  '3'],
-            [RoundingMode::HalfOdd,      '2550',  '255',  '25',  '3'],
-
-            [RoundingMode::Unnecessary, '1000000000000000000000000000005', null, null, null],
-            [RoundingMode::Up,          '1000000000000000000000000000005', '100000000000000000000000000001', '10000000000000000000000000001', '1000000000000000000000000001'],
-            [RoundingMode::Down,        '1000000000000000000000000000005', '100000000000000000000000000000', '10000000000000000000000000000', '1000000000000000000000000000'],
-            [RoundingMode::Ceiling,     '1000000000000000000000000000005', '100000000000000000000000000001', '10000000000000000000000000001', '1000000000000000000000000001'],
-            [RoundingMode::Floor,       '1000000000000000000000000000005', '100000000000000000000000000000', '10000000000000000000000000000', '1000000000000000000000000000'],
-            [RoundingMode::HalfUp,      '1000000000000000000000000000005', '100000000000000000000000000001', '10000000000000000000000000000', '1000000000000000000000000000'],
-            [RoundingMode::HalfDown,    '1000000000000000000000000000005', '100000000000000000000000000000', '10000000000000000000000000000', '1000000000000000000000000000'],
-            [RoundingMode::HalfCeiling, '1000000000000000000000000000005', '100000000000000000000000000001', '10000000000000000000000000000', '1000000000000000000000000000'],
-            [RoundingMode::HalfFloor,   '1000000000000000000000000000005', '100000000000000000000000000000', '10000000000000000000000000000', '1000000000000000000000000000'],
-            [RoundingMode::HalfEven,    '1000000000000000000000000000005', '100000000000000000000000000000', '10000000000000000000000000000', '1000000000000000000000000000'],
-            [RoundingMode::HalfOdd,     '1000000000000000000000000000005', '100000000000000000000000000001', '10000000000000000000000000000', '1000000000000000000000000000'],
-
-            [RoundingMode::Unnecessary, '1000000000000000000000000000015', null, null, null],
-            [RoundingMode::Up,          '1000000000000000000000000000015', '100000000000000000000000000002', '10000000000000000000000000001', '1000000000000000000000000001'],
-            [RoundingMode::Down,        '1000000000000000000000000000015', '100000000000000000000000000001', '10000000000000000000000000000', '1000000000000000000000000000'],
-            [RoundingMode::Ceiling,     '1000000000000000000000000000015', '100000000000000000000000000002', '10000000000000000000000000001', '1000000000000000000000000001'],
-            [RoundingMode::Floor,       '1000000000000000000000000000015', '100000000000000000000000000001', '10000000000000000000000000000', '1000000000000000000000000000'],
-            [RoundingMode::HalfUp,      '1000000000000000000000000000015', '100000000000000000000000000002', '10000000000000000000000000000', '1000000000000000000000000000'],
-            [RoundingMode::HalfDown,    '1000000000000000000000000000015', '100000000000000000000000000001', '10000000000000000000000000000', '1000000000000000000000000000'],
-            [RoundingMode::HalfCeiling, '1000000000000000000000000000015', '100000000000000000000000000002', '10000000000000000000000000000', '1000000000000000000000000000'],
-            [RoundingMode::HalfFloor,   '1000000000000000000000000000015', '100000000000000000000000000001', '10000000000000000000000000000', '1000000000000000000000000000'],
-            [RoundingMode::HalfEven,    '1000000000000000000000000000015', '100000000000000000000000000002', '10000000000000000000000000000', '1000000000000000000000000000'],
-            [RoundingMode::HalfOdd,     '1000000000000000000000000000015', '100000000000000000000000000001', '10000000000000000000000000000', '1000000000000000000000000000'],
-
-            [RoundingMode::Unnecessary,   '-45',   null,  null, null],
-            [RoundingMode::Up,            '-45',   '-5',  '-1', '-1'],
-            [RoundingMode::Down,          '-45',   '-4',   '0',  '0'],
-            [RoundingMode::Ceiling,       '-45',   '-4',   '0',  '0'],
-            [RoundingMode::Floor,         '-45',   '-5',  '-1', '-1'],
-            [RoundingMode::HalfUp,        '-45',   '-5',   '0',  '0'],
-            [RoundingMode::HalfDown,      '-45',   '-4',   '0',  '0'],
-            [RoundingMode::HalfCeiling,   '-45',   '-4',   '0',  '0'],
-            [RoundingMode::HalfFloor,     '-45',   '-5',   '0',  '0'],
-            [RoundingMode::HalfEven,      '-45',   '-4',   '0',  '0'],
-            [RoundingMode::HalfOdd,       '-45',   '-5',   '0',  '0'],
-
-            [RoundingMode::Unnecessary,   '-55',   null,  null, null],
-            [RoundingMode::Up,            '-55',   '-6',  '-1', '-1'],
-            [RoundingMode::Down,          '-55',   '-5',   '0',  '0'],
-            [RoundingMode::Ceiling,       '-55',   '-5',   '0',  '0'],
-            [RoundingMode::Floor,         '-55',   '-6',  '-1', '-1'],
-            [RoundingMode::HalfUp,        '-55',   '-6',  '-1',  '0'],
-            [RoundingMode::HalfDown,      '-55',   '-5',  '-1',  '0'],
-            [RoundingMode::HalfCeiling,   '-55',   '-5',  '-1',  '0'],
-            [RoundingMode::HalfFloor,     '-55',   '-6',  '-1',  '0'],
-            [RoundingMode::HalfEven,      '-55',   '-6',  '-1',  '0'],
-            [RoundingMode::HalfOdd,       '-55',   '-5',  '-1',  '0'],
-
-            [RoundingMode::Unnecessary,  '-995',   null,  null, null],
-            [RoundingMode::Up,           '-995', '-100', '-10', '-1'],
-            [RoundingMode::Down,         '-995',  '-99',  '-9',  '0'],
-            [RoundingMode::Ceiling,      '-995',  '-99',  '-9',  '0'],
-            [RoundingMode::Floor,        '-995', '-100', '-10', '-1'],
-            [RoundingMode::HalfUp,       '-995', '-100', '-10', '-1'],
-            [RoundingMode::HalfDown,     '-995',  '-99', '-10', '-1'],
-            [RoundingMode::HalfCeiling,  '-995',  '-99', '-10', '-1'],
-            [RoundingMode::HalfFloor,    '-995', '-100', '-10', '-1'],
-            [RoundingMode::HalfEven,     '-995', '-100', '-10', '-1'],
-            [RoundingMode::HalfOdd,      '-995',  '-99', '-10', '-1'],
-
-            [RoundingMode::Unnecessary, '-1005',   null,  null, null],
-            [RoundingMode::Up,          '-1005', '-101', '-11', '-2'],
-            [RoundingMode::Down,        '-1005', '-100', '-10', '-1'],
-            [RoundingMode::Ceiling,     '-1005', '-100', '-10', '-1'],
-            [RoundingMode::Floor,       '-1005', '-101', '-11', '-2'],
-            [RoundingMode::HalfUp,      '-1005', '-101', '-10', '-1'],
-            [RoundingMode::HalfDown,    '-1005', '-100', '-10', '-1'],
-            [RoundingMode::HalfCeiling, '-1005', '-100', '-10', '-1'],
-            [RoundingMode::HalfFloor,   '-1005', '-101', '-10', '-1'],
-            [RoundingMode::HalfEven,    '-1005', '-100', '-10', '-1'],
-            [RoundingMode::HalfOdd,     '-1005', '-101', '-10', '-1'],
-
-            [RoundingMode::Unnecessary, '-2450', '-245',  null, null],
-            [RoundingMode::Up,          '-2450', '-245', '-25', '-3'],
-            [RoundingMode::Down,        '-2450', '-245', '-24', '-2'],
-            [RoundingMode::Ceiling,     '-2450', '-245', '-24', '-2'],
-            [RoundingMode::Floor,       '-2450', '-245', '-25', '-3'],
-            [RoundingMode::HalfUp,      '-2450', '-245', '-25', '-2'],
-            [RoundingMode::HalfDown,    '-2450', '-245', '-24', '-2'],
-            [RoundingMode::HalfCeiling, '-2450', '-245', '-24', '-2'],
-            [RoundingMode::HalfFloor,   '-2450', '-245', '-25', '-2'],
-            [RoundingMode::HalfEven,    '-2450', '-245', '-24', '-2'],
-            [RoundingMode::HalfOdd,     '-2450', '-245', '-25', '-2'],
-
-            [RoundingMode::Unnecessary, '-2550', '-255',  null, null],
-            [RoundingMode::Up,          '-2550', '-255', '-26', '-3'],
-            [RoundingMode::Down,        '-2550', '-255', '-25', '-2'],
-            [RoundingMode::Ceiling,     '-2550', '-255', '-25', '-2'],
-            [RoundingMode::Floor,       '-2550', '-255', '-26', '-3'],
-            [RoundingMode::HalfUp,      '-2550', '-255', '-26', '-3'],
-            [RoundingMode::HalfDown,    '-2550', '-255', '-25', '-3'],
-            [RoundingMode::HalfCeiling, '-2550', '-255', '-25', '-3'],
-            [RoundingMode::HalfFloor,   '-2550', '-255', '-26', '-3'],
-            [RoundingMode::HalfEven,    '-2550', '-255', '-26', '-3'],
-            [RoundingMode::HalfOdd,     '-2550', '-255', '-25', '-3'],
-
-            [RoundingMode::Unnecessary, '-1000000000000000000000000000005', null, null, null],
-            [RoundingMode::Up,          '-1000000000000000000000000000005', '-100000000000000000000000000001', '-10000000000000000000000000001', '-1000000000000000000000000001'],
-            [RoundingMode::Down,        '-1000000000000000000000000000005', '-100000000000000000000000000000', '-10000000000000000000000000000', '-1000000000000000000000000000'],
-            [RoundingMode::Ceiling,     '-1000000000000000000000000000005', '-100000000000000000000000000000', '-10000000000000000000000000000', '-1000000000000000000000000000'],
-            [RoundingMode::Floor,       '-1000000000000000000000000000005', '-100000000000000000000000000001', '-10000000000000000000000000001', '-1000000000000000000000000001'],
-            [RoundingMode::HalfUp,      '-1000000000000000000000000000005', '-100000000000000000000000000001', '-10000000000000000000000000000', '-1000000000000000000000000000'],
-            [RoundingMode::HalfDown,    '-1000000000000000000000000000005', '-100000000000000000000000000000', '-10000000000000000000000000000', '-1000000000000000000000000000'],
-            [RoundingMode::HalfCeiling, '-1000000000000000000000000000005', '-100000000000000000000000000000', '-10000000000000000000000000000', '-1000000000000000000000000000'],
-            [RoundingMode::HalfFloor,   '-1000000000000000000000000000005', '-100000000000000000000000000001', '-10000000000000000000000000000', '-1000000000000000000000000000'],
-            [RoundingMode::HalfEven,    '-1000000000000000000000000000005', '-100000000000000000000000000000', '-10000000000000000000000000000', '-1000000000000000000000000000'],
-            [RoundingMode::HalfOdd,     '-1000000000000000000000000000005', '-100000000000000000000000000001', '-10000000000000000000000000000', '-1000000000000000000000000000'],
-
-            [RoundingMode::Unnecessary, '-1000000000000000000000000000015', null, null, null],
-            [RoundingMode::Up,          '-1000000000000000000000000000015', '-100000000000000000000000000002', '-10000000000000000000000000001', '-1000000000000000000000000001'],
-            [RoundingMode::Down,        '-1000000000000000000000000000015', '-100000000000000000000000000001', '-10000000000000000000000000000', '-1000000000000000000000000000'],
-            [RoundingMode::Ceiling,     '-1000000000000000000000000000015', '-100000000000000000000000000001', '-10000000000000000000000000000', '-1000000000000000000000000000'],
-            [RoundingMode::Floor,       '-1000000000000000000000000000015', '-100000000000000000000000000002', '-10000000000000000000000000001', '-1000000000000000000000000001'],
-            [RoundingMode::HalfUp,      '-1000000000000000000000000000015', '-100000000000000000000000000002', '-10000000000000000000000000000', '-1000000000000000000000000000'],
-            [RoundingMode::HalfDown,    '-1000000000000000000000000000015', '-100000000000000000000000000001', '-10000000000000000000000000000', '-1000000000000000000000000000'],
-            [RoundingMode::HalfCeiling, '-1000000000000000000000000000015', '-100000000000000000000000000001', '-10000000000000000000000000000', '-1000000000000000000000000000'],
-            [RoundingMode::HalfFloor,   '-1000000000000000000000000000015', '-100000000000000000000000000002', '-10000000000000000000000000000', '-1000000000000000000000000000'],
-            [RoundingMode::HalfEven,    '-1000000000000000000000000000015', '-100000000000000000000000000002', '-10000000000000000000000000000', '-1000000000000000000000000000'],
-            [RoundingMode::HalfOdd,     '-1000000000000000000000000000015', '-100000000000000000000000000001', '-10000000000000000000000000000', '-1000000000000000000000000000'],
+            [RoundingMode::UNNECESSARY,  '3501',   null,  null, null],
+            [RoundingMode::UNNECESSARY,  '3500',  '350',  '35', null],
+            [RoundingMode::UNNECESSARY,  '3499',   null,  null, null],
+            [RoundingMode::UNNECESSARY,  '3001',   null,  null, null],
+            [RoundingMode::UNNECESSARY,  '3000',  '300',  '30',  '3'],
+            [RoundingMode::UNNECESSARY,  '2999',   null,  null, null],
+            [RoundingMode::UNNECESSARY,  '2501',   null,  null, null],
+            [RoundingMode::UNNECESSARY,  '2500',  '250',  '25', null],
+            [RoundingMode::UNNECESSARY,  '2499',   null,  null, null],
+            [RoundingMode::UNNECESSARY,  '2001',   null,  null, null],
+            [RoundingMode::UNNECESSARY,  '2000',  '200',  '20',  '2'],
+            [RoundingMode::UNNECESSARY,  '1999',   null,  null, null],
+            [RoundingMode::UNNECESSARY,  '1501',   null,  null, null],
+            [RoundingMode::UNNECESSARY,  '1500',  '150',  '15', null],
+            [RoundingMode::UNNECESSARY,  '1499',   null,  null, null],
+            [RoundingMode::UNNECESSARY,  '1001',   null,  null, null],
+            [RoundingMode::UNNECESSARY,  '1000',  '100',  '10',  '1'],
+            [RoundingMode::UNNECESSARY,   '999',   null,  null, null],
+            [RoundingMode::UNNECESSARY,   '501',   null,  null, null],
+            [RoundingMode::UNNECESSARY,   '500',   '50',   '5', null],
+            [RoundingMode::UNNECESSARY,   '499',   null,  null, null],
+            [RoundingMode::UNNECESSARY,     '1',   null,  null, null],
+            [RoundingMode::UNNECESSARY,     '0',    '0',   '0',  '0'],
+            [RoundingMode::UNNECESSARY,    '-1',   null,  null, null],
+            [RoundingMode::UNNECESSARY,  '-499',   null,  null, null],
+            [RoundingMode::UNNECESSARY,  '-500',  '-50',  '-5', null],
+            [RoundingMode::UNNECESSARY,  '-501',   null,  null, null],
+            [RoundingMode::UNNECESSARY,  '-999',   null,  null, null],
+            [RoundingMode::UNNECESSARY, '-1000', '-100', '-10', '-1'],
+            [RoundingMode::UNNECESSARY, '-1001',   null,  null, null],
+            [RoundingMode::UNNECESSARY, '-1499',   null,  null, null],
+            [RoundingMode::UNNECESSARY, '-1500', '-150', '-15', null],
+            [RoundingMode::UNNECESSARY, '-1501',   null,  null, null],
+            [RoundingMode::UNNECESSARY, '-1999',   null,  null, null],
+            [RoundingMode::UNNECESSARY, '-2000', '-200', '-20', '-2'],
+            [RoundingMode::UNNECESSARY, '-2001',   null,  null, null],
+            [RoundingMode::UNNECESSARY, '-2499',   null,  null, null],
+            [RoundingMode::UNNECESSARY, '-2500', '-250', '-25', null],
+            [RoundingMode::UNNECESSARY, '-2501',   null,  null, null],
+            [RoundingMode::UNNECESSARY, '-2999',   null,  null, null],
+            [RoundingMode::UNNECESSARY, '-3000', '-300', '-30', '-3'],
+            [RoundingMode::UNNECESSARY, '-3001',   null,  null, null],
+            [RoundingMode::UNNECESSARY, '-3499',   null,  null, null],
+            [RoundingMode::UNNECESSARY, '-3500', '-350', '-35', null],
+            [RoundingMode::UNNECESSARY, '-3501',   null,  null, null],
         ];
     }
 
     /**
+     * @dataProvider providerQuotientAndRemainder
+     *
      * @param string $dividend The dividend.
      * @param string $divisor  The divisor.
      * @param string $quotient The expected quotient.
      */
-    #[DataProvider('providerQuotientAndRemainder')]
-    public function testQuotient(string $dividend, string $divisor, string $quotient): void
+    public function testQuotient(string $dividend, string $divisor, string $quotient) : void
     {
         self::assertBigIntegerEquals($quotient, BigInteger::of($dividend)->quotient($divisor));
     }
 
-    public function testQuotientOfZeroThrowsException(): void
+    public function testQuotientOfZeroThrowsException() : void
     {
-        $one = BigInteger::one();
-
         $this->expectException(DivisionByZeroException::class);
-        $this->expectExceptionMessageExact('Division by zero.');
-
-        $one->quotient(0);
+        BigInteger::of(1)->quotient(0);
     }
 
     /**
+     * @dataProvider providerQuotientAndRemainder
+     *
      * @param string $dividend  The dividend.
      * @param string $divisor   The divisor.
      * @param string $quotient  The expected quotient (ignored for this test).
      * @param string $remainder The expected remainder.
      */
-    #[DataProvider('providerQuotientAndRemainder')]
-    public function testRemainder(string $dividend, string $divisor, string $quotient, string $remainder): void
+    public function testRemainder(string $dividend, string $divisor, string $quotient, string $remainder) : void
     {
         self::assertBigIntegerEquals($remainder, BigInteger::of($dividend)->remainder($divisor));
     }
 
-    public function testRemainderOfZeroThrowsException(): void
+    public function testRemainderOfZeroThrowsException() : void
     {
-        $one = BigInteger::one();
-
         $this->expectException(DivisionByZeroException::class);
-        $this->expectExceptionMessageExact('Division by zero.');
-
-        $one->remainder(0);
+        BigInteger::of(1)->remainder(0);
     }
 
     /**
+     * @dataProvider providerQuotientAndRemainder
+     *
      * @param string $dividend  The dividend.
      * @param string $divisor   The divisor.
      * @param string $quotient  The expected quotient.
      * @param string $remainder The expected remainder.
      */
-    #[DataProvider('providerQuotientAndRemainder')]
-    public function testQuotientAndRemainder(string $dividend, string $divisor, string $quotient, string $remainder): void
+    public function testQuotientAndRemainder(string $dividend, string $divisor, string $quotient, string $remainder) : void
     {
         [$q, $r] = BigInteger::of($dividend)->quotientAndRemainder($divisor);
 
@@ -1564,7 +1186,7 @@ class BigIntegerTest extends AbstractTestCase
         self::assertBigIntegerEquals($remainder, $r);
     }
 
-    public static function providerQuotientAndRemainder(): array
+    public function providerQuotientAndRemainder() : array
     {
         return [
             ['1', '123', '0', '1'],
@@ -1623,182 +1245,145 @@ class BigIntegerTest extends AbstractTestCase
             ['49283205308081983923480483094304390249024223', '-23981985358744892239240813', '-2055009398548863185', '20719258837232321643854818'],
             ['-8378278174814983902084304176539029302438924', '384758527893793829309012129991', '-21775419041855', '-367584271343844173835372665619'],
             ['-444444444444444444444444444444444444411111', '-33333333333333', '13333333333333466666666666667', '-33333333300000'],
-
-            ['922337203685477581000000000', '922337203685477580', '1000000000', '1000000000'],
-            ['922337203685477581000000000', '922337203685477581', '1000000000', '0'],
         ];
     }
 
-    public function testQuotientAndRemainderByZeroThrowsException(): void
+    public function testQuotientAndRemainderByZeroThrowsException() : void
     {
-        $one = BigInteger::one();
-
         $this->expectException(DivisionByZeroException::class);
-        $this->expectExceptionMessageExact('Division by zero.');
-
-        $one->quotientAndRemainder(0);
+        BigInteger::of(1)->quotientAndRemainder(0);
     }
 
-    #[DataProvider('providerMod')]
-    public function testMod(string $dividend, string $divisor, string $expected): void
+    /**
+     * @dataProvider providerMod
+     */
+    public function testMod(string $dividend, string $divisor, string $expected) : void
     {
         self::assertBigIntegerEquals($expected, BigInteger::of($dividend)->mod($divisor));
     }
 
-    public static function providerMod(): array
+    public function providerMod() : array
     {
         return [
             ['0', '1', '0'],
+            ['0', '-1', '0'],
 
             ['1', '123', '1'],
+            ['1', '-123', '-122'],
             ['-1', '123', '122'],
+            ['-1', '-123', '-1'],
 
-            ['2', '7', '2'],
-            ['-2', '7', '5'],
+            ['2',   '7', '2'],
+            ['2',  '-7', '-5'],
+            ['-2',  '7', '5'],
+            ['-2', '-7', '-2'],
 
-            ['12', '7', '5'],
-            ['-12', '7', '2'],
+            ['12',   '7', '5'],
+            ['12',  '-7', '-2'],
+            ['-12',  '7', '2'],
+            ['-12', '-7', '-5'],
 
             ['123', '1', '0'],
+            ['123', '-1', '0'],
             ['-123', '1', '0'],
+            ['-123', '-1', '0'],
 
             ['123', '2', '1'],
+            ['123', '-2', '-1'],
             ['-123', '2', '1'],
+            ['-123', '-2', '-1'],
 
             ['123', '123', '0'],
+            ['123', '-123', '0'],
             ['-123', '123', '0'],
+            ['-123', '-123', '0'],
 
             ['123', '124', '123'],
+            ['123', '-124', '-1'],
             ['-123', '124', '1'],
+            ['-123', '-124', '-123'],
 
             ['124', '123', '1'],
+            ['124', '-123', '-122'],
             ['-124', '123', '122'],
+            ['-124', '-123', '-1'],
 
             ['100000000', '353467', '322306'],
+            ['100000000', '-353467', '-31161'],
             ['-100000000', '353467', '31161'],
+            ['-100000000', '-353467', '-322306'],
 
             ['1999999999999999999999999', '2000000000000000000000000', '1999999999999999999999999'],
+            ['1999999999999999999999999', '-2000000000000000000000000', '-1'],
             ['-1999999999999999999999999', '2000000000000000000000000', '1'],
+            ['-1999999999999999999999999', '-2000000000000000000000000', '-1999999999999999999999999'],
 
-            ['1000000000000000000000000000000', '3', '1'],
-            ['1000000000000000000000000000000', '9', '1'],
-            ['1000000000000000000000000000000', '11', '1'],
-            ['1000000000000000000000000000000', '13', '1'],
-            ['1000000000000000000000000000000', '21', '1'],
+            ['1000000000000000000000000000000',   '3',   '1'],
+            ['1000000000000000000000000000000',  '-3',  '-2'],
+            ['1000000000000000000000000000000',   '9',   '1'],
+            ['1000000000000000000000000000000',  '-9',  '-8'],
+            ['1000000000000000000000000000000',  '11',   '1'],
+            ['1000000000000000000000000000000', '-11', '-10'],
+            ['1000000000000000000000000000000',  '13',   '1'],
+            ['1000000000000000000000000000000', '-13', '-12'],
+            ['1000000000000000000000000000000',  '21',   '1'],
+            ['1000000000000000000000000000000', '-21', '-20'],
 
             ['123456789123456789123456789', '987654321987654321', '850308642973765431'],
+            ['123456789123456789123456789', '-87654321987654321', '-22030924930968528'],
             ['-123456789123456789123456789', '7654321987654321', '5820145655913952'],
+            ['-123456789123456789123456789', '-654321987654321', '-205094497790673'],
 
             ['123456789098765432101234567890987654321', '1', '0'],
+            ['123456789098765432101234567890987654321', '-1', '0'],
             ['1282493059039502950823948435791053205342314', '24342491090593053', '4167539367989094'],
             ['1000000000000000000000000000000000000000000000', '7777777777777777', '2232222222222222'],
             ['999999999999999999999999999999999999999999999', '22221222222', '13737242865'],
+            ['49283205308081983923480483094304390249024223', '-23981985358744892239240813', '-3262726521512570595385995'],
             ['-8378278174814983902084304176539029302438924', '384758527893793829309012129991', '17174256549949655473639464372'],
+            ['-444444444444444444444444444444444444411111', '-33333333333333', '-33333333300000'],
         ];
     }
 
-    public function testModZeroThrowsException(): void
+    public function testModZeroThrowsException() : void
     {
-        $one = BigInteger::one();
-
         $this->expectException(DivisionByZeroException::class);
-        $this->expectExceptionMessageExact('The modulus must not be zero.');
-
-        $one->mod(0);
+        BigInteger::of(1)->mod(0);
     }
 
-    public function testModNegativeThrowsException(): void
-    {
-        $one = BigInteger::one();
-
-        $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessageExact('The modulus must not be negative.');
-
-        $one->mod(-1);
-    }
-
-    #[DataProvider('providerModPow')]
-    public function testModPow(string $base, string $exp, string $mod, string $expected): void
+    /**
+     * @dataProvider providerModPow
+     */
+    public function testModPow(string $base, string $exp, string $mod, string $expected) : void
     {
         self::assertBigIntegerEquals($expected, BigInteger::of($base)->modPow($exp, $mod));
     }
 
-    public static function providerModPow(): array
+    public function providerModPow() : array
     {
         return [
             ['0', '0', '1', '0'],
             ['0', '1', '1', '0'],
             ['1', '0', '1', '0'],
             ['1', '1', '1', '0'],
-            ['-1', '0', '1', '0'],
-            ['-1', '1', '2', '1'],
-            ['-1', '2', '2', '1'],
-
             ['0', '1', '10', '0'],
-            ['2', '1', '3', '2'],
-            ['-2', '1', '3', '1'],
-            ['2', '2', '5', '4'],
-            ['-2', '2', '5', '4'],
-            ['-2', '3', '5', '2'],
-            ['2', '5', '5', '2'],
-            ['-2', '5', '5', '3'],
-            ['3', '7', '11', '9'],
-            ['-3', '7', '11', '2'],
-            ['4', '13', '17', '4'],
-            ['-4', '13', '17', '13'],
             ['5', '1', '10', '5'],
-            ['-5', '1', '10', '5'],
-            ['-5', '2', '10', '5'],
-            ['-5', '3', '10', '5'],
-            ['5', '11', '19', '6'],
-            ['-5', '11', '19', '13'],
-            ['7', '40', '101', '87'],
-            ['-7', '40', '101', '87'],
-            ['10', '1', '7', '3'],
-            ['-10', '1', '7', '4'],
-            ['10', '2', '7', '2'],
-            ['-10', '2', '7', '2'],
-            ['15', '3', '5', '0'],
-            ['-15', '3', '5', '0'],
-            ['20', '0', '7', '1'],
-            ['-20', '0', '7', '1'],
-
+            ['77', '3', '1000', '533'],
             ['11', '3', '1000', '331'],
             ['11', '7', '1000', '171'],
             ['11', '7', '900', '371'],
-            ['77', '3', '1000', '533'],
-            ['123', '17', '97', '60'],
-            ['-123', '1', '97', '71'],
-            ['-123', '2', '97', '94'],
-            ['-123', '17', '97', '37'],
-
-            ['123456789', '123', '10007', '926'],
-            ['-123456789', '123', '10007', '9081'],
-            ['100000000000000000000000000000000000000', '1', '3', '1'],
-            ['-100000000000000000000000000000000000000', '1', '3', '2'],
-            ['100000000000000000000000000000000000000', '2', '3', '1'],
-            ['-100000000000000000000000000000000000000', '2', '3', '1'],
-            ['99999999999999999999999999999999999999999999999999999999', '12345', '97', '46'],
-            ['-99999999999999999999999999999999999999999999999999999999', '12345', '97', '51'],
-            ['-18446744073709551616', '65537', '4294967291', '2945441076'],
-            ['1234567890123456789012345678901234567890', '2222', '10000000000000000000000000000000000000039', '5027889966861811662795810483159425039296'],
-            ['-1234567890123456789012345678901234567890', '2222', '10000000000000000000000000000000000000039', '5027889966861811662795810483159425039296'],
-
-            ['2988348162058574136915891421498819466320163312926952423791023078876139', '2351399303373464486466122544523690094744975233415544072992656881240319', '10000000000000000000000000000000000000000', '1527229998585248450016808958343740453059'],
-            ['-2988348162058574136915891421498819466320163312926952423791023078876139', '2351399303373464486466122544523690094744975233415544072992656881240319', '10000000000000000000000000000000000000000', '8472770001414751549983191041656259546941'],
-            ['2988348162058574136915891421498819466320163312926952423791023078876139', '1234567', '1000000007', '247440148'],
-            ['-2988348162058574136915891421498819466320163312926952423791023078876139', '1234567', '1000000007', '752559859'],
+            ['2988348162058574136915891421498819466320163312926952423791023078876139', '2351399303373464486466122544523690094744975233415544072992656881240319', '10000000000000000000000000000000000000000', '1527229998585248450016808958343740453059']
         ];
     }
 
     /**
      * Crypto test from phpseclib test suite.
      */
-    public function testModPowCrypto(): void
+    public function testModPowCrypto() : void
     {
-        if (CalculatorRegistry::get() instanceof Calculator\NativeCalculator) {
+        if (Calculator::get() instanceof Calculator\NativeCalculator) {
             if (getenv('CI') === 'true') {
-                self::markTestSkipped('This test is currently too slow for the CI.');
+                $this->markTestSkipped('This test is currently too slow for the CI.');
             }
         }
 
@@ -1814,7 +1399,7 @@ class BigIntegerTest extends AbstractTestCase
             'E39E772C180E86039B2783A2EC07A28FB5C55DF06F4C52C9' .
             'DE2BCBF6955817183995497CEA956AE515D2261898FA0510' .
             '15728E5A8AACAA68FFFFFFFFFFFFFFFF',
-            16,
+            16
         );
 
         $generator = BigInteger::of(2);
@@ -1823,97 +1408,62 @@ class BigIntegerTest extends AbstractTestCase
             '22606EDA7960458BC9D65F46DD96F114F9A004F0493C1F26' .
             '2139D2C8063B733162E876182CA3BF063AB1A167ABDB7F03' .
             'E0A225A6205660439F6CE46D252069FF',
-            16,
+            16
         );
 
         $bobPrivate = BigInteger::fromBase(
             '6E3EFA13A96025D63E4B0D88A09B3A46DDFE9DD3BC9D1655' .
             '4898C02B4AC181F0CEB4E818664B12F02C71A07215C400F9' .
             '88352A4779F3E88836F7C3D3B3C739DE',
-            16,
+            16
         );
 
         $alicePublic = $generator->modPow($alicePrivate, $prime);
-        $bobPublic = $generator->modPow($bobPrivate, $prime);
+        $bobPublic   = $generator->modPow($bobPrivate, $prime);
 
         $aliceShared = $bobPublic->modPow($alicePrivate, $prime);
-        $bobShared = $alicePublic->modPow($bobPrivate, $prime);
+        $bobShared   = $alicePublic->modPow($bobPrivate, $prime);
 
         self::assertTrue($aliceShared->isEqualTo($bobShared));
     }
 
-    #[DataProvider('providerModPowNegativeThrowsException')]
-    public function testModPowNegativeThrowsException(int $exp, int $mod, string $expectedExceptionMessage): void
+    /**
+     * @dataProvider providerModPowNegativeThrowsException
+     */
+    public function testModPowNegativeThrowsException(int $base, int $exp, int $mod) : void
     {
-        $one = BigInteger::one();
-
-        $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessageExact($expectedExceptionMessage);
-
-        $one->modPow($exp, $mod);
+        $this->expectException(NegativeNumberException::class);
+        BigInteger::of($base)->modPow($exp, $mod);
     }
 
-    public static function providerModPowNegativeThrowsException(): array
+    public function providerModPowNegativeThrowsException() : array
     {
         return [
-            [-1, 1, 'The exponent must not be negative.'],
-            [1, -1, 'The modulus must not be negative.'],
+            [ 1,  1, -1],
+            [ 1, -1,  1],
+            [-1,  1,  1],
         ];
     }
 
-    public function testModPowZeroThrowsException(): void
+    public function testModPowZeroThrowsException() : void
     {
-        $one = BigInteger::one();
-
         $this->expectException(DivisionByZeroException::class);
-        $this->expectExceptionMessageExact('The modulus must not be zero.');
-
-        $one->modPow(1, 0);
-    }
-
-    #[DataProvider('providerClamp')]
-    public function testClamp(string $number, string $min, string $max, string $expected): void
-    {
-        self::assertBigIntegerEquals($expected, BigInteger::of($number)->clamp($min, $max));
-    }
-
-    public static function providerClamp(): array
-    {
-        return [
-            ['100', '50', '150', '100'],
-            ['25', '50', '150', '50'],
-            ['200', '50', '150', '150'],
-            ['50', '50', '150', '50'],
-            ['150', '50', '150', '150'],
-            ['0', '50', '150', '50'],
-            ['100', '50', '150', '100'],
-            ['25', '0', '50', '25'],
-            ['-100', '50', '150', '50'],
-            ['-100', '-150', '-50', '-100'],
-        ];
-    }
-
-    public function testClampWithInvertedBoundsThrowsException(): void
-    {
-        $number = BigInteger::of(5);
-        $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessageExact('The minimum value must be less than or equal to the maximum value.');
-
-        $number->clamp(10, 0);
+        BigInteger::of(1)->modPow(1, 0);
     }
 
     /**
+     * @dataProvider providerPower
+     *
      * @param string $number   The base number.
      * @param int    $exponent The exponent to apply.
      * @param string $expected The expected result.
      */
-    #[DataProvider('providerPower')]
-    public function testPower(string $number, int $exponent, string $expected): void
+    public function testPower(string $number, int $exponent, string $expected) : void
     {
         self::assertBigIntegerEquals($expected, BigInteger::of($number)->power($exponent));
     }
 
-    public static function providerPower(): array
+    public function providerPower() : array
     {
         return [
             ['-3', 0, '1'],
@@ -1923,8 +1473,6 @@ class BigIntegerTest extends AbstractTestCase
             ['1',  0, '1'],
             ['2',  0, '1'],
             ['3',  0, '1'],
-            ['-123456789012345678901234567890', 0, '1'],
-            ['123456789012345678901234567890', 0, '1'],
 
             ['-3', 1, '-3'],
             ['-2', 1, '-2'],
@@ -1933,8 +1481,6 @@ class BigIntegerTest extends AbstractTestCase
             ['1',  1,  '1'],
             ['2',  1,  '2'],
             ['3',  1,  '3'],
-            ['-123456789012345678901234567890', 1, '-123456789012345678901234567890'],
-            ['123456789012345678901234567890', 1, '123456789012345678901234567890'],
 
             ['-3', 2, '9'],
             ['-2', 2, '4'],
@@ -1943,8 +1489,6 @@ class BigIntegerTest extends AbstractTestCase
             ['1',  2, '1'],
             ['2',  2, '4'],
             ['3',  2, '9'],
-            ['-123456789012345678901234567890', 2, '15241578753238836750495351562536198787501905199875019052100'],
-            ['123456789012345678901234567890', 2, '15241578753238836750495351562536198787501905199875019052100'],
 
             ['-3', 3, '-27'],
             ['-2', 3,  '-8'],
@@ -1953,40 +1497,46 @@ class BigIntegerTest extends AbstractTestCase
             ['1',  3,   '1'],
             ['2',  3,   '8'],
             ['3',  3,  '27'],
-            ['-123456789012345678901234567890', 3, '-1881676372353657772546716040589641726257477229849409426207693797722198701224860897069000'],
-            ['123456789012345678901234567890', 3, '1881676372353657772546716040589641726257477229849409426207693797722198701224860897069000'],
 
-            ['0', 1_000_000, '0'],
-            ['1', 1_000_000, '1'],
+            ['0', 1000000, '0'],
+            ['1', 1000000, '1'],
 
             ['-2', 255, '-57896044618658097711785492504343953926634992332820282019728792003956564819968'],
-            ['2', 256, '115792089237316195423570985008687907853269984665640564039457584007913129639936'],
+            [ '2', 256, '115792089237316195423570985008687907853269984665640564039457584007913129639936'],
 
             ['-123', 33, '-926549609804623448265268294182900512918058893428212027689876489708283'],
-            ['123', 34, '113965602005968684136628000184496763088921243891670079405854808234118809'],
+            [ '123', 34, '113965602005968684136628000184496763088921243891670079405854808234118809'],
 
             ['-123456789', 8, '53965948844821664748141453212125737955899777414752273389058576481'],
-            ['9876543210', 7, '9167159269868350921847491739460569765344716959834325922131706410000000'],
+            ['9876543210', 7, '9167159269868350921847491739460569765344716959834325922131706410000000']
         ];
     }
 
-    public function testPowerWithNegativeExponentThrowsException(): void
+    /**
+     * @dataProvider providerPowerWithInvalidExponentThrowsException
+     */
+    public function testPowerWithInvalidExponentThrowsException(int $power) : void
     {
-        $one = BigInteger::one();
+        $this->expectException(\InvalidArgumentException::class);
+        BigInteger::of(1)->power($power);
+    }
 
-        $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessageExact('The exponent must not be negative.');
-
-        $one->power(-1);
+    public function providerPowerWithInvalidExponentThrowsException() : array
+    {
+        return [
+            [-1],
+            [1000001]
+        ];
     }
 
     /**
+     * @dataProvider providerGcd
+     *
      * @param string $a   The first number.
      * @param string $b   The second number.
      * @param string $gcd The expected GCD.
      */
-    #[DataProvider('providerGcd')]
-    public function testGcd(string $a, string $b, string $gcd): void
+    public function testGcd(string $a, string $b, string $gcd) : void
     {
         $a = BigInteger::of($a);
         $b = BigInteger::of($b);
@@ -1994,7 +1544,7 @@ class BigIntegerTest extends AbstractTestCase
         self::assertBigIntegerEquals($gcd, $a->gcd($b));
     }
 
-    public static function providerGcd(): Generator
+    public function providerGcd() : \Generator
     {
         $tests = [
             ['0', '0', '0'],
@@ -2080,1636 +1630,376 @@ class BigIntegerTest extends AbstractTestCase
     }
 
     /**
-     * @param string $a   The first number.
-     * @param string $b   The second number.
-     * @param string $lcm The expected LCM.
+     * @dataProvider providerSqrt
      */
-    #[DataProvider('providerLcm')]
-    public function testLcm(string $a, string $b, string $lcm): void
-    {
-        $a = BigInteger::of($a);
-        $b = BigInteger::of($b);
-
-        self::assertBigIntegerEquals($lcm, $a->lcm($b));
-    }
-
-    public static function providerLcm(): Generator
-    {
-        $tests = [
-            ['0', '0', '0'],
-            ['0', '5', '0'],
-            ['1', '1', '1'],
-            ['1', '2', '2'],
-            ['2', '3', '6'],
-            ['4', '6', '12'],
-            ['8', '12', '24'],
-            ['9', '6', '18'],
-            ['21', '6', '42'],
-            ['123456789123456789', '3', '123456789123456789'],
-            ['1000000000000', '999999999999', '999999999999000000000000'],
-        ];
-
-        foreach ($tests as [$a, $b, $lcm]) {
-            yield [$a, $b, $lcm];
-            yield [$b, $a, $lcm];
-
-            yield [$a, "-$b", $lcm];
-            yield [$b, "-$a", $lcm];
-
-            yield ["-$a", $b, $lcm];
-            yield ["-$b", $a, $lcm];
-
-            yield ["-$a", "-$b", $lcm];
-            yield ["-$b", "-$a", $lcm];
-        }
-    }
-
-    #[DataProvider('providerSqrt')]
-    public function testSqrt(string $number, RoundingMode $roundingMode, ?string $expected): void
+    public function testSqrt(string $number, string $sqrt) : void
     {
         $number = BigInteger::of($number);
 
-        if ($expected === null) {
-            $this->expectException(RoundingNecessaryException::class);
-            $this->expectExceptionMessageExact('The square root is not exact and cannot be represented as an integer without rounding.');
-        }
-
-        $actual = $number->sqrt($roundingMode);
-
-        if ($expected !== null) {
-            self::assertBigIntegerEquals($expected, $actual);
-        }
+        self::assertBigIntegerEquals($sqrt, $number->sqrt());
     }
 
-    public static function providerSqrt(): Generator
+    public function providerSqrt() : array
     {
-        $tests = [
-            ['0', RoundingMode::Unnecessary, '0'],
-
-            ['1', RoundingMode::Unnecessary, '1'],
-
-            ['2', RoundingMode::Unnecessary, null],
-            ['2', RoundingMode::Down, '1'],
-            ['2', RoundingMode::Up, '2'],
-            ['2', RoundingMode::HalfUp, '1'],
-
-            ['3', RoundingMode::Unnecessary, null],
-            ['3', RoundingMode::Down, '1'],
-            ['3', RoundingMode::Up, '2'],
-            ['3', RoundingMode::HalfUp, '2'],
-
-            ['4', RoundingMode::Unnecessary, '2'],
-
-            ['5', RoundingMode::Unnecessary, null],
-            ['5', RoundingMode::Down, '2'],
-            ['5', RoundingMode::Up, '3'],
-            ['5', RoundingMode::HalfUp, '2'],
-
-            ['8', RoundingMode::Unnecessary, null],
-            ['8', RoundingMode::Down, '2'],
-            ['8', RoundingMode::Up, '3'],
-            ['8', RoundingMode::HalfUp, '3'],
-
-            ['9', RoundingMode::Unnecessary, '3'],
-
-            ['10', RoundingMode::Unnecessary, null],
-            ['10', RoundingMode::Down, '3'],
-            ['10', RoundingMode::Up, '4'],
-            ['10', RoundingMode::HalfUp, '3'],
-
-            ['15', RoundingMode::Unnecessary, null],
-            ['15', RoundingMode::Down, '3'],
-            ['15', RoundingMode::Up, '4'],
-            ['15', RoundingMode::HalfUp, '4'],
-
-            ['16', RoundingMode::Unnecessary, '4'],
-
-            ['17', RoundingMode::Unnecessary, null],
-            ['17', RoundingMode::Down, '4'],
-            ['17', RoundingMode::Up, '5'],
-            ['17', RoundingMode::HalfUp, '4'],
-
-            ['20', RoundingMode::Unnecessary, null],
-            ['20', RoundingMode::Down, '4'],
-            ['20', RoundingMode::Up, '5'],
-            ['20', RoundingMode::HalfUp, '4'],
-
-            ['21', RoundingMode::Unnecessary, null],
-            ['21', RoundingMode::Down, '4'],
-            ['21', RoundingMode::Up, '5'],
-            ['21', RoundingMode::HalfUp, '5'],
-
-            ['24', RoundingMode::Unnecessary, null],
-            ['24', RoundingMode::Down, '4'],
-            ['24', RoundingMode::Up, '5'],
-            ['24', RoundingMode::HalfUp, '5'],
-
-            ['25', RoundingMode::Unnecessary, '5'],
-
-            ['30', RoundingMode::Unnecessary, null],
-            ['30', RoundingMode::Down, '5'],
-            ['30', RoundingMode::Up, '6'],
-            ['30', RoundingMode::HalfUp, '5'],
-
-            ['31', RoundingMode::Unnecessary, null],
-            ['31', RoundingMode::Down, '5'],
-            ['31', RoundingMode::Up, '6'],
-            ['31', RoundingMode::HalfUp, '6'],
-
-            ['35', RoundingMode::Unnecessary, null],
-            ['35', RoundingMode::Down, '5'],
-            ['35', RoundingMode::Up, '6'],
-            ['35', RoundingMode::HalfUp, '6'],
-
-            ['36', RoundingMode::Unnecessary, '6'],
-
-            ['48', RoundingMode::Unnecessary, null],
-            ['48', RoundingMode::Down, '6'],
-            ['48', RoundingMode::Up, '7'],
-            ['48', RoundingMode::HalfUp, '7'],
-
-            ['49', RoundingMode::Unnecessary, '7'],
-
-            ['63', RoundingMode::Unnecessary, null],
-            ['63', RoundingMode::Down, '7'],
-            ['63', RoundingMode::Up, '8'],
-            ['63', RoundingMode::HalfUp, '8'],
-
-            ['64', RoundingMode::Unnecessary, '8'],
-
-            ['80', RoundingMode::Unnecessary, null],
-            ['80', RoundingMode::Down, '8'],
-            ['80', RoundingMode::Up, '9'],
-            ['80', RoundingMode::HalfUp, '9'],
-
-            ['81', RoundingMode::Unnecessary, '9'],
-
-            ['99', RoundingMode::Unnecessary, null],
-            ['99', RoundingMode::Down, '9'],
-            ['99', RoundingMode::Up, '10'],
-            ['99', RoundingMode::HalfUp, '10'],
-
-            ['100', RoundingMode::Unnecessary, '10'],
-
-            ['101', RoundingMode::Unnecessary, null],
-            ['101', RoundingMode::Down, '10'],
-            ['101', RoundingMode::Up, '11'],
-            ['101', RoundingMode::HalfUp, '10'],
-
-            ['10000', RoundingMode::Unnecessary, '100'],
-
-            ['10001', RoundingMode::Unnecessary, null],
-            ['10001', RoundingMode::Down, '100'],
-            ['10001', RoundingMode::Up, '101'],
-            ['10001', RoundingMode::HalfUp, '100'],
-
-            ['12344', RoundingMode::Unnecessary, null],
-            ['12344', RoundingMode::Down, '111'],
-            ['12344', RoundingMode::Up, '112'],
-            ['12344', RoundingMode::HalfUp, '111'],
-
-            ['12346', RoundingMode::Unnecessary, null],
-            ['12346', RoundingMode::Down, '111'],
-            ['12346', RoundingMode::Up, '112'],
-            ['12346', RoundingMode::HalfUp, '111'],
-
-            ['1000000', RoundingMode::Unnecessary, '1000'],
-
-            ['152399025', RoundingMode::Unnecessary, '12345'],
-
-            ['1000000000000000000000000000000000000000000000000000000000000', RoundingMode::Unnecessary, '1000000000000000000000000000000'],
-            ['1000000000000000000000000000000000000000000000000000000000000', RoundingMode::Down, '1000000000000000000000000000000'],
-            ['1000000000000000000000000000000000000000000000000000000000000', RoundingMode::Up, '1000000000000000000000000000000'],
-
-            ['1000000000000000000000000000000000000000000000000000000000001', RoundingMode::Unnecessary, null],
-            ['1000000000000000000000000000000000000000000000000000000000001', RoundingMode::Down, '1000000000000000000000000000000'],
-            ['1000000000000000000000000000000000000000000000000000000000001', RoundingMode::Up, '1000000000000000000000000000001'],
-
-            ['536137214136734800142146901787504368108126328549238033123877', RoundingMode::Unnecessary, null],
-            ['536137214136734800142146901787504368108126328549238033123877', RoundingMode::Down, '732213912826528310663262741626'],
-            ['536137214136734800142146901787504368108126328549238033123877', RoundingMode::Up, '732213912826528310663262741627'],
-            ['536137214136734800142146901787504368108126328549238033123877', RoundingMode::HalfUp, '732213912826528310663262741626'],
-
-            ['536137214136734800142146901786039940282473271927911507640624', RoundingMode::Unnecessary, null],
-            ['536137214136734800142146901786039940282473271927911507640624', RoundingMode::Down, '732213912826528310663262741624'],
-            ['536137214136734800142146901786039940282473271927911507640624', RoundingMode::Up, '732213912826528310663262741625'],
-            ['536137214136734800142146901786039940282473271927911507640624', RoundingMode::HalfUp, '732213912826528310663262741625'],
-
-            ['536137214136734800142146901786039940282473271927911507640625', RoundingMode::Unnecessary, '732213912826528310663262741625'],
-
-            ['536137214136734800142146901786039940282473271927911507640626', RoundingMode::Unnecessary, null],
-            ['536137214136734800142146901786039940282473271927911507640626', RoundingMode::Down, '732213912826528310663262741625'],
-            ['536137214136734800142146901786039940282473271927911507640626', RoundingMode::Up, '732213912826528310663262741626'],
-            ['536137214136734800142146901786039940282473271927911507640626', RoundingMode::HalfUp, '732213912826528310663262741625'],
-
-            ['536137214136734800142146901787504368108126328549238033123875', RoundingMode::Unnecessary, null],
-            ['536137214136734800142146901787504368108126328549238033123875', RoundingMode::Down, '732213912826528310663262741625'],
-            ['536137214136734800142146901787504368108126328549238033123875', RoundingMode::Up, '732213912826528310663262741626'],
-            ['536137214136734800142146901787504368108126328549238033123875', RoundingMode::HalfUp, '732213912826528310663262741626'],
-
-            ['536137214136734800142146901787504368108126328549238033123876', RoundingMode::Unnecessary, '732213912826528310663262741626'],
-
-            ['5651495859544574019979802175954184725583245698990648064256', RoundingMode::Unnecessary, '75176431543034642899535752016'],
-
-            ['5651495859544574019979802176104537588669314984789719568288', RoundingMode::Unnecessary, null],
-            ['5651495859544574019979802176104537588669314984789719568288', RoundingMode::Down, '75176431543034642899535752016'],
-            ['5651495859544574019979802176104537588669314984789719568288', RoundingMode::Up, '75176431543034642899535752017'],
-            ['5651495859544574019979802176104537588669314984789719568288', RoundingMode::HalfUp, '75176431543034642899535752017'],
-
-            ['5651495859544574019979802176104537588669314984789719568289', RoundingMode::Unnecessary, '75176431543034642899535752017'],
-
-            ['303791344535904055863813752643405021077478121784571407761729', RoundingMode::Unnecessary, '551172699374618931119694672223'],
-
-            ['303791344535904055863813752643956193776852740715691102433952', RoundingMode::Unnecessary, null],
-            ['303791344535904055863813752643956193776852740715691102433952', RoundingMode::Down, '551172699374618931119694672223'],
-            ['303791344535904055863813752643956193776852740715691102433952', RoundingMode::Up, '551172699374618931119694672224'],
-            ['303791344535904055863813752643956193776852740715691102433952', RoundingMode::HalfUp, '551172699374618931119694672223'],
-
-            ['303791344535904055863813752644507366476227359646810797106176', RoundingMode::Unnecessary, '551172699374618931119694672224'],
-
-            ['563247882222081148212230590155705163466381822617812257437849', RoundingMode::Unnecessary, '750498422531374244468346132293'],
-
-            ['563247882222081148212230590157206160311444571106748949702435', RoundingMode::Unnecessary, null],
-            ['563247882222081148212230590157206160311444571106748949702435', RoundingMode::Down, '750498422531374244468346132293'],
-            ['563247882222081148212230590157206160311444571106748949702435', RoundingMode::Up, '750498422531374244468346132294'],
-            ['563247882222081148212230590157206160311444571106748949702435', RoundingMode::HalfUp, '750498422531374244468346132294'],
-
-            ['563247882222081148212230590157206160311444571106748949702436', RoundingMode::Unnecessary, '750498422531374244468346132294'],
-
-            ['396189426113498637323382117462633843296333578307938768136329', RoundingMode::Unnecessary, '629435799834660371475569807677'],
-
-            ['396189426113498637323382117463263279096168238679414337944006', RoundingMode::Unnecessary, null],
-            ['396189426113498637323382117463263279096168238679414337944006', RoundingMode::Down, '629435799834660371475569807677'],
-            ['396189426113498637323382117463263279096168238679414337944006', RoundingMode::Up, '629435799834660371475569807678'],
-            ['396189426113498637323382117463263279096168238679414337944006', RoundingMode::HalfUp, '629435799834660371475569807677'],
-
-            ['396189426113498637323382117463892714896002899050889907751684', RoundingMode::Unnecessary, '629435799834660371475569807678'],
-
-            ['80479328054895287914569547663334257436697869675619064535360356', RoundingMode::Unnecessary, '8971027146034911420307518533066'],
-
-            ['80479328054895287914569547663352199490989939498459679572426488', RoundingMode::Unnecessary, null],
-            ['80479328054895287914569547663352199490989939498459679572426488', RoundingMode::Down, '8971027146034911420307518533066'],
-            ['80479328054895287914569547663352199490989939498459679572426488', RoundingMode::Up, '8971027146034911420307518533067'],
-            ['80479328054895287914569547663352199490989939498459679572426488', RoundingMode::HalfUp, '8971027146034911420307518533067'],
-
-            ['80479328054895287914569547663352199490989939498459679572426489', RoundingMode::Unnecessary, '8971027146034911420307518533067'],
-
-            ['681849477075053403257629437089098232501847587591122144140625', RoundingMode::Unnecessary, '825741773846432819101899135625'],
-
-            ['681849477075053403257629437089923974275694020410224043276250', RoundingMode::Unnecessary, null],
-            ['681849477075053403257629437089923974275694020410224043276250', RoundingMode::Down, '825741773846432819101899135625'],
-            ['681849477075053403257629437089923974275694020410224043276250', RoundingMode::Up, '825741773846432819101899135626'],
-            ['681849477075053403257629437089923974275694020410224043276250', RoundingMode::HalfUp, '825741773846432819101899135625'],
-
-            ['681849477075053403257629437090749716049540453229325942411876', RoundingMode::Unnecessary, '825741773846432819101899135626'],
-
-            ['74137461815059419705618984794190691016668430175974095624129600', RoundingMode::Unnecessary, '8610311365743948501801103299640'],
-
-            ['74137461815059419705618984794207911639399918072977697830728880', RoundingMode::Unnecessary, null],
-            ['74137461815059419705618984794207911639399918072977697830728880', RoundingMode::Down, '8610311365743948501801103299640'],
-            ['74137461815059419705618984794207911639399918072977697830728880', RoundingMode::Up, '8610311365743948501801103299641'],
-            ['74137461815059419705618984794207911639399918072977697830728880', RoundingMode::HalfUp, '8610311365743948501801103299641'],
-
-            ['74137461815059419705618984794207911639399918072977697830728881', RoundingMode::Unnecessary, '8610311365743948501801103299641'],
-
-            ['6679657010858483937903991845397665010485952775098785560735409', RoundingMode::Unnecessary, '2584503242570704134867997320903'],
-
-            ['6679657010858483937903991845400249513728523479233653558056312', RoundingMode::Unnecessary, null],
-            ['6679657010858483937903991845400249513728523479233653558056312', RoundingMode::Down, '2584503242570704134867997320903'],
-            ['6679657010858483937903991845400249513728523479233653558056312', RoundingMode::Up, '2584503242570704134867997320904'],
-            ['6679657010858483937903991845400249513728523479233653558056312', RoundingMode::HalfUp, '2584503242570704134867997320903'],
-
-            ['6679657010858483937903991845402834016971094183368521555377216', RoundingMode::Unnecessary, '2584503242570704134867997320904'],
-
-            ['76167329888878964758237229146072291137608533898056659182403025', RoundingMode::Unnecessary, '8727389637736988579847341871305'],
-
-            ['76167329888878964758237229146089745916884007875216353866145635', RoundingMode::Unnecessary, null],
-            ['76167329888878964758237229146089745916884007875216353866145635', RoundingMode::Down, '8727389637736988579847341871305'],
-            ['76167329888878964758237229146089745916884007875216353866145635', RoundingMode::Up, '8727389637736988579847341871306'],
-            ['76167329888878964758237229146089745916884007875216353866145635', RoundingMode::HalfUp, '8727389637736988579847341871306'],
-
-            ['76167329888878964758237229146089745916884007875216353866145636', RoundingMode::Unnecessary, '8727389637736988579847341871306'],
-
-            ['6743391560146249598812429163892766868360953827745248726306064', RoundingMode::Unnecessary, '2596804105077287033903247753508'],
-
-            ['6743391560146249598812429163895363672466031114779151974059572', RoundingMode::Unnecessary, null],
-            ['6743391560146249598812429163895363672466031114779151974059572', RoundingMode::Down, '2596804105077287033903247753508'],
-            ['6743391560146249598812429163895363672466031114779151974059572', RoundingMode::Up, '2596804105077287033903247753509'],
-            ['6743391560146249598812429163895363672466031114779151974059572', RoundingMode::HalfUp, '2596804105077287033903247753508'],
-
-            ['6743391560146249598812429163897960476571108401813055221813081', RoundingMode::Unnecessary, '2596804105077287033903247753509'],
-
-            ['1867791142724588955955814039055642821336323719154250751224723556', RoundingMode::Unnecessary, '43217949311884164825638553209334'],
-
-            ['1867791142724588955955814039055729257234947487483902028331142224', RoundingMode::Unnecessary, null],
-            ['1867791142724588955955814039055729257234947487483902028331142224', RoundingMode::Down, '43217949311884164825638553209334'],
-            ['1867791142724588955955814039055729257234947487483902028331142224', RoundingMode::Up, '43217949311884164825638553209335'],
-            ['1867791142724588955955814039055729257234947487483902028331142224', RoundingMode::HalfUp, '43217949311884164825638553209335'],
-
-            ['1867791142724588955955814039055729257234947487483902028331142225', RoundingMode::Unnecessary, '43217949311884164825638553209335'],
-
-            ['9830504148113505106730565430925806810010750548232214925001449636', RoundingMode::Unnecessary, '99148898874942151859351963400806'],
-
-            ['9830504148113505106730565430925905958909625490384074276964850442', RoundingMode::Unnecessary, null],
-            ['9830504148113505106730565430925905958909625490384074276964850442', RoundingMode::Down, '99148898874942151859351963400806'],
-            ['9830504148113505106730565430925905958909625490384074276964850442', RoundingMode::Up, '99148898874942151859351963400807'],
-            ['9830504148113505106730565430925905958909625490384074276964850442', RoundingMode::HalfUp, '99148898874942151859351963400806'],
-
-            ['9830504148113505106730565430926005107808500432535933628928251249', RoundingMode::Unnecessary, '99148898874942151859351963400807'],
-
-            ['7591171119877361934423335814652578116545218322867005352922382400', RoundingMode::Unnecessary, '87127327055737007353139169677320'],
-
-            ['7591171119877361934423335814652752371199329796881711631261737040', RoundingMode::Unnecessary, null],
-            ['7591171119877361934423335814652752371199329796881711631261737040', RoundingMode::Down, '87127327055737007353139169677320'],
-            ['7591171119877361934423335814652752371199329796881711631261737040', RoundingMode::Up, '87127327055737007353139169677321'],
-            ['7591171119877361934423335814652752371199329796881711631261737040', RoundingMode::HalfUp, '87127327055737007353139169677321'],
-
-            ['7591171119877361934423335814652752371199329796881711631261737041', RoundingMode::Unnecessary, '87127327055737007353139169677321'],
-
-            ['8534704621867005063010169093165229825021562891964253458234113600', RoundingMode::Unnecessary, '92383465089089427718873950884440'],
-
-            ['8534704621867005063010169093165322208486651981391972332184998040', RoundingMode::Unnecessary, null],
-            ['8534704621867005063010169093165322208486651981391972332184998040', RoundingMode::Down, '92383465089089427718873950884440'],
-            ['8534704621867005063010169093165322208486651981391972332184998040', RoundingMode::Up, '92383465089089427718873950884441'],
-            ['8534704621867005063010169093165322208486651981391972332184998040', RoundingMode::HalfUp, '92383465089089427718873950884440'],
-
-            ['8534704621867005063010169093165414591951741070819691206135882481', RoundingMode::Unnecessary, '92383465089089427718873950884441'],
-
-            ['558060557515620507133380963948250962461823927030515012873505842176', RoundingMode::Unnecessary, '747034508918845399769072043504224'],
-
-            ['558060557515620507133380963948252456530841764721314551017592850624', RoundingMode::Unnecessary, null],
-            ['558060557515620507133380963948252456530841764721314551017592850624', RoundingMode::Down, '747034508918845399769072043504224'],
-            ['558060557515620507133380963948252456530841764721314551017592850624', RoundingMode::Up, '747034508918845399769072043504225'],
-            ['558060557515620507133380963948252456530841764721314551017592850624', RoundingMode::HalfUp, '747034508918845399769072043504225'],
-
-            ['558060557515620507133380963948252456530841764721314551017592850625', RoundingMode::Unnecessary, '747034508918845399769072043504225'],
-
-            ['200538408436782201630574692476963942210287537291410052113367162944', RoundingMode::Unnecessary, '447815149851791192871220236705288'],
-
-            ['200538408436782201630574692476964390025437389082602923333603868232', RoundingMode::Unnecessary, null],
-            ['200538408436782201630574692476964390025437389082602923333603868232', RoundingMode::Down, '447815149851791192871220236705288'],
-            ['200538408436782201630574692476964390025437389082602923333603868232', RoundingMode::Up, '447815149851791192871220236705289'],
-            ['200538408436782201630574692476964390025437389082602923333603868232', RoundingMode::HalfUp, '447815149851791192871220236705288'],
-
-            ['200538408436782201630574692476964837840587240873795794553840573521', RoundingMode::Unnecessary, '447815149851791192871220236705289'],
-
-            ['191302866278956628715433979906440851661028066577090295375612311364', RoundingMode::Unnecessary, '437381831217251900054617942999442'],
-
-            ['191302866278956628715433979906441726424690501080890404611498310248', RoundingMode::Unnecessary, null],
-            ['191302866278956628715433979906441726424690501080890404611498310248', RoundingMode::Down, '437381831217251900054617942999442'],
-            ['191302866278956628715433979906441726424690501080890404611498310248', RoundingMode::Up, '437381831217251900054617942999443'],
-            ['191302866278956628715433979906441726424690501080890404611498310248', RoundingMode::HalfUp, '437381831217251900054617942999443'],
-
-            ['191302866278956628715433979906441726424690501080890404611498310249', RoundingMode::Unnecessary, '437381831217251900054617942999443'],
-
-            ['291290137244253022092289121327605756463305738312066948462328733721', RoundingMode::Unnecessary, '539713013780706442298424414941189'],
-
-            ['291290137244253022092289121327606296176319519018509246886743674910', RoundingMode::Unnecessary, null],
-            ['291290137244253022092289121327606296176319519018509246886743674910', RoundingMode::Down, '539713013780706442298424414941189'],
-            ['291290137244253022092289121327606296176319519018509246886743674910', RoundingMode::Up, '539713013780706442298424414941190'],
-            ['291290137244253022092289121327606296176319519018509246886743674910', RoundingMode::HalfUp, '539713013780706442298424414941189'],
-
-            ['291290137244253022092289121327606835889333299724951545311158616100', RoundingMode::Unnecessary, '539713013780706442298424414941190'],
-
-            ['5025051069729848944739380852251409470255071569439258719898537481', RoundingMode::Unnecessary, '70887594610974415152598103986941'],
-
-            ['5025051069729848944739380852251551245444293518269563916106511363', RoundingMode::Unnecessary, null],
-            ['5025051069729848944739380852251551245444293518269563916106511363', RoundingMode::Down, '70887594610974415152598103986941'],
-            ['5025051069729848944739380852251551245444293518269563916106511363', RoundingMode::Up, '70887594610974415152598103986942'],
-            ['5025051069729848944739380852251551245444293518269563916106511363', RoundingMode::HalfUp, '70887594610974415152598103986942'],
-
-            ['5025051069729848944739380852251551245444293518269563916106511364', RoundingMode::Unnecessary, '70887594610974415152598103986942'],
-
-            ['6238861109923404442965423418956764090860907116154205636120522931561', RoundingMode::Unnecessary, '2497771228500201225537381791181331'],
-
-            ['6238861109923404442965423418956766588632135616355431173502314112892', RoundingMode::Unnecessary, null],
-            ['6238861109923404442965423418956766588632135616355431173502314112892', RoundingMode::Down, '2497771228500201225537381791181331'],
-            ['6238861109923404442965423418956766588632135616355431173502314112892', RoundingMode::Up, '2497771228500201225537381791181332'],
-            ['6238861109923404442965423418956766588632135616355431173502314112892', RoundingMode::HalfUp, '2497771228500201225537381791181331'],
-
-            ['6238861109923404442965423418956769086403364116556656710884105294224', RoundingMode::Unnecessary, '2497771228500201225537381791181332'],
-
-            ['20023427755036504641354330839858631034820554187187074374005311969476', RoundingMode::Unnecessary, '4474754491034843873667293532006926'],
-
-            ['20023427755036504641354330839858639984329536256874821708592375983328', RoundingMode::Unnecessary, null],
-            ['20023427755036504641354330839858639984329536256874821708592375983328', RoundingMode::Down, '4474754491034843873667293532006926'],
-            ['20023427755036504641354330839858639984329536256874821708592375983328', RoundingMode::Up, '4474754491034843873667293532006927'],
-            ['20023427755036504641354330839858639984329536256874821708592375983328', RoundingMode::HalfUp, '4474754491034843873667293532006927'],
-
-            ['20023427755036504641354330839858639984329536256874821708592375983329', RoundingMode::Unnecessary, '4474754491034843873667293532006927'],
-
-            ['35963041045659882033621773487569203358608603414532908772894092442881', RoundingMode::Unnecessary, '5996919296243687322881924437376641'],
-
-            ['35963041045659882033621773487569209355527899658220231654818529819522', RoundingMode::Unnecessary, null],
-            ['35963041045659882033621773487569209355527899658220231654818529819522', RoundingMode::Down, '5996919296243687322881924437376641'],
-            ['35963041045659882033621773487569209355527899658220231654818529819522', RoundingMode::Up, '5996919296243687322881924437376642'],
-            ['35963041045659882033621773487569209355527899658220231654818529819522', RoundingMode::HalfUp, '5996919296243687322881924437376641'],
-
-            ['35963041045659882033621773487569215352447195901907554536742967196164', RoundingMode::Unnecessary, '5996919296243687322881924437376642'],
-
-            ['16147491963439711944418728362110466093273207282720057861529178507569', RoundingMode::Unnecessary, '4018394202096119880426988697249913'],
-
-            ['16147491963439711944418728362110474130061611474959818715506573007395', RoundingMode::Unnecessary, null],
-            ['16147491963439711944418728362110474130061611474959818715506573007395', RoundingMode::Down, '4018394202096119880426988697249913'],
-            ['16147491963439711944418728362110474130061611474959818715506573007395', RoundingMode::Up, '4018394202096119880426988697249914'],
-            ['16147491963439711944418728362110474130061611474959818715506573007395', RoundingMode::HalfUp, '4018394202096119880426988697249914'],
-
-            ['16147491963439711944418728362110474130061611474959818715506573007396', RoundingMode::Unnecessary, '4018394202096119880426988697249914'],
-
-            ['59275127168144151414318593405790938619095816316145068714478973756416', RoundingMode::Unnecessary, '7699034171124593171733765899358304'],
-
-            ['59275127168144151414318593405790946318129987440738240448244873114720', RoundingMode::Unnecessary, null],
-            ['59275127168144151414318593405790946318129987440738240448244873114720', RoundingMode::Down, '7699034171124593171733765899358304'],
-            ['59275127168144151414318593405790946318129987440738240448244873114720', RoundingMode::Up, '7699034171124593171733765899358305'],
-            ['59275127168144151414318593405790946318129987440738240448244873114720', RoundingMode::HalfUp, '7699034171124593171733765899358304'],
-
-            ['59275127168144151414318593405790954017164158565331412182010772473025', RoundingMode::Unnecessary, '7699034171124593171733765899358305'],
-
-            ['5285010890475466266241012129886993921224228841648175760159220822102500', RoundingMode::Unnecessary, '72698080376826087595732320834198550'],
-
-            ['5285010890475466266241012129886994066620389595300350951623862490499600', RoundingMode::Unnecessary, null],
-            ['5285010890475466266241012129886994066620389595300350951623862490499600', RoundingMode::Down, '72698080376826087595732320834198550'],
-            ['5285010890475466266241012129886994066620389595300350951623862490499600', RoundingMode::Up, '72698080376826087595732320834198551'],
-            ['5285010890475466266241012129886994066620389595300350951623862490499600', RoundingMode::HalfUp, '72698080376826087595732320834198551'],
-
-            ['5285010890475466266241012129886994066620389595300350951623862490499601', RoundingMode::Unnecessary, '72698080376826087595732320834198551'],
-
-            ['138806460367120633162909304707973463857407594119348580175849319475249', RoundingMode::Unnecessary, '11781615354743195534745216445516807'],
-
-            ['138806460367120633162909304707973475639022948862544114921065764992056', RoundingMode::Unnecessary, null],
-            ['138806460367120633162909304707973475639022948862544114921065764992056', RoundingMode::Down, '11781615354743195534745216445516807'],
-            ['138806460367120633162909304707973475639022948862544114921065764992056', RoundingMode::Up, '11781615354743195534745216445516808'],
-            ['138806460367120633162909304707973475639022948862544114921065764992056', RoundingMode::HalfUp, '11781615354743195534745216445516807'],
-
-            ['138806460367120633162909304707973487420638303605739649666282210508864', RoundingMode::Unnecessary, '11781615354743195534745216445516808'],
-
-            ['4394593323188981215423145755036811566487951532301290484907917429040356', RoundingMode::Unnecessary, '66291728919896041699308382947726934'],
-
-            ['4394593323188981215423145755036811699071409372093373883524683324494224', RoundingMode::Unnecessary, null],
-            ['4394593323188981215423145755036811699071409372093373883524683324494224', RoundingMode::Down, '66291728919896041699308382947726934'],
-            ['4394593323188981215423145755036811699071409372093373883524683324494224', RoundingMode::Up, '66291728919896041699308382947726935'],
-            ['4394593323188981215423145755036811699071409372093373883524683324494224', RoundingMode::HalfUp, '66291728919896041699308382947726935'],
-
-            ['4394593323188981215423145755036811699071409372093373883524683324494225', RoundingMode::Unnecessary, '66291728919896041699308382947726935'],
-
-            ['2165102898894822021490897916929619474531175829310332070795169853731396', RoundingMode::Unnecessary, '46530666220190980857729715988167086'],
-
-            ['2165102898894822021490897916929619521061842049501312928524885841898482', RoundingMode::Unnecessary, null],
-            ['2165102898894822021490897916929619521061842049501312928524885841898482', RoundingMode::Down, '46530666220190980857729715988167086'],
-            ['2165102898894822021490897916929619521061842049501312928524885841898482', RoundingMode::Up, '46530666220190980857729715988167087'],
-            ['2165102898894822021490897916929619521061842049501312928524885841898482', RoundingMode::HalfUp, '46530666220190980857729715988167086'],
-
-            ['2165102898894822021490897916929619567592508269692293786254601830065569', RoundingMode::Unnecessary, '46530666220190980857729715988167087'],
-
-            ['3387136764299263076201461182231668509909087521737501460409373154998724', RoundingMode::Unnecessary, '58199113088596660127381090812371918'],
-
-            ['3387136764299263076201461182231668626307313698930821715171554779742560', RoundingMode::Unnecessary, null],
-            ['3387136764299263076201461182231668626307313698930821715171554779742560', RoundingMode::Down, '58199113088596660127381090812371918'],
-            ['3387136764299263076201461182231668626307313698930821715171554779742560', RoundingMode::Up, '58199113088596660127381090812371919'],
-            ['3387136764299263076201461182231668626307313698930821715171554779742560', RoundingMode::HalfUp, '58199113088596660127381090812371919'],
-
-            ['3387136764299263076201461182231668626307313698930821715171554779742561', RoundingMode::Unnecessary, '58199113088596660127381090812371919'],
-
-            ['598571098379632349988804996185789284322923089459844190238738309900665041', RoundingMode::Unnecessary, '773673767410807557353849214204230071'],
-
-            ['598571098379632349988804996185789285096596856870651747592587524104895112', RoundingMode::Unnecessary, null],
-            ['598571098379632349988804996185789285096596856870651747592587524104895112', RoundingMode::Down, '773673767410807557353849214204230071'],
-            ['598571098379632349988804996185789285096596856870651747592587524104895112', RoundingMode::Up, '773673767410807557353849214204230072'],
-            ['598571098379632349988804996185789285096596856870651747592587524104895112', RoundingMode::HalfUp, '773673767410807557353849214204230071'],
-
-            ['598571098379632349988804996185789285870270624281459304946436738309125184', RoundingMode::Unnecessary, '773673767410807557353849214204230072'],
-
-            ['520654040364073618548858305514718008281370888178241149423087536697602769', RoundingMode::Unnecessary, '721563607982050061031165602524215113'],
-
-            ['520654040364073618548858305514718009724498104142341271485418741746032995', RoundingMode::Unnecessary, null],
-            ['520654040364073618548858305514718009724498104142341271485418741746032995', RoundingMode::Down, '721563607982050061031165602524215113'],
-            ['520654040364073618548858305514718009724498104142341271485418741746032995', RoundingMode::Up, '721563607982050061031165602524215114'],
-            ['520654040364073618548858305514718009724498104142341271485418741746032995', RoundingMode::HalfUp, '721563607982050061031165602524215114'],
-
-            ['520654040364073618548858305514718009724498104142341271485418741746032996', RoundingMode::Unnecessary, '721563607982050061031165602524215114'],
-
-            ['49468236740249321869413367805106481368010073927095236023233757323825636', RoundingMode::Unnecessary, '222414560540107899360763128216988694'],
-
-            ['49468236740249321869413367805106481590424634467203135383996885540814330', RoundingMode::Unnecessary, null],
-            ['49468236740249321869413367805106481590424634467203135383996885540814330', RoundingMode::Down, '222414560540107899360763128216988694'],
-            ['49468236740249321869413367805106481590424634467203135383996885540814330', RoundingMode::Up, '222414560540107899360763128216988695'],
-            ['49468236740249321869413367805106481590424634467203135383996885540814330', RoundingMode::HalfUp, '222414560540107899360763128216988694'],
-
-            ['49468236740249321869413367805106481812839195007311034744760013757803025', RoundingMode::Unnecessary, '222414560540107899360763128216988695'],
-
-            ['752985146631183783668626620327136132189678265369154785125113211857131025', RoundingMode::Unnecessary, '867747167457885617308484616342840855'],
-
-            ['752985146631183783668626620327136133925172600284926019742082444542812735', RoundingMode::Unnecessary, null],
-            ['752985146631183783668626620327136133925172600284926019742082444542812735', RoundingMode::Down, '867747167457885617308484616342840855'],
-            ['752985146631183783668626620327136133925172600284926019742082444542812735', RoundingMode::Up, '867747167457885617308484616342840856'],
-            ['752985146631183783668626620327136133925172600284926019742082444542812735', RoundingMode::HalfUp, '867747167457885617308484616342840856'],
-
-            ['752985146631183783668626620327136133925172600284926019742082444542812736', RoundingMode::Unnecessary, '867747167457885617308484616342840856'],
-
-            ['4964939306071472434861762119449573856931127119323966160723135793312400', RoundingMode::Unnecessary, '70462325437580276008386497095248180'],
-
-            ['4964939306071472434861762119449573927393452556904242169109632888560580', RoundingMode::Unnecessary, null],
-            ['4964939306071472434861762119449573927393452556904242169109632888560580', RoundingMode::Down, '70462325437580276008386497095248180'],
-            ['4964939306071472434861762119449573927393452556904242169109632888560580', RoundingMode::Up, '70462325437580276008386497095248181'],
-            ['4964939306071472434861762119449573927393452556904242169109632888560580', RoundingMode::HalfUp, '70462325437580276008386497095248180'],
-
-            ['4964939306071472434861762119449573997855777994484518177496129983808761', RoundingMode::Unnecessary, '70462325437580276008386497095248181'],
-
-            ['6793060375719308872947059218122494900670395578602098991588961245675868921', RoundingMode::Unnecessary, '2606350010209547598885835947629243339'],
-
-            ['6793060375719308872947059218122494905883095599021194189360633140934355599', RoundingMode::Unnecessary, null],
-            ['6793060375719308872947059218122494905883095599021194189360633140934355599', RoundingMode::Down, '2606350010209547598885835947629243339'],
-            ['6793060375719308872947059218122494905883095599021194189360633140934355599', RoundingMode::Up, '2606350010209547598885835947629243340'],
-            ['6793060375719308872947059218122494905883095599021194189360633140934355599', RoundingMode::HalfUp, '2606350010209547598885835947629243340'],
-
-            ['6793060375719308872947059218122494905883095599021194189360633140934355600', RoundingMode::Unnecessary, '2606350010209547598885835947629243340'],
-
-            ['72434023187588979108181351955877408189952248642066292273939239044048882404', RoundingMode::Unnecessary, '8510818009309620944867597322534681898'],
-
-            ['72434023187588979108181351955877408198463066651375913218806836366583564302', RoundingMode::Unnecessary, null],
-            ['72434023187588979108181351955877408198463066651375913218806836366583564302', RoundingMode::Down, '8510818009309620944867597322534681898'],
-            ['72434023187588979108181351955877408198463066651375913218806836366583564302', RoundingMode::Up, '8510818009309620944867597322534681899'],
-            ['72434023187588979108181351955877408198463066651375913218806836366583564302', RoundingMode::HalfUp, '8510818009309620944867597322534681898'],
-
-            ['72434023187588979108181351955877408206973884660685534163674433689118246201', RoundingMode::Unnecessary, '8510818009309620944867597322534681899'],
-
-            ['11820228792957342809567646506028581034714829445539021053517615632467438404', RoundingMode::Unnecessary, '3438055961289365459878259691983242898'],
-
-            ['11820228792957342809567646506028581041590941368117751973274135016433924200', RoundingMode::Unnecessary, null],
-            ['11820228792957342809567646506028581041590941368117751973274135016433924200', RoundingMode::Down, '3438055961289365459878259691983242898'],
-            ['11820228792957342809567646506028581041590941368117751973274135016433924200', RoundingMode::Up, '3438055961289365459878259691983242899'],
-            ['11820228792957342809567646506028581041590941368117751973274135016433924200', RoundingMode::HalfUp, '3438055961289365459878259691983242899'],
-
-            ['11820228792957342809567646506028581041590941368117751973274135016433924201', RoundingMode::Unnecessary, '3438055961289365459878259691983242899'],
-
-            ['6386392982997549868964551665256601064299977946311952729197080155224215225', RoundingMode::Unnecessary, '2527131374305172498893486771925871765'],
-
-            ['6386392982997549868964551665256601066827109320617125228090566927150086990', RoundingMode::Unnecessary, null],
-            ['6386392982997549868964551665256601066827109320617125228090566927150086990', RoundingMode::Down, '2527131374305172498893486771925871765'],
-            ['6386392982997549868964551665256601066827109320617125228090566927150086990', RoundingMode::Up, '2527131374305172498893486771925871766'],
-            ['6386392982997549868964551665256601066827109320617125228090566927150086990', RoundingMode::HalfUp, '2527131374305172498893486771925871765'],
-
-            ['6386392982997549868964551665256601069354240694922297726984053699075958756', RoundingMode::Unnecessary, '2527131374305172498893486771925871766'],
-
-            ['241100595746204845568053694673173646954637963055159189070656778312291856', RoundingMode::Unnecessary, '491019954529553559943132903540543684'],
-
-            ['241100595746204845568053694673173647936677872114266308956922585393379224', RoundingMode::Unnecessary, null],
-            ['241100595746204845568053694673173647936677872114266308956922585393379224', RoundingMode::Down, '491019954529553559943132903540543684'],
-            ['241100595746204845568053694673173647936677872114266308956922585393379224', RoundingMode::Up, '491019954529553559943132903540543685'],
-            ['241100595746204845568053694673173647936677872114266308956922585393379224', RoundingMode::HalfUp, '491019954529553559943132903540543685'],
-
-            ['241100595746204845568053694673173647936677872114266308956922585393379225', RoundingMode::Unnecessary, '491019954529553559943132903540543685'],
-
-            ['9443978332159357501114101827797274207266380117275222876917889364528773973136', RoundingMode::Unnecessary, '97180133423243238008221615153136002444'],
-
-            ['9443978332159357501114101827797274207363560250698466114926110979681909975580', RoundingMode::Unnecessary, null],
-            ['9443978332159357501114101827797274207363560250698466114926110979681909975580', RoundingMode::Down, '97180133423243238008221615153136002444'],
-            ['9443978332159357501114101827797274207363560250698466114926110979681909975580', RoundingMode::Up, '97180133423243238008221615153136002445'],
-            ['9443978332159357501114101827797274207363560250698466114926110979681909975580', RoundingMode::HalfUp, '97180133423243238008221615153136002444'],
-
-            ['9443978332159357501114101827797274207460740384121709352934332594835045978025', RoundingMode::Unnecessary, '97180133423243238008221615153136002445'],
-
-            ['313018699256618409001992020847417266900442089718999098874457999889859130596', RoundingMode::Unnecessary, '17692334477298873658720698607769718186'],
-
-            ['313018699256618409001992020847417266935826758673596846191899397105398566968', RoundingMode::Unnecessary, null],
-            ['313018699256618409001992020847417266935826758673596846191899397105398566968', RoundingMode::Down, '17692334477298873658720698607769718186'],
-            ['313018699256618409001992020847417266935826758673596846191899397105398566968', RoundingMode::Up, '17692334477298873658720698607769718187'],
-            ['313018699256618409001992020847417266935826758673596846191899397105398566968', RoundingMode::HalfUp, '17692334477298873658720698607769718187'],
-
-            ['313018699256618409001992020847417266935826758673596846191899397105398566969', RoundingMode::Unnecessary, '17692334477298873658720698607769718187'],
-
-            ['6933071107478585245042253386666659991142755133413332931821052899578751610000', RoundingMode::Unnecessary, '83265065348431602879537003312633461900'],
-
-            ['6933071107478585245042253386666659991226020198761764534700589902891385071900', RoundingMode::Unnecessary, null],
-            ['6933071107478585245042253386666659991226020198761764534700589902891385071900', RoundingMode::Down, '83265065348431602879537003312633461900'],
-            ['6933071107478585245042253386666659991226020198761764534700589902891385071900', RoundingMode::Up, '83265065348431602879537003312633461901'],
-            ['6933071107478585245042253386666659991226020198761764534700589902891385071900', RoundingMode::HalfUp, '83265065348431602879537003312633461900'],
-
-            ['6933071107478585245042253386666659991309285264110196137580126906204018533801', RoundingMode::Unnecessary, '83265065348431602879537003312633461901'],
-
-            ['1579670801917993723309858041679990418433600770326208765934116379197768903056', RoundingMode::Unnecessary, '39745072674710178762237903560835952916'],
-
-            ['1579670801917993723309858041679990418513090915675629123458592186319440808888', RoundingMode::Unnecessary, null],
-            ['1579670801917993723309858041679990418513090915675629123458592186319440808888', RoundingMode::Down, '39745072674710178762237903560835952916'],
-            ['1579670801917993723309858041679990418513090915675629123458592186319440808888', RoundingMode::Up, '39745072674710178762237903560835952917'],
-            ['1579670801917993723309858041679990418513090915675629123458592186319440808888', RoundingMode::HalfUp, '39745072674710178762237903560835952917'],
-
-            ['1579670801917993723309858041679990418513090915675629123458592186319440808889', RoundingMode::Unnecessary, '39745072674710178762237903560835952917'],
-
-            ['681867337215944596936584982759400170727379727957999719338051977506244355625', RoundingMode::Unnecessary, '26112589630596667363860934899092645325'],
-
-            ['681867337215944596936584982759400170753492317588596386701912912405337000950', RoundingMode::Unnecessary, null],
-            ['681867337215944596936584982759400170753492317588596386701912912405337000950', RoundingMode::Down, '26112589630596667363860934899092645325'],
-            ['681867337215944596936584982759400170753492317588596386701912912405337000950', RoundingMode::Up, '26112589630596667363860934899092645326'],
-            ['681867337215944596936584982759400170753492317588596386701912912405337000950', RoundingMode::HalfUp, '26112589630596667363860934899092645325'],
-
-            ['681867337215944596936584982759400170779604907219193054065773847304429646276', RoundingMode::Unnecessary, '26112589630596667363860934899092645326'],
-
-            ['288453689043393924123357086972242613663177706471101442929325163584978377458225', RoundingMode::Unnecessary, '537078848069251303040109060485183727865'],
-
-            ['288453689043393924123357086972242613664251864167239945535405381705948744913955', RoundingMode::Unnecessary, null],
-            ['288453689043393924123357086972242613664251864167239945535405381705948744913955', RoundingMode::Down, '537078848069251303040109060485183727865'],
-            ['288453689043393924123357086972242613664251864167239945535405381705948744913955', RoundingMode::Up, '537078848069251303040109060485183727866'],
-            ['288453689043393924123357086972242613664251864167239945535405381705948744913955', RoundingMode::HalfUp, '537078848069251303040109060485183727866'],
-
-            ['288453689043393924123357086972242613664251864167239945535405381705948744913956', RoundingMode::Unnecessary, '537078848069251303040109060485183727866'],
-
-            ['195356853506305520718626478206756382507801939519785697420547945042825319176129', RoundingMode::Unnecessary, '441991915657182038371378633304634321377'],
-
-            ['195356853506305520718626478206756382508243931435442879458919323676129953497506', RoundingMode::Unnecessary, null],
-            ['195356853506305520718626478206756382508243931435442879458919323676129953497506', RoundingMode::Down, '441991915657182038371378633304634321377'],
-            ['195356853506305520718626478206756382508243931435442879458919323676129953497506', RoundingMode::Up, '441991915657182038371378633304634321378'],
-            ['195356853506305520718626478206756382508243931435442879458919323676129953497506', RoundingMode::HalfUp, '441991915657182038371378633304634321377'],
-
-            ['195356853506305520718626478206756382508685923351100061497290702309434587818884', RoundingMode::Unnecessary, '441991915657182038371378633304634321378'],
-
-            ['171318600916753697429051575925878633930439101417068058777561592608661184180625', RoundingMode::Unnecessary, '413906512290823587410087929387066009175'],
-
-            ['171318600916753697429051575925878633931266914441649705952381768467435316198975', RoundingMode::Unnecessary, null],
-            ['171318600916753697429051575925878633931266914441649705952381768467435316198975', RoundingMode::Down, '413906512290823587410087929387066009175'],
-            ['171318600916753697429051575925878633931266914441649705952381768467435316198975', RoundingMode::Up, '413906512290823587410087929387066009176'],
-            ['171318600916753697429051575925878633931266914441649705952381768467435316198975', RoundingMode::HalfUp, '413906512290823587410087929387066009176'],
-
-            ['171318600916753697429051575925878633931266914441649705952381768467435316198976', RoundingMode::Unnecessary, '413906512290823587410087929387066009176'],
-
-            ['921093761539400396463886664522151015280465523566321840991339256462222570006049', RoundingMode::Unnecessary, '959736297916985317802888407093394929007'],
-
-            ['921093761539400396463886664522151015281425259864238826309142144869315964935056', RoundingMode::Unnecessary, null],
-            ['921093761539400396463886664522151015281425259864238826309142144869315964935056', RoundingMode::Down, '959736297916985317802888407093394929007'],
-            ['921093761539400396463886664522151015281425259864238826309142144869315964935056', RoundingMode::Up, '959736297916985317802888407093394929008'],
-            ['921093761539400396463886664522151015281425259864238826309142144869315964935056', RoundingMode::HalfUp, '959736297916985317802888407093394929007'],
-
-            ['921093761539400396463886664522151015282384996162155811626945033276409359864064', RoundingMode::Unnecessary, '959736297916985317802888407093394929008'],
-
-            ['95109948153362184845030342755869423838311917496546178503410149505934962822401', RoundingMode::Unnecessary, '308399008029147501090828356257276909951'],
-
-            ['95109948153362184845030342755869423838928715512604473505591806218449516642303', RoundingMode::Unnecessary, null],
-            ['95109948153362184845030342755869423838928715512604473505591806218449516642303', RoundingMode::Down, '308399008029147501090828356257276909951'],
-            ['95109948153362184845030342755869423838928715512604473505591806218449516642303', RoundingMode::Up, '308399008029147501090828356257276909952'],
-            ['95109948153362184845030342755869423838928715512604473505591806218449516642303', RoundingMode::HalfUp, '308399008029147501090828356257276909952'],
-
-            ['95109948153362184845030342755869423838928715512604473505591806218449516642304', RoundingMode::Unnecessary, '308399008029147501090828356257276909952'],
-
-            ['19331455316972407468074740850649574350712359000359926791488814669406316705438096', RoundingMode::Unnecessary, '4396755089491841080442863075541933084436'],
-
-            ['19331455316972407468074740850649574350716755755449418632569257532481858638522532', RoundingMode::Unnecessary, null],
-            ['19331455316972407468074740850649574350716755755449418632569257532481858638522532', RoundingMode::Down, '4396755089491841080442863075541933084436'],
-            ['19331455316972407468074740850649574350716755755449418632569257532481858638522532', RoundingMode::Up, '4396755089491841080442863075541933084437'],
-            ['19331455316972407468074740850649574350716755755449418632569257532481858638522532', RoundingMode::HalfUp, '4396755089491841080442863075541933084436'],
-
-            ['19331455316972407468074740850649574350721152510538910473649700395557400571606969', RoundingMode::Unnecessary, '4396755089491841080442863075541933084437'],
-
-            ['79265978575272061761010812898504289157311811916595218347414644480274502855387716', RoundingMode::Unnecessary, '8903144308348150197415041401715992316846'],
-
-            ['79265978575272061761010812898504289157329618205211914647809474563077934840021408', RoundingMode::Unnecessary, null],
-            ['79265978575272061761010812898504289157329618205211914647809474563077934840021408', RoundingMode::Down, '8903144308348150197415041401715992316846'],
-            ['79265978575272061761010812898504289157329618205211914647809474563077934840021408', RoundingMode::Up, '8903144308348150197415041401715992316847'],
-            ['79265978575272061761010812898504289157329618205211914647809474563077934840021408', RoundingMode::HalfUp, '8903144308348150197415041401715992316847'],
-
-            ['79265978575272061761010812898504289157329618205211914647809474563077934840021409', RoundingMode::Unnecessary, '8903144308348150197415041401715992316847'],
-
-            ['18253381792846313534444974681107507939609666705140666138048641067680220712870544', RoundingMode::Unnecessary, '4272397663238560654482324050372517154612'],
-
-            ['18253381792846313534444974681107507939613939102803904698703123391730593230025156', RoundingMode::Unnecessary, null],
-            ['18253381792846313534444974681107507939613939102803904698703123391730593230025156', RoundingMode::Down, '4272397663238560654482324050372517154612'],
-            ['18253381792846313534444974681107507939613939102803904698703123391730593230025156', RoundingMode::Up, '4272397663238560654482324050372517154613'],
-            ['18253381792846313534444974681107507939613939102803904698703123391730593230025156', RoundingMode::HalfUp, '4272397663238560654482324050372517154612'],
-
-            ['18253381792846313534444974681107507939618211500467143259357605715780965747179769', RoundingMode::Unnecessary, '4272397663238560654482324050372517154613'],
-
-            ['34902249932301330884717409262136201131799911786648110181019008640668850248149889', RoundingMode::Unnecessary, '5907812618245549169232055936851452816833'],
-
-            ['34902249932301330884717409262136201131811727411884601279357472752542553153783555', RoundingMode::Unnecessary, null],
-            ['34902249932301330884717409262136201131811727411884601279357472752542553153783555', RoundingMode::Down, '5907812618245549169232055936851452816833'],
-            ['34902249932301330884717409262136201131811727411884601279357472752542553153783555', RoundingMode::Up, '5907812618245549169232055936851452816834'],
-            ['34902249932301330884717409262136201131811727411884601279357472752542553153783555', RoundingMode::HalfUp, '5907812618245549169232055936851452816834'],
-
-            ['34902249932301330884717409262136201131811727411884601279357472752542553153783556', RoundingMode::Unnecessary, '5907812618245549169232055936851452816834'],
-
-            ['2599345980007138866704208379685556534258757776044753601160948822029798157394521', RoundingMode::Unnecessary, '1612248733913951277041847563008484168539'],
-
-            ['2599345980007138866704208379685556534260370024778667552437990669592806641563060', RoundingMode::Unnecessary, null],
-            ['2599345980007138866704208379685556534260370024778667552437990669592806641563060', RoundingMode::Down, '1612248733913951277041847563008484168539'],
-            ['2599345980007138866704208379685556534260370024778667552437990669592806641563060', RoundingMode::Up, '1612248733913951277041847563008484168540'],
-            ['2599345980007138866704208379685556534260370024778667552437990669592806641563060', RoundingMode::HalfUp, '1612248733913951277041847563008484168539'],
-
-            ['2599345980007138866704208379685556534261982273512581503715032517155815125731600', RoundingMode::Unnecessary, '1612248733913951277041847563008484168540'],
-
-            ['5316322030460586450936871958946919636668068288991234947266697538297768830115066084', RoundingMode::Unnecessary, '72913112884175960485473057702832007114922'],
-
-            ['5316322030460586450936871958946919636668214115217003299187668484413174494129295928', RoundingMode::Unnecessary, null],
-            ['5316322030460586450936871958946919636668214115217003299187668484413174494129295928', RoundingMode::Down, '72913112884175960485473057702832007114922'],
-            ['5316322030460586450936871958946919636668214115217003299187668484413174494129295928', RoundingMode::Up, '72913112884175960485473057702832007114923'],
-            ['5316322030460586450936871958946919636668214115217003299187668484413174494129295928', RoundingMode::HalfUp, '72913112884175960485473057702832007114923'],
-
-            ['5316322030460586450936871958946919636668214115217003299187668484413174494129295929', RoundingMode::Unnecessary, '72913112884175960485473057702832007114923'],
-
-            ['8002778973791813108451518291518896929427763054970205412144571951733372499281017601', RoundingMode::Unnecessary, '89458252686891962949549637560732937788801'],
-
-            ['8002778973791813108451518291518896929427852513222892304107521501370933232218806402', RoundingMode::Unnecessary, null],
-            ['8002778973791813108451518291518896929427852513222892304107521501370933232218806402', RoundingMode::Down, '89458252686891962949549637560732937788801'],
-            ['8002778973791813108451518291518896929427852513222892304107521501370933232218806402', RoundingMode::Up, '89458252686891962949549637560732937788802'],
-            ['8002778973791813108451518291518896929427852513222892304107521501370933232218806402', RoundingMode::HalfUp, '89458252686891962949549637560732937788801'],
-
-            ['8002778973791813108451518291518896929427941971475579196070471051008493965156595204', RoundingMode::Unnecessary, '89458252686891962949549637560732937788802'],
-
-            ['204434819803436425073091821729105629106597079412374857081154364351611450036288004', RoundingMode::Unnecessary, '14298070492322956269314619104943213072002'],
-
-            ['204434819803436425073091821729105629106625675553359502993692993589821336462432008', RoundingMode::Unnecessary, null],
-            ['204434819803436425073091821729105629106625675553359502993692993589821336462432008', RoundingMode::Down, '14298070492322956269314619104943213072002'],
-            ['204434819803436425073091821729105629106625675553359502993692993589821336462432008', RoundingMode::Up, '14298070492322956269314619104943213072003'],
-            ['204434819803436425073091821729105629106625675553359502993692993589821336462432008', RoundingMode::HalfUp, '14298070492322956269314619104943213072003'],
-
-            ['204434819803436425073091821729105629106625675553359502993692993589821336462432009', RoundingMode::Unnecessary, '14298070492322956269314619104943213072003'],
-
-            ['248985683905018963214400101508836326950598468017331056913175271121208335269369616', RoundingMode::Unnecessary, '15779280208711009616855603241137879133796'],
-
-            ['248985683905018963214400101508836326950614247297539767922792126724449473148503412', RoundingMode::Unnecessary, null],
-            ['248985683905018963214400101508836326950614247297539767922792126724449473148503412', RoundingMode::Down, '15779280208711009616855603241137879133796'],
-            ['248985683905018963214400101508836326950614247297539767922792126724449473148503412', RoundingMode::Up, '15779280208711009616855603241137879133797'],
-            ['248985683905018963214400101508836326950614247297539767922792126724449473148503412', RoundingMode::HalfUp, '15779280208711009616855603241137879133796'],
-
-            ['248985683905018963214400101508836326950630026577748478932408982327690611027637209', RoundingMode::Unnecessary, '15779280208711009616855603241137879133797'],
-
-            ['9931466785180918581453369553241893953494729509958339130768488436428313616867737664', RoundingMode::Unnecessary, '99656744805261016419561454808199789423608'],
-
-            ['9931466785180918581453369553241893953494928823447949652801327559337930016446584880', RoundingMode::Unnecessary, null],
-            ['9931466785180918581453369553241893953494928823447949652801327559337930016446584880', RoundingMode::Down, '99656744805261016419561454808199789423608'],
-            ['9931466785180918581453369553241893953494928823447949652801327559337930016446584880', RoundingMode::Up, '99656744805261016419561454808199789423609'],
-            ['9931466785180918581453369553241893953494928823447949652801327559337930016446584880', RoundingMode::HalfUp, '99656744805261016419561454808199789423609'],
-
-            ['9931466785180918581453369553241893953494928823447949652801327559337930016446584881', RoundingMode::Unnecessary, '99656744805261016419561454808199789423609'],
-
-            ['571034337207963083686644289650754887712756826847796234542618077049856839883774610496', RoundingMode::Unnecessary, '755668139600951472909394170487042707063864'],
-
-            ['571034337207963083686644289650754887712757582515935835494090986444027326926481674360', RoundingMode::Unnecessary, null],
-            ['571034337207963083686644289650754887712757582515935835494090986444027326926481674360', RoundingMode::Down, '755668139600951472909394170487042707063864'],
-            ['571034337207963083686644289650754887712757582515935835494090986444027326926481674360', RoundingMode::Up, '755668139600951472909394170487042707063865'],
-            ['571034337207963083686644289650754887712757582515935835494090986444027326926481674360', RoundingMode::HalfUp, '755668139600951472909394170487042707063864'],
-
-            ['571034337207963083686644289650754887712758338184075436445563895838197813969188738225', RoundingMode::Unnecessary, '755668139600951472909394170487042707063865'],
-
-            ['43282087429518774838368965030190873132157640943271155661308846536619714287766015625', RoundingMode::Unnecessary, '208043474854461068334845359605621664088125'],
-
-            ['43282087429518774838368965030190873132158057030220864583445516227338925531094191875', RoundingMode::Unnecessary, null],
-            ['43282087429518774838368965030190873132158057030220864583445516227338925531094191875', RoundingMode::Down, '208043474854461068334845359605621664088125'],
-            ['43282087429518774838368965030190873132158057030220864583445516227338925531094191875', RoundingMode::Up, '208043474854461068334845359605621664088126'],
-            ['43282087429518774838368965030190873132158057030220864583445516227338925531094191875', RoundingMode::HalfUp, '208043474854461068334845359605621664088126'],
-
-            ['43282087429518774838368965030190873132158057030220864583445516227338925531094191876', RoundingMode::Unnecessary, '208043474854461068334845359605621664088126'],
-
-            ['417927142998078702077756962900654390278806646288750249869048008644489266148390976576', RoundingMode::Unnecessary, '646472847842876307508176358984831821937976'],
-
-            ['417927142998078702077756962900654390278807292761598092745355516820848250980212914552', RoundingMode::Unnecessary, null],
-            ['417927142998078702077756962900654390278807292761598092745355516820848250980212914552', RoundingMode::Down, '646472847842876307508176358984831821937976'],
-            ['417927142998078702077756962900654390278807292761598092745355516820848250980212914552', RoundingMode::Up, '646472847842876307508176358984831821937977'],
-            ['417927142998078702077756962900654390278807292761598092745355516820848250980212914552', RoundingMode::HalfUp, '646472847842876307508176358984831821937976'],
-
-            ['417927142998078702077756962900654390278807939234445935621663024997207235812034852529', RoundingMode::Unnecessary, '646472847842876307508176358984831821937977'],
-
-            ['57289022864599235425935956369596297021969148801199969985249642058425056660901854081', RoundingMode::Unnecessary, '239351254152969157626674463098033150396991'],
-
-            ['57289022864599235425935956369596297021969627503708275923564895407351252727202648063', RoundingMode::Unnecessary, null],
-            ['57289022864599235425935956369596297021969627503708275923564895407351252727202648063', RoundingMode::Down, '239351254152969157626674463098033150396991'],
-            ['57289022864599235425935956369596297021969627503708275923564895407351252727202648063', RoundingMode::Up, '239351254152969157626674463098033150396992'],
-            ['57289022864599235425935956369596297021969627503708275923564895407351252727202648063', RoundingMode::HalfUp, '239351254152969157626674463098033150396992'],
-
-            ['57289022864599235425935956369596297021969627503708275923564895407351252727202648064', RoundingMode::Unnecessary, '239351254152969157626674463098033150396992'],
-
-            ['388204130919598896854532928319816854683262176908475545926963148518011088548336100', RoundingMode::Unnecessary, '19702896510909224609070086389295007347690'],
-
-            ['388204130919598896854532928319816854683281879804986455151572218604400383555683790', RoundingMode::Unnecessary, null],
-            ['388204130919598896854532928319816854683281879804986455151572218604400383555683790', RoundingMode::Down, '19702896510909224609070086389295007347690'],
-            ['388204130919598896854532928319816854683281879804986455151572218604400383555683790', RoundingMode::Up, '19702896510909224609070086389295007347691'],
-            ['388204130919598896854532928319816854683281879804986455151572218604400383555683790', RoundingMode::HalfUp, '19702896510909224609070086389295007347690'],
-
-            ['388204130919598896854532928319816854683301582701497364376181288690789678563031481', RoundingMode::Unnecessary, '19702896510909224609070086389295007347691'],
-
-            ['17641213493582550358331598783756045983107635305125558424245083335221980342711574945924', RoundingMode::Unnecessary, '4200144461037328458609200843143798139299618'],
-
-            ['17641213493582550358331598783756045983107643705414480498902000553623666630307853545160', RoundingMode::Unnecessary, null],
-            ['17641213493582550358331598783756045983107643705414480498902000553623666630307853545160', RoundingMode::Down, '4200144461037328458609200843143798139299618'],
-            ['17641213493582550358331598783756045983107643705414480498902000553623666630307853545160', RoundingMode::Up, '4200144461037328458609200843143798139299619'],
-            ['17641213493582550358331598783756045983107643705414480498902000553623666630307853545160', RoundingMode::HalfUp, '4200144461037328458609200843143798139299619'],
-
-            ['17641213493582550358331598783756045983107643705414480498902000553623666630307853545161', RoundingMode::Unnecessary, '4200144461037328458609200843143798139299619'],
-
-            ['10480850478210993041934376751763741537950365795671072307889437499081947766082767900625', RoundingMode::Unnecessary, '3237414165381221816392010300367379458321975'],
-
-            ['10480850478210993041934376751763741537950369033085237689111253891092248133462226222600', RoundingMode::Unnecessary, null],
-            ['10480850478210993041934376751763741537950369033085237689111253891092248133462226222600', RoundingMode::Down, '3237414165381221816392010300367379458321975'],
-            ['10480850478210993041934376751763741537950369033085237689111253891092248133462226222600', RoundingMode::Up, '3237414165381221816392010300367379458321976'],
-            ['10480850478210993041934376751763741537950369033085237689111253891092248133462226222600', RoundingMode::HalfUp, '3237414165381221816392010300367379458321975'],
-
-            ['10480850478210993041934376751763741537950372270499403070333070283102548500841684544576', RoundingMode::Unnecessary, '3237414165381221816392010300367379458321976'],
-
-            ['18912401257760832817656385679644608795185415305426367246326490097108178277089565964900', RoundingMode::Unnecessary, '4348839070115245459938703154127996458785930'],
-
-            ['18912401257760832817656385679644608795185424003104507476817409974514486533082483536760', RoundingMode::Unnecessary, null],
-            ['18912401257760832817656385679644608795185424003104507476817409974514486533082483536760', RoundingMode::Down, '4348839070115245459938703154127996458785930'],
-            ['18912401257760832817656385679644608795185424003104507476817409974514486533082483536760', RoundingMode::Up, '4348839070115245459938703154127996458785931'],
-            ['18912401257760832817656385679644608795185424003104507476817409974514486533082483536760', RoundingMode::HalfUp, '4348839070115245459938703154127996458785931'],
-
-            ['18912401257760832817656385679644608795185424003104507476817409974514486533082483536761', RoundingMode::Unnecessary, '4348839070115245459938703154127996458785931'],
-
-            ['4058130180100830389999063645300769577286055319083847709319631222394835048000563913616', RoundingMode::Unnecessary, '2014480126509276434961389427500807039909204'],
-
-            ['4058130180100830389999063645300769577286057333563974218596066183784262548807603822820', RoundingMode::Unnecessary, null],
-            ['4058130180100830389999063645300769577286057333563974218596066183784262548807603822820', RoundingMode::Down, '2014480126509276434961389427500807039909204'],
-            ['4058130180100830389999063645300769577286057333563974218596066183784262548807603822820', RoundingMode::Up, '2014480126509276434961389427500807039909205'],
-            ['4058130180100830389999063645300769577286057333563974218596066183784262548807603822820', RoundingMode::HalfUp, '2014480126509276434961389427500807039909204'],
-
-            ['4058130180100830389999063645300769577286059348044100727872501145173690049614643732025', RoundingMode::Unnecessary, '2014480126509276434961389427500807039909205'],
-
-            ['33468184484233190391618513143907824051569626629768396502905028100863488827541016357225', RoundingMode::Unnecessary, '5785169356573166941812342062118994545501165'],
-
-            ['33468184484233190391618513143907824051569638200107109649238911725547613065530107359555', RoundingMode::Unnecessary, null],
-            ['33468184484233190391618513143907824051569638200107109649238911725547613065530107359555', RoundingMode::Down, '5785169356573166941812342062118994545501165'],
-            ['33468184484233190391618513143907824051569638200107109649238911725547613065530107359555', RoundingMode::Up, '5785169356573166941812342062118994545501166'],
-            ['33468184484233190391618513143907824051569638200107109649238911725547613065530107359555', RoundingMode::HalfUp, '5785169356573166941812342062118994545501166'],
-
-            ['33468184484233190391618513143907824051569638200107109649238911725547613065530107359556', RoundingMode::Unnecessary, '5785169356573166941812342062118994545501166'],
-
-            ['1186174880095419715607318419843788127322568925641042677386667373975880777802263411393536', RoundingMode::Unnecessary, '34440889653076903576703209294470985379444256'],
-
-            ['1186174880095419715607318419843788127322568960081932330463570950679090072273248790837792', RoundingMode::Unnecessary, null],
-            ['1186174880095419715607318419843788127322568960081932330463570950679090072273248790837792', RoundingMode::Down, '34440889653076903576703209294470985379444256'],
-            ['1186174880095419715607318419843788127322568960081932330463570950679090072273248790837792', RoundingMode::Up, '34440889653076903576703209294470985379444257'],
-            ['1186174880095419715607318419843788127322568960081932330463570950679090072273248790837792', RoundingMode::HalfUp, '34440889653076903576703209294470985379444256'],
-
-            ['1186174880095419715607318419843788127322568994522821983540474527382299366744234170282049', RoundingMode::Unnecessary, '34440889653076903576703209294470985379444257'],
-
-            ['1869407664810972914760141576011747496493758522541997263089274909609818581502013012539601', RoundingMode::Unnecessary, '43236647242946265649799966945038223493750199'],
-
-            ['1869407664810972914760141576011747496493758609015291748981806209209752471578460000039999', RoundingMode::Unnecessary, null],
-            ['1869407664810972914760141576011747496493758609015291748981806209209752471578460000039999', RoundingMode::Down, '43236647242946265649799966945038223493750199'],
-            ['1869407664810972914760141576011747496493758609015291748981806209209752471578460000039999', RoundingMode::Up, '43236647242946265649799966945038223493750200'],
-            ['1869407664810972914760141576011747496493758609015291748981806209209752471578460000039999', RoundingMode::HalfUp, '43236647242946265649799966945038223493750200'],
-
-            ['1869407664810972914760141576011747496493758609015291748981806209209752471578460000040000', RoundingMode::Unnecessary, '43236647242946265649799966945038223493750200'],
-
-            ['4306248093986950964567669268958861794743230041121457387922204677053975232405051053143025', RoundingMode::Unnecessary, '65622009219369007099774314994059599547494695'],
-
-            ['4306248093986950964567669268958861794743230172365475826660218876602605220524250148132415', RoundingMode::Unnecessary, null],
-            ['4306248093986950964567669268958861794743230172365475826660218876602605220524250148132415', RoundingMode::Down, '65622009219369007099774314994059599547494695'],
-            ['4306248093986950964567669268958861794743230172365475826660218876602605220524250148132415', RoundingMode::Up, '65622009219369007099774314994059599547494696'],
-            ['4306248093986950964567669268958861794743230172365475826660218876602605220524250148132415', RoundingMode::HalfUp, '65622009219369007099774314994059599547494696'],
-
-            ['4306248093986950964567669268958861794743230172365475826660218876602605220524250148132416', RoundingMode::Unnecessary, '65622009219369007099774314994059599547494696'],
-
-            ['142958974763379486489798376541073126699563800627039429166077132824711226669748693162209', RoundingMode::Unnecessary, '11956545268737934506570289899105912433421297'],
-
-            ['142958974763379486489798376541073126699563824540129966641946145965291024881573560004803', RoundingMode::Unnecessary, null],
-            ['142958974763379486489798376541073126699563824540129966641946145965291024881573560004803', RoundingMode::Down, '11956545268737934506570289899105912433421297'],
-            ['142958974763379486489798376541073126699563824540129966641946145965291024881573560004803', RoundingMode::Up, '11956545268737934506570289899105912433421298'],
-            ['142958974763379486489798376541073126699563824540129966641946145965291024881573560004803', RoundingMode::HalfUp, '11956545268737934506570289899105912433421298'],
-
-            ['142958974763379486489798376541073126699563824540129966641946145965291024881573560004804', RoundingMode::Unnecessary, '11956545268737934506570289899105912433421298'],
-
-            ['5924043074304444391210747851995027637083074459394928466831722415634829619104396893068176', RoundingMode::Unnecessary, '76967805440355673370818024381288105628528724'],
-
-            ['5924043074304444391210747851995027637083074536362733907187395786452854000392502521596900', RoundingMode::Unnecessary, null],
-            ['5924043074304444391210747851995027637083074536362733907187395786452854000392502521596900', RoundingMode::Down, '76967805440355673370818024381288105628528724'],
-            ['5924043074304444391210747851995027637083074536362733907187395786452854000392502521596900', RoundingMode::Up, '76967805440355673370818024381288105628528725'],
-            ['5924043074304444391210747851995027637083074536362733907187395786452854000392502521596900', RoundingMode::HalfUp, '76967805440355673370818024381288105628528724'],
-
-            ['5924043074304444391210747851995027637083074613330539347543069157270878381680608150125625', RoundingMode::Unnecessary, '76967805440355673370818024381288105628528725'],
-
-            ['692647042392925303434391597094843086706651167173473530228926147229989661906443247661192976', RoundingMode::Unnecessary, '832254193376594110047678950757920520714968676'],
-
-            ['692647042392925303434391597094843086706651168837981916982114367325347563422284289091130328', RoundingMode::Unnecessary, null],
-            ['692647042392925303434391597094843086706651168837981916982114367325347563422284289091130328', RoundingMode::Down, '832254193376594110047678950757920520714968676'],
-            ['692647042392925303434391597094843086706651168837981916982114367325347563422284289091130328', RoundingMode::Up, '832254193376594110047678950757920520714968677'],
-            ['692647042392925303434391597094843086706651168837981916982114367325347563422284289091130328', RoundingMode::HalfUp, '832254193376594110047678950757920520714968677'],
-
-            ['692647042392925303434391597094843086706651168837981916982114367325347563422284289091130329', RoundingMode::Unnecessary, '832254193376594110047678950757920520714968677'],
-
-            ['63418927703603396384251230391169377358870766926264966118026529953350707524741421056456161', RoundingMode::Unnecessary, '251831149192476577524577782662609731668640369'],
-
-            ['63418927703603396384251230391169377358870767178096115310503107477928490187351152725096530', RoundingMode::Unnecessary, null],
-            ['63418927703603396384251230391169377358870767178096115310503107477928490187351152725096530', RoundingMode::Down, '251831149192476577524577782662609731668640369'],
-            ['63418927703603396384251230391169377358870767178096115310503107477928490187351152725096530', RoundingMode::Up, '251831149192476577524577782662609731668640370'],
-            ['63418927703603396384251230391169377358870767178096115310503107477928490187351152725096530', RoundingMode::HalfUp, '251831149192476577524577782662609731668640369'],
-
-            ['63418927703603396384251230391169377358870767429927264502979685002506272849960884393736900', RoundingMode::Unnecessary, '251831149192476577524577782662609731668640370'],
-
-            ['84173934762470484045776658803140625724430904400114977656227228331290197573900111299728676', RoundingMode::Unnecessary, '290127445724237685478628941387635987912451526'],
-
-            ['84173934762470484045776658803140625724430904980369869104702599288548080349172087124631728', RoundingMode::Unnecessary, null],
-            ['84173934762470484045776658803140625724430904980369869104702599288548080349172087124631728', RoundingMode::Down, '290127445724237685478628941387635987912451526'],
-            ['84173934762470484045776658803140625724430904980369869104702599288548080349172087124631728', RoundingMode::Up, '290127445724237685478628941387635987912451527'],
-            ['84173934762470484045776658803140625724430904980369869104702599288548080349172087124631728', RoundingMode::HalfUp, '290127445724237685478628941387635987912451527'],
-
-            ['84173934762470484045776658803140625724430904980369869104702599288548080349172087124631729', RoundingMode::Unnecessary, '290127445724237685478628941387635987912451527'],
-
-            ['241361038321369463167942286580817659556660094711530196521279493146351719422610472610272609', RoundingMode::Unnecessary, '491285088641380874516359084346407133019022897'],
-
-            ['241361038321369463167942286580817659556660095202815285162660367662710803769017605629295506', RoundingMode::Unnecessary, null],
-            ['241361038321369463167942286580817659556660095202815285162660367662710803769017605629295506', RoundingMode::Down, '491285088641380874516359084346407133019022897'],
-            ['241361038321369463167942286580817659556660095202815285162660367662710803769017605629295506', RoundingMode::Up, '491285088641380874516359084346407133019022898'],
-            ['241361038321369463167942286580817659556660095202815285162660367662710803769017605629295506', RoundingMode::HalfUp, '491285088641380874516359084346407133019022897'],
-
-            ['241361038321369463167942286580817659556660095694100373804041242179069888115424738648318404', RoundingMode::Unnecessary, '491285088641380874516359084346407133019022898'],
-
-            ['517176462045529989620702018222975120090314182384304448758922583345467659488721121496429225', RoundingMode::Unnecessary, '719149818915036638988212861879727351601847565'],
-
-            ['517176462045529989620702018222975120090314183822604086588995861321893383248175824700124355', RoundingMode::Unnecessary, null],
-            ['517176462045529989620702018222975120090314183822604086588995861321893383248175824700124355', RoundingMode::Down, '719149818915036638988212861879727351601847565'],
-            ['517176462045529989620702018222975120090314183822604086588995861321893383248175824700124355', RoundingMode::Up, '719149818915036638988212861879727351601847566'],
-            ['517176462045529989620702018222975120090314183822604086588995861321893383248175824700124355', RoundingMode::HalfUp, '719149818915036638988212861879727351601847566'],
-
-            ['517176462045529989620702018222975120090314183822604086588995861321893383248175824700124356', RoundingMode::Unnecessary, '719149818915036638988212861879727351601847566'],
-
-            ['77611022182569680065221018033132479141166512436949302435927867888665269025756976722964990841', RoundingMode::Unnecessary, '8809711810415235147462139161930461303380344971'],
-
-            ['77611022182569680065221018033132479141166512445759014246343103036127408187687438026345335812', RoundingMode::Unnecessary, null],
-            ['77611022182569680065221018033132479141166512445759014246343103036127408187687438026345335812', RoundingMode::Down, '8809711810415235147462139161930461303380344971'],
-            ['77611022182569680065221018033132479141166512445759014246343103036127408187687438026345335812', RoundingMode::Up, '8809711810415235147462139161930461303380344972'],
-            ['77611022182569680065221018033132479141166512445759014246343103036127408187687438026345335812', RoundingMode::HalfUp, '8809711810415235147462139161930461303380344971'],
-
-            ['77611022182569680065221018033132479141166512454568726056758338183589547349617899329725680784', RoundingMode::Unnecessary, '8809711810415235147462139161930461303380344972'],
-
-            ['6105408765553994361209114516342314667656879868595988990330444228342133209919341402497612900', RoundingMode::Unnecessary, '2470912537010161831197388767291893513920213770'],
-
-            ['6105408765553994361209114516342314667656879873537814064350767890736910744503128430338040440', RoundingMode::Unnecessary, null],
-            ['6105408765553994361209114516342314667656879873537814064350767890736910744503128430338040440', RoundingMode::Down, '2470912537010161831197388767291893513920213770'],
-            ['6105408765553994361209114516342314667656879873537814064350767890736910744503128430338040440', RoundingMode::Up, '2470912537010161831197388767291893513920213771'],
-            ['6105408765553994361209114516342314667656879873537814064350767890736910744503128430338040440', RoundingMode::HalfUp, '2470912537010161831197388767291893513920213771'],
-
-            ['6105408765553994361209114516342314667656879873537814064350767890736910744503128430338040441', RoundingMode::Unnecessary, '2470912537010161831197388767291893513920213771'],
-
-            ['90701786360131891675282105453602007239665462813393298839266200083003999684896009231900541761', RoundingMode::Unnecessary, '9523748545616473366260116123335442806957838431'],
-
-            ['90701786360131891675282105453602007239665462822917047384882673449264115808231452038858380192', RoundingMode::Unnecessary, null],
-            ['90701786360131891675282105453602007239665462822917047384882673449264115808231452038858380192', RoundingMode::Down, '9523748545616473366260116123335442806957838431'],
-            ['90701786360131891675282105453602007239665462822917047384882673449264115808231452038858380192', RoundingMode::Up, '9523748545616473366260116123335442806957838432'],
-            ['90701786360131891675282105453602007239665462822917047384882673449264115808231452038858380192', RoundingMode::HalfUp, '9523748545616473366260116123335442806957838431'],
-
-            ['90701786360131891675282105453602007239665462832440795930499146815524231931566894845816218624', RoundingMode::Unnecessary, '9523748545616473366260116123335442806957838432'],
-
-            ['65323751401133593272677920818977066639472955689716002480072016807758009911894964398074221636', RoundingMode::Unnecessary, '8082311018584572712389536725132408571687355694'],
-
-            ['65323751401133593272677920818977066639472955705880624517241162232537083362159781541448933024', RoundingMode::Unnecessary, null],
-            ['65323751401133593272677920818977066639472955705880624517241162232537083362159781541448933024', RoundingMode::Down, '8082311018584572712389536725132408571687355694'],
-            ['65323751401133593272677920818977066639472955705880624517241162232537083362159781541448933024', RoundingMode::Up, '8082311018584572712389536725132408571687355695'],
-            ['65323751401133593272677920818977066639472955705880624517241162232537083362159781541448933024', RoundingMode::HalfUp, '8082311018584572712389536725132408571687355695'],
-
-            ['65323751401133593272677920818977066639472955705880624517241162232537083362159781541448933025', RoundingMode::Unnecessary, '8082311018584572712389536725132408571687355695'],
-
-            ['54888850556449896314370999310468417973690137670860368033970930193923337744682096321526909321', RoundingMode::Unnecessary, '7408701003310222419788126612344084182212588611'],
-
-            ['54888850556449896314370999310468417973690137678269069037281152613711464357026180503739497932', RoundingMode::Unnecessary, null],
-            ['54888850556449896314370999310468417973690137678269069037281152613711464357026180503739497932', RoundingMode::Down, '7408701003310222419788126612344084182212588611'],
-            ['54888850556449896314370999310468417973690137678269069037281152613711464357026180503739497932', RoundingMode::Up, '7408701003310222419788126612344084182212588612'],
-            ['54888850556449896314370999310468417973690137678269069037281152613711464357026180503739497932', RoundingMode::HalfUp, '7408701003310222419788126612344084182212588611'],
-
-            ['54888850556449896314370999310468417973690137685677770040591375033499590969370264685952086544', RoundingMode::Unnecessary, '7408701003310222419788126612344084182212588612'],
-
-            ['2805085217054754253789444062542634634800093806651719072914037849606695181828139974525774321216', RoundingMode::Unnecessary, '52963055208841136620374558431841622364185138904'],
-
-            ['2805085217054754253789444062542634634800093806757645183331720122847444298691823219254144599024', RoundingMode::Unnecessary, null],
-            ['2805085217054754253789444062542634634800093806757645183331720122847444298691823219254144599024', RoundingMode::Down, '52963055208841136620374558431841622364185138904'],
-            ['2805085217054754253789444062542634634800093806757645183331720122847444298691823219254144599024', RoundingMode::Up, '52963055208841136620374558431841622364185138905'],
-            ['2805085217054754253789444062542634634800093806757645183331720122847444298691823219254144599024', RoundingMode::HalfUp, '52963055208841136620374558431841622364185138905'],
-
-            ['2805085217054754253789444062542634634800093806757645183331720122847444298691823219254144599025', RoundingMode::Unnecessary, '52963055208841136620374558431841622364185138905'],
-
-            ['1160568960830598642226220064123168954080961712013862945053127684556984147281594628487247009409', RoundingMode::Unnecessary, '34067124340492824200405891794016084650299718847'],
-
-            ['1160568960830598642226220064123168954080961712047930069393620508757390039075610713137546728256', RoundingMode::Unnecessary, null],
-            ['1160568960830598642226220064123168954080961712047930069393620508757390039075610713137546728256', RoundingMode::Down, '34067124340492824200405891794016084650299718847'],
-            ['1160568960830598642226220064123168954080961712047930069393620508757390039075610713137546728256', RoundingMode::Up, '34067124340492824200405891794016084650299718848'],
-            ['1160568960830598642226220064123168954080961712047930069393620508757390039075610713137546728256', RoundingMode::HalfUp, '34067124340492824200405891794016084650299718847'],
-
-            ['1160568960830598642226220064123168954080961712081997193734113332957795930869626797787846447104', RoundingMode::Unnecessary, '34067124340492824200405891794016084650299718848'],
-
-            ['124505361771365706389189800193135630498052202514496166178932088454657696893428061453489005584', RoundingMode::Unnecessary, '11158197066343904036990752059839856835208279172'],
-
-            ['124505361771365706389189800193135630498052202536812560311619896528639201013107775123905563928', RoundingMode::Unnecessary, null],
-            ['124505361771365706389189800193135630498052202536812560311619896528639201013107775123905563928', RoundingMode::Down, '11158197066343904036990752059839856835208279172'],
-            ['124505361771365706389189800193135630498052202536812560311619896528639201013107775123905563928', RoundingMode::Up, '11158197066343904036990752059839856835208279173'],
-            ['124505361771365706389189800193135630498052202536812560311619896528639201013107775123905563928', RoundingMode::HalfUp, '11158197066343904036990752059839856835208279173'],
-
-            ['124505361771365706389189800193135630498052202536812560311619896528639201013107775123905563929', RoundingMode::Unnecessary, '11158197066343904036990752059839856835208279173'],
-
-            ['8304391676065346969717869193750447720841513935376871747395147291005945252957072474745223924900', RoundingMode::Unnecessary, '91128435057699454436963842029258931771642571930'],
-
-            ['8304391676065346969717869193750447720841513935468000182452846745442909094986331406516866496830', RoundingMode::Unnecessary, null],
-            ['8304391676065346969717869193750447720841513935468000182452846745442909094986331406516866496830', RoundingMode::Down, '91128435057699454436963842029258931771642571930'],
-            ['8304391676065346969717869193750447720841513935468000182452846745442909094986331406516866496830', RoundingMode::Up, '91128435057699454436963842029258931771642571931'],
-            ['8304391676065346969717869193750447720841513935468000182452846745442909094986331406516866496830', RoundingMode::HalfUp, '91128435057699454436963842029258931771642571930'],
-
-            ['8304391676065346969717869193750447720841513935559128617510546199879872937015590338288509068761', RoundingMode::Unnecessary, '91128435057699454436963842029258931771642571931'],
-
-            ['3902633675982472936031277376575750479219313797204897526330941750565757566042240677294833640976', RoundingMode::Unnecessary, '62471062708925265536995715391198772286875632324'],
-
-            ['3902633675982472936031277376575750479219313797329839651748792281639748996824638221868584905624', RoundingMode::Unnecessary, null],
-            ['3902633675982472936031277376575750479219313797329839651748792281639748996824638221868584905624', RoundingMode::Down, '62471062708925265536995715391198772286875632324'],
-            ['3902633675982472936031277376575750479219313797329839651748792281639748996824638221868584905624', RoundingMode::Up, '62471062708925265536995715391198772286875632325'],
-            ['3902633675982472936031277376575750479219313797329839651748792281639748996824638221868584905624', RoundingMode::HalfUp, '62471062708925265536995715391198772286875632325'],
-
-            ['3902633675982472936031277376575750479219313797329839651748792281639748996824638221868584905625', RoundingMode::Unnecessary, '62471062708925265536995715391198772286875632325'],
-
-            ['21803189113281615247645689642554433787955300436727779524987566434496560052640713833839771848809', RoundingMode::Unnecessary, '147659029907695165135263001196567750660989708947'],
-
-            ['21803189113281615247645689642554433787955300436875438554895261599631823053837281584500761557756', RoundingMode::Unnecessary, null],
-            ['21803189113281615247645689642554433787955300436875438554895261599631823053837281584500761557756', RoundingMode::Down, '147659029907695165135263001196567750660989708947'],
-            ['21803189113281615247645689642554433787955300436875438554895261599631823053837281584500761557756', RoundingMode::Up, '147659029907695165135263001196567750660989708948'],
-            ['21803189113281615247645689642554433787955300436875438554895261599631823053837281584500761557756', RoundingMode::HalfUp, '147659029907695165135263001196567750660989708947'],
-
-            ['21803189113281615247645689642554433787955300437023097584802956764767086055033849335161751266704', RoundingMode::Unnecessary, '147659029907695165135263001196567750660989708948'],
-
-            ['765773631185413773891853587035522811215936001201156164967993252197672361266093168217637840800625', RoundingMode::Unnecessary, '875084927984372139644261680745245536779196496025'],
-
-            ['765773631185413773891853587035522811215936001202906334823961996476960884627583659291196233792675', RoundingMode::Unnecessary, null],
-            ['765773631185413773891853587035522811215936001202906334823961996476960884627583659291196233792675', RoundingMode::Down, '875084927984372139644261680745245536779196496025'],
-            ['765773631185413773891853587035522811215936001202906334823961996476960884627583659291196233792675', RoundingMode::Up, '875084927984372139644261680745245536779196496026'],
-            ['765773631185413773891853587035522811215936001202906334823961996476960884627583659291196233792675', RoundingMode::HalfUp, '875084927984372139644261680745245536779196496026'],
-
-            ['765773631185413773891853587035522811215936001202906334823961996476960884627583659291196233792676', RoundingMode::Unnecessary, '875084927984372139644261680745245536779196496026'],
-
-            ['371531253548731146505174144638678761062942262073337722044484956271277190798021717224921126356624', RoundingMode::Unnecessary, '609533636109387441986227427959683991839011782068'],
-
-            ['371531253548731146505174144638678761062942262073947255680594343713263418225981401216760138138692', RoundingMode::Unnecessary, null],
-            ['371531253548731146505174144638678761062942262073947255680594343713263418225981401216760138138692', RoundingMode::Down, '609533636109387441986227427959683991839011782068'],
-            ['371531253548731146505174144638678761062942262073947255680594343713263418225981401216760138138692', RoundingMode::Up, '609533636109387441986227427959683991839011782069'],
-            ['371531253548731146505174144638678761062942262073947255680594343713263418225981401216760138138692', RoundingMode::HalfUp, '609533636109387441986227427959683991839011782068'],
-
-            ['371531253548731146505174144638678761062942262074556789316703731155249645653941085208599149920761', RoundingMode::Unnecessary, '609533636109387441986227427959683991839011782069'],
-
-            ['32639765347874160297815057000511241042881990523574135639577516269227137979270282014943162493161', RoundingMode::Unnecessary, '180664787238338617809927067472657959412705501869'],
-
-            ['32639765347874160297815057000511241042881990523935465214054193504846992114215597933768573496899', RoundingMode::Unnecessary, null],
-            ['32639765347874160297815057000511241042881990523935465214054193504846992114215597933768573496899', RoundingMode::Down, '180664787238338617809927067472657959412705501869'],
-            ['32639765347874160297815057000511241042881990523935465214054193504846992114215597933768573496899', RoundingMode::Up, '180664787238338617809927067472657959412705501870'],
-            ['32639765347874160297815057000511241042881990523935465214054193504846992114215597933768573496899', RoundingMode::HalfUp, '180664787238338617809927067472657959412705501870'],
-
-            ['32639765347874160297815057000511241042881990523935465214054193504846992114215597933768573496900', RoundingMode::Unnecessary, '180664787238338617809927067472657959412705501870'],
-
-            ['23312804018277899268530151932487478598118645419296370443140824162402663914524726804469078709025', RoundingMode::Unnecessary, '152685310420740538469311655525476411276716730095'],
-
-            ['23312804018277899268530151932487478598118645419449055753561564700871975570050203215745795439120', RoundingMode::Unnecessary, null],
-            ['23312804018277899268530151932487478598118645419449055753561564700871975570050203215745795439120', RoundingMode::Down, '152685310420740538469311655525476411276716730095'],
-            ['23312804018277899268530151932487478598118645419449055753561564700871975570050203215745795439120', RoundingMode::Up, '152685310420740538469311655525476411276716730096'],
-            ['23312804018277899268530151932487478598118645419449055753561564700871975570050203215745795439120', RoundingMode::HalfUp, '152685310420740538469311655525476411276716730095'],
-
-            ['23312804018277899268530151932487478598118645419601741063982305239341287225575679627022512169216', RoundingMode::Unnecessary, '152685310420740538469311655525476411276716730096'],
-
-            ['69351939896058034711498082880502238045919014432567876454734811966028586293551025867711349695480441', RoundingMode::Unnecessary, '8327781210866315423454045118194686369495352533771'],
-
-            ['69351939896058034711498082880502238045919014432584532017156544596875494383787415240450340400547983', RoundingMode::Unnecessary, null],
-            ['69351939896058034711498082880502238045919014432584532017156544596875494383787415240450340400547983', RoundingMode::Down, '8327781210866315423454045118194686369495352533771'],
-            ['69351939896058034711498082880502238045919014432584532017156544596875494383787415240450340400547983', RoundingMode::Up, '8327781210866315423454045118194686369495352533772'],
-            ['69351939896058034711498082880502238045919014432584532017156544596875494383787415240450340400547983', RoundingMode::HalfUp, '8327781210866315423454045118194686369495352533772'],
-
-            ['69351939896058034711498082880502238045919014432584532017156544596875494383787415240450340400547984', RoundingMode::Unnecessary, '8327781210866315423454045118194686369495352533772'],
-
-            ['56907419683049340072215388152597682083224395922699571395667588185898365170014916921330096015050884', RoundingMode::Unnecessary, '7543700662344002371027341442602779762847104806622'],
-
-            ['56907419683049340072215388152597682083224395922707115096329932188269392511457519701092943119857506', RoundingMode::Unnecessary, null],
-            ['56907419683049340072215388152597682083224395922707115096329932188269392511457519701092943119857506', RoundingMode::Down, '7543700662344002371027341442602779762847104806622'],
-            ['56907419683049340072215388152597682083224395922707115096329932188269392511457519701092943119857506', RoundingMode::Up, '7543700662344002371027341442602779762847104806623'],
-            ['56907419683049340072215388152597682083224395922707115096329932188269392511457519701092943119857506', RoundingMode::HalfUp, '7543700662344002371027341442602779762847104806622'],
-
-            ['56907419683049340072215388152597682083224395922714658796992276190640419852900122480855790224664129', RoundingMode::Unnecessary, '7543700662344002371027341442602779762847104806623'],
-
-            ['1163525248981521754155547339230838194099208908132096593234853200207208035365529397606592383400336', RoundingMode::Unnecessary, '1078668275690687843154790865870705804593431876844'],
-
-            ['1163525248981521754155547339230838194099208908134253929786234575893517617097270809215779247154024', RoundingMode::Unnecessary, null],
-            ['1163525248981521754155547339230838194099208908134253929786234575893517617097270809215779247154024', RoundingMode::Down, '1078668275690687843154790865870705804593431876844'],
-            ['1163525248981521754155547339230838194099208908134253929786234575893517617097270809215779247154024', RoundingMode::Up, '1078668275690687843154790865870705804593431876845'],
-            ['1163525248981521754155547339230838194099208908134253929786234575893517617097270809215779247154024', RoundingMode::HalfUp, '1078668275690687843154790865870705804593431876845'],
-
-            ['1163525248981521754155547339230838194099208908134253929786234575893517617097270809215779247154025', RoundingMode::Unnecessary, '1078668275690687843154790865870705804593431876845'],
-
-            ['12630009931573082897907144855573901252532449094542217468986509301292277005832281659959934465254400', RoundingMode::Unnecessary, '3553872526072521203015975245855936611531238601120'],
-
-            ['12630009931573082897907144855573901252532449094545771341512581822495292981078137596571465703855520', RoundingMode::Unnecessary, null],
-            ['12630009931573082897907144855573901252532449094545771341512581822495292981078137596571465703855520', RoundingMode::Down, '3553872526072521203015975245855936611531238601120'],
-            ['12630009931573082897907144855573901252532449094545771341512581822495292981078137596571465703855520', RoundingMode::Up, '3553872526072521203015975245855936611531238601121'],
-            ['12630009931573082897907144855573901252532449094545771341512581822495292981078137596571465703855520', RoundingMode::HalfUp, '3553872526072521203015975245855936611531238601120'],
-
-            ['12630009931573082897907144855573901252532449094549325214038654343698308956323993533182996942456641', RoundingMode::Unnecessary, '3553872526072521203015975245855936611531238601121'],
-
-            ['31255308963169979605103962253255036593975285646828038303401111783018980508885388211539730531736976', RoundingMode::Unnecessary, '5590644771685103192691707139464277920149086765676'],
-
-            ['31255308963169979605103962253255036593975285646839219592944481989404363923164316767380028705268328', RoundingMode::Unnecessary, null],
-            ['31255308963169979605103962253255036593975285646839219592944481989404363923164316767380028705268328', RoundingMode::Down, '5590644771685103192691707139464277920149086765676'],
-            ['31255308963169979605103962253255036593975285646839219592944481989404363923164316767380028705268328', RoundingMode::Up, '5590644771685103192691707139464277920149086765677'],
-            ['31255308963169979605103962253255036593975285646839219592944481989404363923164316767380028705268328', RoundingMode::HalfUp, '5590644771685103192691707139464277920149086765677'],
-
-            ['31255308963169979605103962253255036593975285646839219592944481989404363923164316767380028705268329', RoundingMode::Unnecessary, '5590644771685103192691707139464277920149086765677'],
-
-            ['8628012985404686018689218847909668804260178206412486603741772756323555243760489710208140383228648196', RoundingMode::Unnecessary, '92887098056752133732654744820968248061511732728514'],
-
-            ['8628012985404686018689218847909668804260178206412579490839829508457287898505310678456201894961376710', RoundingMode::Unnecessary, null],
-            ['8628012985404686018689218847909668804260178206412579490839829508457287898505310678456201894961376710', RoundingMode::Down, '92887098056752133732654744820968248061511732728514'],
-            ['8628012985404686018689218847909668804260178206412579490839829508457287898505310678456201894961376710', RoundingMode::Up, '92887098056752133732654744820968248061511732728515'],
-            ['8628012985404686018689218847909668804260178206412579490839829508457287898505310678456201894961376710', RoundingMode::HalfUp, '92887098056752133732654744820968248061511732728514'],
-
-            ['8628012985404686018689218847909668804260178206412672377937886260591020553250131646704263406694105225', RoundingMode::Unnecessary, '92887098056752133732654744820968248061511732728515'],
-
-            ['9233511524782328316011754355906749687042442384057568340621550432564122836332981092655854023226646089', RoundingMode::Unnecessary, '96091162573788898435727389725088702432559537501283'],
-
-            ['9233511524782328316011754355906749687042442384057760522946698010360994291112431270060719142301648655', RoundingMode::Unnecessary, null],
-            ['9233511524782328316011754355906749687042442384057760522946698010360994291112431270060719142301648655', RoundingMode::Down, '96091162573788898435727389725088702432559537501283'],
-            ['9233511524782328316011754355906749687042442384057760522946698010360994291112431270060719142301648655', RoundingMode::Up, '96091162573788898435727389725088702432559537501284'],
-            ['9233511524782328316011754355906749687042442384057760522946698010360994291112431270060719142301648655', RoundingMode::HalfUp, '96091162573788898435727389725088702432559537501284'],
-
-            ['9233511524782328316011754355906749687042442384057760522946698010360994291112431270060719142301648656', RoundingMode::Unnecessary, '96091162573788898435727389725088702432559537501284'],
-
-            ['453765858005120177768073445581083997020624166557446581526841386118834645505297210629607793706393856', RoundingMode::Unnecessary, '21301780629917306933323409392321012226117710104816'],
-
-            ['453765858005120177768073445581083997020624166557467883307471303425767968914689531641833911416498672', RoundingMode::Unnecessary, null],
-            ['453765858005120177768073445581083997020624166557467883307471303425767968914689531641833911416498672', RoundingMode::Down, '21301780629917306933323409392321012226117710104816'],
-            ['453765858005120177768073445581083997020624166557467883307471303425767968914689531641833911416498672', RoundingMode::Up, '21301780629917306933323409392321012226117710104817'],
-            ['453765858005120177768073445581083997020624166557467883307471303425767968914689531641833911416498672', RoundingMode::HalfUp, '21301780629917306933323409392321012226117710104816'],
-
-            ['453765858005120177768073445581083997020624166557489185088101220732701292324081852654060029126603489', RoundingMode::Unnecessary, '21301780629917306933323409392321012226117710104817'],
-
-            ['1371661154627246967424438399063581804666179749323634366508032096471110921410597239232159814550961124', RoundingMode::Unnecessary, '37035944089860149903963455856570016412483527052182'],
-
-            ['1371661154627246967424438399063581804666179749323708438396211816770918848322310379264984781605065488', RoundingMode::Unnecessary, null],
-            ['1371661154627246967424438399063581804666179749323708438396211816770918848322310379264984781605065488', RoundingMode::Down, '37035944089860149903963455856570016412483527052182'],
-            ['1371661154627246967424438399063581804666179749323708438396211816770918848322310379264984781605065488', RoundingMode::Up, '37035944089860149903963455856570016412483527052183'],
-            ['1371661154627246967424438399063581804666179749323708438396211816770918848322310379264984781605065488', RoundingMode::HalfUp, '37035944089860149903963455856570016412483527052183'],
-
-            ['1371661154627246967424438399063581804666179749323708438396211816770918848322310379264984781605065489', RoundingMode::Unnecessary, '37035944089860149903963455856570016412483527052183'],
-
-            ['370256269805896436402015708175373292783056837812420632207201736440955067457713055190230384049843049', RoundingMode::Unnecessary, '19242044325016415375787142063732125294673656555757'],
-
-            ['370256269805896436402015708175373292783056837812439874251526752856330854599776787315525057706398806', RoundingMode::Unnecessary, null],
-            ['370256269805896436402015708175373292783056837812439874251526752856330854599776787315525057706398806', RoundingMode::Down, '19242044325016415375787142063732125294673656555757'],
-            ['370256269805896436402015708175373292783056837812439874251526752856330854599776787315525057706398806', RoundingMode::Up, '19242044325016415375787142063732125294673656555758'],
-            ['370256269805896436402015708175373292783056837812439874251526752856330854599776787315525057706398806', RoundingMode::HalfUp, '19242044325016415375787142063732125294673656555757'],
-
-            ['370256269805896436402015708175373292783056837812459116295851769271706641741840519440819731362954564', RoundingMode::Unnecessary, '19242044325016415375787142063732125294673656555758'],
-
-            // Round perfect square: 10^60 = (10^30)^2.
-            ['1000000000000000000000000000000000000000000000000000000000000', RoundingMode::Unnecessary, '1000000000000000000000000000000'],
+        return [
+            ['0', '0'],
+            ['1', '1'],
+            ['3', '1'],
+            ['4', '2'],
+            ['8', '2'],
+            ['9', '3'],
+            ['15', '3'],
+            ['16', '4'],
+            ['24', '4'],
+            ['25', '5'],
+            ['35', '5'],
+            ['36', '6'],
+            ['48', '6'],
+            ['49', '7'],
+            ['63', '7'],
+            ['64', '8'],
+            ['80', '8'],
+            ['81', '9'],
+            ['99', '9'],
+            ['100', '10'],
+
+            ['536137214136734800142146901786039940282473271927911507640625', '732213912826528310663262741625'],
+            ['536137214136734800142146901787504368108126328549238033123875', '732213912826528310663262741625'],
+            ['536137214136734800142146901787504368108126328549238033123876', '732213912826528310663262741626'],
+            ['5651495859544574019979802175954184725583245698990648064256', '75176431543034642899535752016'],
+            ['5651495859544574019979802176104537588669314984789719568288', '75176431543034642899535752016'],
+            ['5651495859544574019979802176104537588669314984789719568289', '75176431543034642899535752017'],
+            ['303791344535904055863813752643405021077478121784571407761729', '551172699374618931119694672223'],
+            ['303791344535904055863813752644507366476227359646810797106175', '551172699374618931119694672223'],
+            ['303791344535904055863813752644507366476227359646810797106176', '551172699374618931119694672224'],
+            ['563247882222081148212230590155705163466381822617812257437849', '750498422531374244468346132293'],
+            ['563247882222081148212230590157206160311444571106748949702435', '750498422531374244468346132293'],
+            ['563247882222081148212230590157206160311444571106748949702436', '750498422531374244468346132294'],
+            ['396189426113498637323382117462633843296333578307938768136329', '629435799834660371475569807677'],
+            ['396189426113498637323382117463892714896002899050889907751683', '629435799834660371475569807677'],
+            ['396189426113498637323382117463892714896002899050889907751684', '629435799834660371475569807678'],
+            ['80479328054895287914569547663334257436697869675619064535360356', '8971027146034911420307518533066'],
+            ['80479328054895287914569547663352199490989939498459679572426488', '8971027146034911420307518533066'],
+            ['80479328054895287914569547663352199490989939498459679572426489', '8971027146034911420307518533067'],
+            ['681849477075053403257629437089098232501847587591122144140625', '825741773846432819101899135625'],
+            ['681849477075053403257629437090749716049540453229325942411875', '825741773846432819101899135625'],
+            ['681849477075053403257629437090749716049540453229325942411876', '825741773846432819101899135626'],
+            ['74137461815059419705618984794190691016668430175974095624129600', '8610311365743948501801103299640'],
+            ['74137461815059419705618984794207911639399918072977697830728880', '8610311365743948501801103299640'],
+            ['74137461815059419705618984794207911639399918072977697830728881', '8610311365743948501801103299641'],
+            ['6679657010858483937903991845397665010485952775098785560735409', '2584503242570704134867997320903'],
+            ['6679657010858483937903991845402834016971094183368521555377215', '2584503242570704134867997320903'],
+            ['6679657010858483937903991845402834016971094183368521555377216', '2584503242570704134867997320904'],
+            ['76167329888878964758237229146072291137608533898056659182403025', '8727389637736988579847341871305'],
+            ['76167329888878964758237229146089745916884007875216353866145635', '8727389637736988579847341871305'],
+            ['76167329888878964758237229146089745916884007875216353866145636', '8727389637736988579847341871306'],
+            ['6743391560146249598812429163892766868360953827745248726306064', '2596804105077287033903247753508'],
+            ['6743391560146249598812429163897960476571108401813055221813080', '2596804105077287033903247753508'],
+            ['6743391560146249598812429163897960476571108401813055221813081', '2596804105077287033903247753509'],
+            ['1867791142724588955955814039055642821336323719154250751224723556', '43217949311884164825638553209334'],
+            ['1867791142724588955955814039055729257234947487483902028331142224', '43217949311884164825638553209334'],
+            ['1867791142724588955955814039055729257234947487483902028331142225', '43217949311884164825638553209335'],
+            ['9830504148113505106730565430925806810010750548232214925001449636', '99148898874942151859351963400806'],
+            ['9830504148113505106730565430926005107808500432535933628928251248', '99148898874942151859351963400806'],
+            ['9830504148113505106730565430926005107808500432535933628928251249', '99148898874942151859351963400807'],
+            ['7591171119877361934423335814652578116545218322867005352922382400', '87127327055737007353139169677320'],
+            ['7591171119877361934423335814652752371199329796881711631261737040', '87127327055737007353139169677320'],
+            ['7591171119877361934423335814652752371199329796881711631261737041', '87127327055737007353139169677321'],
+            ['8534704621867005063010169093165229825021562891964253458234113600', '92383465089089427718873950884440'],
+            ['8534704621867005063010169093165414591951741070819691206135882480', '92383465089089427718873950884440'],
+            ['8534704621867005063010169093165414591951741070819691206135882481', '92383465089089427718873950884441'],
+            ['558060557515620507133380963948250962461823927030515012873505842176', '747034508918845399769072043504224'],
+            ['558060557515620507133380963948252456530841764721314551017592850624', '747034508918845399769072043504224'],
+            ['558060557515620507133380963948252456530841764721314551017592850625', '747034508918845399769072043504225'],
+            ['200538408436782201630574692476963942210287537291410052113367162944', '447815149851791192871220236705288'],
+            ['200538408436782201630574692476964837840587240873795794553840573520', '447815149851791192871220236705288'],
+            ['200538408436782201630574692476964837840587240873795794553840573521', '447815149851791192871220236705289'],
+            ['191302866278956628715433979906440851661028066577090295375612311364', '437381831217251900054617942999442'],
+            ['191302866278956628715433979906441726424690501080890404611498310248', '437381831217251900054617942999442'],
+            ['191302866278956628715433979906441726424690501080890404611498310249', '437381831217251900054617942999443'],
+            ['291290137244253022092289121327605756463305738312066948462328733721', '539713013780706442298424414941189'],
+            ['291290137244253022092289121327606835889333299724951545311158616099', '539713013780706442298424414941189'],
+            ['291290137244253022092289121327606835889333299724951545311158616100', '539713013780706442298424414941190'],
+            ['5025051069729848944739380852251409470255071569439258719898537481', '70887594610974415152598103986941'],
+            ['5025051069729848944739380852251551245444293518269563916106511363', '70887594610974415152598103986941'],
+            ['5025051069729848944739380852251551245444293518269563916106511364', '70887594610974415152598103986942'],
+            ['6238861109923404442965423418956764090860907116154205636120522931561', '2497771228500201225537381791181331'],
+            ['6238861109923404442965423418956769086403364116556656710884105294223', '2497771228500201225537381791181331'],
+            ['6238861109923404442965423418956769086403364116556656710884105294224', '2497771228500201225537381791181332'],
+            ['20023427755036504641354330839858631034820554187187074374005311969476', '4474754491034843873667293532006926'],
+            ['20023427755036504641354330839858639984329536256874821708592375983328', '4474754491034843873667293532006926'],
+            ['20023427755036504641354330839858639984329536256874821708592375983329', '4474754491034843873667293532006927'],
+            ['35963041045659882033621773487569203358608603414532908772894092442881', '5996919296243687322881924437376641'],
+            ['35963041045659882033621773487569215352447195901907554536742967196163', '5996919296243687322881924437376641'],
+            ['35963041045659882033621773487569215352447195901907554536742967196164', '5996919296243687322881924437376642'],
+            ['16147491963439711944418728362110466093273207282720057861529178507569', '4018394202096119880426988697249913'],
+            ['16147491963439711944418728362110474130061611474959818715506573007395', '4018394202096119880426988697249913'],
+            ['16147491963439711944418728362110474130061611474959818715506573007396', '4018394202096119880426988697249914'],
+            ['59275127168144151414318593405790938619095816316145068714478973756416', '7699034171124593171733765899358304'],
+            ['59275127168144151414318593405790954017164158565331412182010772473024', '7699034171124593171733765899358304'],
+            ['59275127168144151414318593405790954017164158565331412182010772473025', '7699034171124593171733765899358305'],
+            ['5285010890475466266241012129886993921224228841648175760159220822102500', '72698080376826087595732320834198550'],
+            ['5285010890475466266241012129886994066620389595300350951623862490499600', '72698080376826087595732320834198550'],
+            ['5285010890475466266241012129886994066620389595300350951623862490499601', '72698080376826087595732320834198551'],
+            ['138806460367120633162909304707973463857407594119348580175849319475249', '11781615354743195534745216445516807'],
+            ['138806460367120633162909304707973487420638303605739649666282210508863', '11781615354743195534745216445516807'],
+            ['138806460367120633162909304707973487420638303605739649666282210508864', '11781615354743195534745216445516808'],
+            ['4394593323188981215423145755036811566487951532301290484907917429040356', '66291728919896041699308382947726934'],
+            ['4394593323188981215423145755036811699071409372093373883524683324494224', '66291728919896041699308382947726934'],
+            ['4394593323188981215423145755036811699071409372093373883524683324494225', '66291728919896041699308382947726935'],
+            ['2165102898894822021490897916929619474531175829310332070795169853731396', '46530666220190980857729715988167086'],
+            ['2165102898894822021490897916929619567592508269692293786254601830065568', '46530666220190980857729715988167086'],
+            ['2165102898894822021490897916929619567592508269692293786254601830065569', '46530666220190980857729715988167087'],
+            ['3387136764299263076201461182231668509909087521737501460409373154998724', '58199113088596660127381090812371918'],
+            ['3387136764299263076201461182231668626307313698930821715171554779742560', '58199113088596660127381090812371918'],
+            ['3387136764299263076201461182231668626307313698930821715171554779742561', '58199113088596660127381090812371919'],
+            ['598571098379632349988804996185789284322923089459844190238738309900665041', '773673767410807557353849214204230071'],
+            ['598571098379632349988804996185789285870270624281459304946436738309125183', '773673767410807557353849214204230071'],
+            ['598571098379632349988804996185789285870270624281459304946436738309125184', '773673767410807557353849214204230072'],
+            ['520654040364073618548858305514718008281370888178241149423087536697602769', '721563607982050061031165602524215113'],
+            ['520654040364073618548858305514718009724498104142341271485418741746032995', '721563607982050061031165602524215113'],
+            ['520654040364073618548858305514718009724498104142341271485418741746032996', '721563607982050061031165602524215114'],
+            ['49468236740249321869413367805106481368010073927095236023233757323825636', '222414560540107899360763128216988694'],
+            ['49468236740249321869413367805106481812839195007311034744760013757803024', '222414560540107899360763128216988694'],
+            ['49468236740249321869413367805106481812839195007311034744760013757803025', '222414560540107899360763128216988695'],
+            ['752985146631183783668626620327136132189678265369154785125113211857131025', '867747167457885617308484616342840855'],
+            ['752985146631183783668626620327136133925172600284926019742082444542812735', '867747167457885617308484616342840855'],
+            ['752985146631183783668626620327136133925172600284926019742082444542812736', '867747167457885617308484616342840856'],
+            ['4964939306071472434861762119449573856931127119323966160723135793312400', '70462325437580276008386497095248180'],
+            ['4964939306071472434861762119449573997855777994484518177496129983808760', '70462325437580276008386497095248180'],
+            ['4964939306071472434861762119449573997855777994484518177496129983808761', '70462325437580276008386497095248181'],
+            ['6793060375719308872947059218122494900670395578602098991588961245675868921', '2606350010209547598885835947629243339'],
+            ['6793060375719308872947059218122494905883095599021194189360633140934355599', '2606350010209547598885835947629243339'],
+            ['6793060375719308872947059218122494905883095599021194189360633140934355600', '2606350010209547598885835947629243340'],
+            ['72434023187588979108181351955877408189952248642066292273939239044048882404', '8510818009309620944867597322534681898'],
+            ['72434023187588979108181351955877408206973884660685534163674433689118246200', '8510818009309620944867597322534681898'],
+            ['72434023187588979108181351955877408206973884660685534163674433689118246201', '8510818009309620944867597322534681899'],
+            ['11820228792957342809567646506028581034714829445539021053517615632467438404', '3438055961289365459878259691983242898'],
+            ['11820228792957342809567646506028581041590941368117751973274135016433924200', '3438055961289365459878259691983242898'],
+            ['11820228792957342809567646506028581041590941368117751973274135016433924201', '3438055961289365459878259691983242899'],
+            ['6386392982997549868964551665256601064299977946311952729197080155224215225', '2527131374305172498893486771925871765'],
+            ['6386392982997549868964551665256601069354240694922297726984053699075958755', '2527131374305172498893486771925871765'],
+            ['6386392982997549868964551665256601069354240694922297726984053699075958756', '2527131374305172498893486771925871766'],
+            ['241100595746204845568053694673173646954637963055159189070656778312291856', '491019954529553559943132903540543684'],
+            ['241100595746204845568053694673173647936677872114266308956922585393379224', '491019954529553559943132903540543684'],
+            ['241100595746204845568053694673173647936677872114266308956922585393379225', '491019954529553559943132903540543685'],
+            ['9443978332159357501114101827797274207266380117275222876917889364528773973136', '97180133423243238008221615153136002444'],
+            ['9443978332159357501114101827797274207460740384121709352934332594835045978024', '97180133423243238008221615153136002444'],
+            ['9443978332159357501114101827797274207460740384121709352934332594835045978025', '97180133423243238008221615153136002445'],
+            ['313018699256618409001992020847417266900442089718999098874457999889859130596', '17692334477298873658720698607769718186'],
+            ['313018699256618409001992020847417266935826758673596846191899397105398566968', '17692334477298873658720698607769718186'],
+            ['313018699256618409001992020847417266935826758673596846191899397105398566969', '17692334477298873658720698607769718187'],
+            ['6933071107478585245042253386666659991142755133413332931821052899578751610000', '83265065348431602879537003312633461900'],
+            ['6933071107478585245042253386666659991309285264110196137580126906204018533800', '83265065348431602879537003312633461900'],
+            ['6933071107478585245042253386666659991309285264110196137580126906204018533801', '83265065348431602879537003312633461901'],
+            ['1579670801917993723309858041679990418433600770326208765934116379197768903056', '39745072674710178762237903560835952916'],
+            ['1579670801917993723309858041679990418513090915675629123458592186319440808888', '39745072674710178762237903560835952916'],
+            ['1579670801917993723309858041679990418513090915675629123458592186319440808889', '39745072674710178762237903560835952917'],
+            ['681867337215944596936584982759400170727379727957999719338051977506244355625', '26112589630596667363860934899092645325'],
+            ['681867337215944596936584982759400170779604907219193054065773847304429646275', '26112589630596667363860934899092645325'],
+            ['681867337215944596936584982759400170779604907219193054065773847304429646276', '26112589630596667363860934899092645326'],
+            ['288453689043393924123357086972242613663177706471101442929325163584978377458225', '537078848069251303040109060485183727865'],
+            ['288453689043393924123357086972242613664251864167239945535405381705948744913955', '537078848069251303040109060485183727865'],
+            ['288453689043393924123357086972242613664251864167239945535405381705948744913956', '537078848069251303040109060485183727866'],
+            ['195356853506305520718626478206756382507801939519785697420547945042825319176129', '441991915657182038371378633304634321377'],
+            ['195356853506305520718626478206756382508685923351100061497290702309434587818883', '441991915657182038371378633304634321377'],
+            ['195356853506305520718626478206756382508685923351100061497290702309434587818884', '441991915657182038371378633304634321378'],
+            ['171318600916753697429051575925878633930439101417068058777561592608661184180625', '413906512290823587410087929387066009175'],
+            ['171318600916753697429051575925878633931266914441649705952381768467435316198975', '413906512290823587410087929387066009175'],
+            ['171318600916753697429051575925878633931266914441649705952381768467435316198976', '413906512290823587410087929387066009176'],
+            ['921093761539400396463886664522151015280465523566321840991339256462222570006049', '959736297916985317802888407093394929007'],
+            ['921093761539400396463886664522151015282384996162155811626945033276409359864063', '959736297916985317802888407093394929007'],
+            ['921093761539400396463886664522151015282384996162155811626945033276409359864064', '959736297916985317802888407093394929008'],
+            ['95109948153362184845030342755869423838311917496546178503410149505934962822401', '308399008029147501090828356257276909951'],
+            ['95109948153362184845030342755869423838928715512604473505591806218449516642303', '308399008029147501090828356257276909951'],
+            ['95109948153362184845030342755869423838928715512604473505591806218449516642304', '308399008029147501090828356257276909952'],
+            ['19331455316972407468074740850649574350712359000359926791488814669406316705438096', '4396755089491841080442863075541933084436'],
+            ['19331455316972407468074740850649574350721152510538910473649700395557400571606968', '4396755089491841080442863075541933084436'],
+            ['19331455316972407468074740850649574350721152510538910473649700395557400571606969', '4396755089491841080442863075541933084437'],
+            ['79265978575272061761010812898504289157311811916595218347414644480274502855387716', '8903144308348150197415041401715992316846'],
+            ['79265978575272061761010812898504289157329618205211914647809474563077934840021408', '8903144308348150197415041401715992316846'],
+            ['79265978575272061761010812898504289157329618205211914647809474563077934840021409', '8903144308348150197415041401715992316847'],
+            ['18253381792846313534444974681107507939609666705140666138048641067680220712870544', '4272397663238560654482324050372517154612'],
+            ['18253381792846313534444974681107507939618211500467143259357605715780965747179768', '4272397663238560654482324050372517154612'],
+            ['18253381792846313534444974681107507939618211500467143259357605715780965747179769', '4272397663238560654482324050372517154613'],
+            ['34902249932301330884717409262136201131799911786648110181019008640668850248149889', '5907812618245549169232055936851452816833'],
+            ['34902249932301330884717409262136201131811727411884601279357472752542553153783555', '5907812618245549169232055936851452816833'],
+            ['34902249932301330884717409262136201131811727411884601279357472752542553153783556', '5907812618245549169232055936851452816834'],
+            ['2599345980007138866704208379685556534258757776044753601160948822029798157394521', '1612248733913951277041847563008484168539'],
+            ['2599345980007138866704208379685556534261982273512581503715032517155815125731599', '1612248733913951277041847563008484168539'],
+            ['2599345980007138866704208379685556534261982273512581503715032517155815125731600', '1612248733913951277041847563008484168540'],
+            ['5316322030460586450936871958946919636668068288991234947266697538297768830115066084', '72913112884175960485473057702832007114922'],
+            ['5316322030460586450936871958946919636668214115217003299187668484413174494129295928', '72913112884175960485473057702832007114922'],
+            ['5316322030460586450936871958946919636668214115217003299187668484413174494129295929', '72913112884175960485473057702832007114923'],
+            ['8002778973791813108451518291518896929427763054970205412144571951733372499281017601', '89458252686891962949549637560732937788801'],
+            ['8002778973791813108451518291518896929427941971475579196070471051008493965156595203', '89458252686891962949549637560732937788801'],
+            ['8002778973791813108451518291518896929427941971475579196070471051008493965156595204', '89458252686891962949549637560732937788802'],
+            ['204434819803436425073091821729105629106597079412374857081154364351611450036288004', '14298070492322956269314619104943213072002'],
+            ['204434819803436425073091821729105629106625675553359502993692993589821336462432008', '14298070492322956269314619104943213072002'],
+            ['204434819803436425073091821729105629106625675553359502993692993589821336462432009', '14298070492322956269314619104943213072003'],
+            ['248985683905018963214400101508836326950598468017331056913175271121208335269369616', '15779280208711009616855603241137879133796'],
+            ['248985683905018963214400101508836326950630026577748478932408982327690611027637208', '15779280208711009616855603241137879133796'],
+            ['248985683905018963214400101508836326950630026577748478932408982327690611027637209', '15779280208711009616855603241137879133797'],
+            ['9931466785180918581453369553241893953494729509958339130768488436428313616867737664', '99656744805261016419561454808199789423608'],
+            ['9931466785180918581453369553241893953494928823447949652801327559337930016446584880', '99656744805261016419561454808199789423608'],
+            ['9931466785180918581453369553241893953494928823447949652801327559337930016446584881', '99656744805261016419561454808199789423609'],
+            ['571034337207963083686644289650754887712756826847796234542618077049856839883774610496', '755668139600951472909394170487042707063864'],
+            ['571034337207963083686644289650754887712758338184075436445563895838197813969188738224', '755668139600951472909394170487042707063864'],
+            ['571034337207963083686644289650754887712758338184075436445563895838197813969188738225', '755668139600951472909394170487042707063865'],
+            ['43282087429518774838368965030190873132157640943271155661308846536619714287766015625', '208043474854461068334845359605621664088125'],
+            ['43282087429518774838368965030190873132158057030220864583445516227338925531094191875', '208043474854461068334845359605621664088125'],
+            ['43282087429518774838368965030190873132158057030220864583445516227338925531094191876', '208043474854461068334845359605621664088126'],
+            ['417927142998078702077756962900654390278806646288750249869048008644489266148390976576', '646472847842876307508176358984831821937976'],
+            ['417927142998078702077756962900654390278807939234445935621663024997207235812034852528', '646472847842876307508176358984831821937976'],
+            ['417927142998078702077756962900654390278807939234445935621663024997207235812034852529', '646472847842876307508176358984831821937977'],
+            ['57289022864599235425935956369596297021969148801199969985249642058425056660901854081', '239351254152969157626674463098033150396991'],
+            ['57289022864599235425935956369596297021969627503708275923564895407351252727202648063', '239351254152969157626674463098033150396991'],
+            ['57289022864599235425935956369596297021969627503708275923564895407351252727202648064', '239351254152969157626674463098033150396992'],
+            ['388204130919598896854532928319816854683262176908475545926963148518011088548336100', '19702896510909224609070086389295007347690'],
+            ['388204130919598896854532928319816854683301582701497364376181288690789678563031480', '19702896510909224609070086389295007347690'],
+            ['388204130919598896854532928319816854683301582701497364376181288690789678563031481', '19702896510909224609070086389295007347691'],
+            ['17641213493582550358331598783756045983107635305125558424245083335221980342711574945924', '4200144461037328458609200843143798139299618'],
+            ['17641213493582550358331598783756045983107643705414480498902000553623666630307853545160', '4200144461037328458609200843143798139299618'],
+            ['17641213493582550358331598783756045983107643705414480498902000553623666630307853545161', '4200144461037328458609200843143798139299619'],
+            ['10480850478210993041934376751763741537950365795671072307889437499081947766082767900625', '3237414165381221816392010300367379458321975'],
+            ['10480850478210993041934376751763741537950372270499403070333070283102548500841684544575', '3237414165381221816392010300367379458321975'],
+            ['10480850478210993041934376751763741537950372270499403070333070283102548500841684544576', '3237414165381221816392010300367379458321976'],
+            ['18912401257760832817656385679644608795185415305426367246326490097108178277089565964900', '4348839070115245459938703154127996458785930'],
+            ['18912401257760832817656385679644608795185424003104507476817409974514486533082483536760', '4348839070115245459938703154127996458785930'],
+            ['18912401257760832817656385679644608795185424003104507476817409974514486533082483536761', '4348839070115245459938703154127996458785931'],
+            ['4058130180100830389999063645300769577286055319083847709319631222394835048000563913616', '2014480126509276434961389427500807039909204'],
+            ['4058130180100830389999063645300769577286059348044100727872501145173690049614643732024', '2014480126509276434961389427500807039909204'],
+            ['4058130180100830389999063645300769577286059348044100727872501145173690049614643732025', '2014480126509276434961389427500807039909205'],
+            ['33468184484233190391618513143907824051569626629768396502905028100863488827541016357225', '5785169356573166941812342062118994545501165'],
+            ['33468184484233190391618513143907824051569638200107109649238911725547613065530107359555', '5785169356573166941812342062118994545501165'],
+            ['33468184484233190391618513143907824051569638200107109649238911725547613065530107359556', '5785169356573166941812342062118994545501166'],
+            ['1186174880095419715607318419843788127322568925641042677386667373975880777802263411393536', '34440889653076903576703209294470985379444256'],
+            ['1186174880095419715607318419843788127322568994522821983540474527382299366744234170282048', '34440889653076903576703209294470985379444256'],
+            ['1186174880095419715607318419843788127322568994522821983540474527382299366744234170282049', '34440889653076903576703209294470985379444257'],
+            ['1869407664810972914760141576011747496493758522541997263089274909609818581502013012539601', '43236647242946265649799966945038223493750199'],
+            ['1869407664810972914760141576011747496493758609015291748981806209209752471578460000039999', '43236647242946265649799966945038223493750199'],
+            ['1869407664810972914760141576011747496493758609015291748981806209209752471578460000040000', '43236647242946265649799966945038223493750200'],
+            ['4306248093986950964567669268958861794743230041121457387922204677053975232405051053143025', '65622009219369007099774314994059599547494695'],
+            ['4306248093986950964567669268958861794743230172365475826660218876602605220524250148132415', '65622009219369007099774314994059599547494695'],
+            ['4306248093986950964567669268958861794743230172365475826660218876602605220524250148132416', '65622009219369007099774314994059599547494696'],
+            ['142958974763379486489798376541073126699563800627039429166077132824711226669748693162209', '11956545268737934506570289899105912433421297'],
+            ['142958974763379486489798376541073126699563824540129966641946145965291024881573560004803', '11956545268737934506570289899105912433421297'],
+            ['142958974763379486489798376541073126699563824540129966641946145965291024881573560004804', '11956545268737934506570289899105912433421298'],
+            ['5924043074304444391210747851995027637083074459394928466831722415634829619104396893068176', '76967805440355673370818024381288105628528724'],
+            ['5924043074304444391210747851995027637083074613330539347543069157270878381680608150125624', '76967805440355673370818024381288105628528724'],
+            ['5924043074304444391210747851995027637083074613330539347543069157270878381680608150125625', '76967805440355673370818024381288105628528725'],
+            ['692647042392925303434391597094843086706651167173473530228926147229989661906443247661192976', '832254193376594110047678950757920520714968676'],
+            ['692647042392925303434391597094843086706651168837981916982114367325347563422284289091130328', '832254193376594110047678950757920520714968676'],
+            ['692647042392925303434391597094843086706651168837981916982114367325347563422284289091130329', '832254193376594110047678950757920520714968677'],
+            ['63418927703603396384251230391169377358870766926264966118026529953350707524741421056456161', '251831149192476577524577782662609731668640369'],
+            ['63418927703603396384251230391169377358870767429927264502979685002506272849960884393736899', '251831149192476577524577782662609731668640369'],
+            ['63418927703603396384251230391169377358870767429927264502979685002506272849960884393736900', '251831149192476577524577782662609731668640370'],
+            ['84173934762470484045776658803140625724430904400114977656227228331290197573900111299728676', '290127445724237685478628941387635987912451526'],
+            ['84173934762470484045776658803140625724430904980369869104702599288548080349172087124631728', '290127445724237685478628941387635987912451526'],
+            ['84173934762470484045776658803140625724430904980369869104702599288548080349172087124631729', '290127445724237685478628941387635987912451527'],
+            ['241361038321369463167942286580817659556660094711530196521279493146351719422610472610272609', '491285088641380874516359084346407133019022897'],
+            ['241361038321369463167942286580817659556660095694100373804041242179069888115424738648318403', '491285088641380874516359084346407133019022897'],
+            ['241361038321369463167942286580817659556660095694100373804041242179069888115424738648318404', '491285088641380874516359084346407133019022898'],
+            ['517176462045529989620702018222975120090314182384304448758922583345467659488721121496429225', '719149818915036638988212861879727351601847565'],
+            ['517176462045529989620702018222975120090314183822604086588995861321893383248175824700124355', '719149818915036638988212861879727351601847565'],
+            ['517176462045529989620702018222975120090314183822604086588995861321893383248175824700124356', '719149818915036638988212861879727351601847566'],
+            ['77611022182569680065221018033132479141166512436949302435927867888665269025756976722964990841', '8809711810415235147462139161930461303380344971'],
+            ['77611022182569680065221018033132479141166512454568726056758338183589547349617899329725680783', '8809711810415235147462139161930461303380344971'],
+            ['77611022182569680065221018033132479141166512454568726056758338183589547349617899329725680784', '8809711810415235147462139161930461303380344972'],
+            ['6105408765553994361209114516342314667656879868595988990330444228342133209919341402497612900', '2470912537010161831197388767291893513920213770'],
+            ['6105408765553994361209114516342314667656879873537814064350767890736910744503128430338040440', '2470912537010161831197388767291893513920213770'],
+            ['6105408765553994361209114516342314667656879873537814064350767890736910744503128430338040441', '2470912537010161831197388767291893513920213771'],
+            ['90701786360131891675282105453602007239665462813393298839266200083003999684896009231900541761', '9523748545616473366260116123335442806957838431'],
+            ['90701786360131891675282105453602007239665462832440795930499146815524231931566894845816218623', '9523748545616473366260116123335442806957838431'],
+            ['90701786360131891675282105453602007239665462832440795930499146815524231931566894845816218624', '9523748545616473366260116123335442806957838432'],
+            ['65323751401133593272677920818977066639472955689716002480072016807758009911894964398074221636', '8082311018584572712389536725132408571687355694'],
+            ['65323751401133593272677920818977066639472955705880624517241162232537083362159781541448933024', '8082311018584572712389536725132408571687355694'],
+            ['65323751401133593272677920818977066639472955705880624517241162232537083362159781541448933025', '8082311018584572712389536725132408571687355695'],
+            ['54888850556449896314370999310468417973690137670860368033970930193923337744682096321526909321', '7408701003310222419788126612344084182212588611'],
+            ['54888850556449896314370999310468417973690137685677770040591375033499590969370264685952086543', '7408701003310222419788126612344084182212588611'],
+            ['54888850556449896314370999310468417973690137685677770040591375033499590969370264685952086544', '7408701003310222419788126612344084182212588612'],
+            ['2805085217054754253789444062542634634800093806651719072914037849606695181828139974525774321216', '52963055208841136620374558431841622364185138904'],
+            ['2805085217054754253789444062542634634800093806757645183331720122847444298691823219254144599024', '52963055208841136620374558431841622364185138904'],
+            ['2805085217054754253789444062542634634800093806757645183331720122847444298691823219254144599025', '52963055208841136620374558431841622364185138905'],
+            ['1160568960830598642226220064123168954080961712013862945053127684556984147281594628487247009409', '34067124340492824200405891794016084650299718847'],
+            ['1160568960830598642226220064123168954080961712081997193734113332957795930869626797787846447103', '34067124340492824200405891794016084650299718847'],
+            ['1160568960830598642226220064123168954080961712081997193734113332957795930869626797787846447104', '34067124340492824200405891794016084650299718848'],
+            ['124505361771365706389189800193135630498052202514496166178932088454657696893428061453489005584', '11158197066343904036990752059839856835208279172'],
+            ['124505361771365706389189800193135630498052202536812560311619896528639201013107775123905563928', '11158197066343904036990752059839856835208279172'],
+            ['124505361771365706389189800193135630498052202536812560311619896528639201013107775123905563929', '11158197066343904036990752059839856835208279173'],
+            ['8304391676065346969717869193750447720841513935376871747395147291005945252957072474745223924900', '91128435057699454436963842029258931771642571930'],
+            ['8304391676065346969717869193750447720841513935559128617510546199879872937015590338288509068760', '91128435057699454436963842029258931771642571930'],
+            ['8304391676065346969717869193750447720841513935559128617510546199879872937015590338288509068761', '91128435057699454436963842029258931771642571931'],
+            ['3902633675982472936031277376575750479219313797204897526330941750565757566042240677294833640976', '62471062708925265536995715391198772286875632324'],
+            ['3902633675982472936031277376575750479219313797329839651748792281639748996824638221868584905624', '62471062708925265536995715391198772286875632324'],
+            ['3902633675982472936031277376575750479219313797329839651748792281639748996824638221868584905625', '62471062708925265536995715391198772286875632325'],
+            ['21803189113281615247645689642554433787955300436727779524987566434496560052640713833839771848809', '147659029907695165135263001196567750660989708947'],
+            ['21803189113281615247645689642554433787955300437023097584802956764767086055033849335161751266703', '147659029907695165135263001196567750660989708947'],
+            ['21803189113281615247645689642554433787955300437023097584802956764767086055033849335161751266704', '147659029907695165135263001196567750660989708948'],
+            ['765773631185413773891853587035522811215936001201156164967993252197672361266093168217637840800625', '875084927984372139644261680745245536779196496025'],
+            ['765773631185413773891853587035522811215936001202906334823961996476960884627583659291196233792675', '875084927984372139644261680745245536779196496025'],
+            ['765773631185413773891853587035522811215936001202906334823961996476960884627583659291196233792676', '875084927984372139644261680745245536779196496026'],
+            ['371531253548731146505174144638678761062942262073337722044484956271277190798021717224921126356624', '609533636109387441986227427959683991839011782068'],
+            ['371531253548731146505174144638678761062942262074556789316703731155249645653941085208599149920760', '609533636109387441986227427959683991839011782068'],
+            ['371531253548731146505174144638678761062942262074556789316703731155249645653941085208599149920761', '609533636109387441986227427959683991839011782069'],
+            ['32639765347874160297815057000511241042881990523574135639577516269227137979270282014943162493161', '180664787238338617809927067472657959412705501869'],
+            ['32639765347874160297815057000511241042881990523935465214054193504846992114215597933768573496899', '180664787238338617809927067472657959412705501869'],
+            ['32639765347874160297815057000511241042881990523935465214054193504846992114215597933768573496900', '180664787238338617809927067472657959412705501870'],
+            ['23312804018277899268530151932487478598118645419296370443140824162402663914524726804469078709025', '152685310420740538469311655525476411276716730095'],
+            ['23312804018277899268530151932487478598118645419601741063982305239341287225575679627022512169215', '152685310420740538469311655525476411276716730095'],
+            ['23312804018277899268530151932487478598118645419601741063982305239341287225575679627022512169216', '152685310420740538469311655525476411276716730096'],
+            ['69351939896058034711498082880502238045919014432567876454734811966028586293551025867711349695480441', '8327781210866315423454045118194686369495352533771'],
+            ['69351939896058034711498082880502238045919014432584532017156544596875494383787415240450340400547983', '8327781210866315423454045118194686369495352533771'],
+            ['69351939896058034711498082880502238045919014432584532017156544596875494383787415240450340400547984', '8327781210866315423454045118194686369495352533772'],
+            ['56907419683049340072215388152597682083224395922699571395667588185898365170014916921330096015050884', '7543700662344002371027341442602779762847104806622'],
+            ['56907419683049340072215388152597682083224395922714658796992276190640419852900122480855790224664128', '7543700662344002371027341442602779762847104806622'],
+            ['56907419683049340072215388152597682083224395922714658796992276190640419852900122480855790224664129', '7543700662344002371027341442602779762847104806623'],
+            ['1163525248981521754155547339230838194099208908132096593234853200207208035365529397606592383400336', '1078668275690687843154790865870705804593431876844'],
+            ['1163525248981521754155547339230838194099208908134253929786234575893517617097270809215779247154024', '1078668275690687843154790865870705804593431876844'],
+            ['1163525248981521754155547339230838194099208908134253929786234575893517617097270809215779247154025', '1078668275690687843154790865870705804593431876845'],
+            ['12630009931573082897907144855573901252532449094542217468986509301292277005832281659959934465254400', '3553872526072521203015975245855936611531238601120'],
+            ['12630009931573082897907144855573901252532449094549325214038654343698308956323993533182996942456640', '3553872526072521203015975245855936611531238601120'],
+            ['12630009931573082897907144855573901252532449094549325214038654343698308956323993533182996942456641', '3553872526072521203015975245855936611531238601121'],
+            ['31255308963169979605103962253255036593975285646828038303401111783018980508885388211539730531736976', '5590644771685103192691707139464277920149086765676'],
+            ['31255308963169979605103962253255036593975285646839219592944481989404363923164316767380028705268328', '5590644771685103192691707139464277920149086765676'],
+            ['31255308963169979605103962253255036593975285646839219592944481989404363923164316767380028705268329', '5590644771685103192691707139464277920149086765677'],
+            ['8628012985404686018689218847909668804260178206412486603741772756323555243760489710208140383228648196', '92887098056752133732654744820968248061511732728514'],
+            ['8628012985404686018689218847909668804260178206412672377937886260591020553250131646704263406694105224', '92887098056752133732654744820968248061511732728514'],
+            ['8628012985404686018689218847909668804260178206412672377937886260591020553250131646704263406694105225', '92887098056752133732654744820968248061511732728515'],
+            ['9233511524782328316011754355906749687042442384057568340621550432564122836332981092655854023226646089', '96091162573788898435727389725088702432559537501283'],
+            ['9233511524782328316011754355906749687042442384057760522946698010360994291112431270060719142301648655', '96091162573788898435727389725088702432559537501283'],
+            ['9233511524782328316011754355906749687042442384057760522946698010360994291112431270060719142301648656', '96091162573788898435727389725088702432559537501284'],
+            ['453765858005120177768073445581083997020624166557446581526841386118834645505297210629607793706393856', '21301780629917306933323409392321012226117710104816'],
+            ['453765858005120177768073445581083997020624166557489185088101220732701292324081852654060029126603488', '21301780629917306933323409392321012226117710104816'],
+            ['453765858005120177768073445581083997020624166557489185088101220732701292324081852654060029126603489', '21301780629917306933323409392321012226117710104817'],
+            ['1371661154627246967424438399063581804666179749323634366508032096471110921410597239232159814550961124', '37035944089860149903963455856570016412483527052182'],
+            ['1371661154627246967424438399063581804666179749323708438396211816770918848322310379264984781605065488', '37035944089860149903963455856570016412483527052182'],
+            ['1371661154627246967424438399063581804666179749323708438396211816770918848322310379264984781605065489', '37035944089860149903963455856570016412483527052183'],
+            ['370256269805896436402015708175373292783056837812420632207201736440955067457713055190230384049843049', '19242044325016415375787142063732125294673656555757'],
+            ['370256269805896436402015708175373292783056837812459116295851769271706641741840519440819731362954563', '19242044325016415375787142063732125294673656555757'],
+            ['370256269805896436402015708175373292783056837812459116295851769271706641741840519440819731362954564', '19242044325016415375787142063732125294673656555758'],
         ];
-
-        foreach ($tests as [$number, $roundingMode, $expected]) {
-            yield [$number, $roundingMode, $expected];
-
-            // Integer sqrt can't hit a midpoint tie, so HalfUp expands to every other Half* mode.
-            // Unnecessary expands to every mode for exact rows only (where every mode returns the
-            // same exact value); non-exact rows ($expected === null) skip the expansion because
-            // only Unnecessary itself throws.
-            $eqs = match ($roundingMode) {
-                RoundingMode::Unnecessary => $expected === null ? [] : self::ALL_ROUNDING_MODES_BUT_UNNECESSARY,
-                RoundingMode::Up => [RoundingMode::Ceiling],
-                RoundingMode::Down => [RoundingMode::Floor],
-                RoundingMode::HalfUp => [
-                    RoundingMode::HalfDown,
-                    RoundingMode::HalfCeiling,
-                    RoundingMode::HalfFloor,
-                    RoundingMode::HalfEven,
-                    RoundingMode::HalfOdd,
-                ],
-                default => [],
-            };
-
-            foreach ($eqs as $eq) {
-                yield [$number, $eq, $expected];
-            }
-        }
     }
 
-    public function testSqrtOfNegativeNumber(): void
+    public function testSqrtOfNegativeNumber() : void
     {
         $number = BigInteger::of(-1);
         $this->expectException(NegativeNumberException::class);
-        $this->expectExceptionMessageExact('Cannot calculate the square root of a negative number.');
-
         $number->sqrt();
     }
 
-    #[DataProvider('providerNthRoot')]
-    #[DataProvider('providerNthRootFromSqrt')]
-    public function testNthRoot(string $number, int $n, RoundingMode $roundingMode, ?string $expected): void
-    {
-        $number = BigInteger::of($number);
-
-        if ($expected === null) {
-            $this->expectException(RoundingNecessaryException::class);
-            $this->expectExceptionMessageExact('The nth root is not exact and cannot be represented as an integer without rounding.');
-        }
-
-        $actual = $number->nthRoot($n, $roundingMode);
-
-        if ($expected !== null) {
-            self::assertBigIntegerEquals($expected, $actual);
-        }
-    }
-
-    public static function providerNthRoot(): Generator
-    {
-        $tests = [
-            // Zero input across various n.
-            ['0', 2, RoundingMode::Unnecessary, '0'],
-            ['0', 3, RoundingMode::Unnecessary, '0'],
-            ['0', 4, RoundingMode::Unnecessary, '0'],
-            ['0', 5, RoundingMode::Unnecessary, '0'],
-            ['0', 7, RoundingMode::Unnecessary, '0'],
-            ['0', 100, RoundingMode::Unnecessary, '0'],
-
-            // One input across various n.
-            ['1', 2, RoundingMode::Unnecessary, '1'],
-            ['1', 3, RoundingMode::Unnecessary, '1'],
-            ['1', 5, RoundingMode::Unnecessary, '1'],
-            ['1', 100, RoundingMode::Unnecessary, '1'],
-            ['-1', 3, RoundingMode::Unnecessary, '-1'],
-            ['-1', 5, RoundingMode::Unnecessary, '-1'],
-            ['-1', 7, RoundingMode::Unnecessary, '-1'],
-            ['-1', 99, RoundingMode::Unnecessary, '-1'],
-
-            // n = 1
-
-            // Identity passthrough (the Unnecessary expansion below fans each row out to every
-            // rounding mode with the same expected value).
-            ['0', 1, RoundingMode::Unnecessary, '0'],
-            ['1', 1, RoundingMode::Unnecessary, '1'],
-            ['-1', 1, RoundingMode::Unnecessary, '-1'],
-            ['7', 1, RoundingMode::Unnecessary, '7'],
-            ['-12345678901234567890', 1, RoundingMode::Unnecessary, '-12345678901234567890'],
-
-            // n = 2 is covered by providerNthRootFromSqrt, which replays the entire providerSqrt
-            // dataset at n=2 to confirm nthRoot(2) matches sqrt() semantics.
-
-            // n = 3
-
-            // Perfect cubes (positive).
-            ['8', 3, RoundingMode::Unnecessary, '2'],
-            ['27', 3, RoundingMode::Unnecessary, '3'],
-            ['1000', 3, RoundingMode::Unnecessary, '10'],
-            ['1000000', 3, RoundingMode::Unnecessary, '100'],
-
-            // Non-exact (positive), all rounding modes.
-            // truncatedRoot=1, nextStep=2, threshold=(1.5)^3=3.375.
-            //   7: 7 > 3.375 → HalfUp=2.
-            ['7', 3, RoundingMode::Unnecessary, null],
-            ['7', 3, RoundingMode::Down, '1'],
-            ['7', 3, RoundingMode::Up, '2'],
-            ['7', 3, RoundingMode::HalfUp, '2'],
-
-            // truncatedRoot=2, nextStep=3, threshold=(2.5)^3=15.625.
-            //   9: 9 < 15.625 → HalfUp=2.
-            ['9', 3, RoundingMode::Unnecessary, null],
-            ['9', 3, RoundingMode::Down, '2'],
-            ['9', 3, RoundingMode::Up, '3'],
-            ['9', 3, RoundingMode::HalfUp, '2'],
-
-            //   16: 16 > 15.625 → HalfUp=3.
-            ['16', 3, RoundingMode::Unnecessary, null],
-            ['16', 3, RoundingMode::Down, '2'],
-            ['16', 3, RoundingMode::Up, '3'],
-            ['16', 3, RoundingMode::HalfUp, '3'],
-
-            //   17: 17 > 15.625 → HalfUp=3.
-            ['17', 3, RoundingMode::Unnecessary, null],
-            ['17', 3, RoundingMode::Down, '2'],
-            ['17', 3, RoundingMode::Up, '3'],
-            ['17', 3, RoundingMode::HalfUp, '3'],
-
-            //   18: 18 > 15.625 → HalfUp=3.
-            ['18', 3, RoundingMode::Unnecessary, null],
-            ['18', 3, RoundingMode::Down, '2'],
-            ['18', 3, RoundingMode::Up, '3'],
-            ['18', 3, RoundingMode::HalfUp, '3'],
-
-            //   26: 26 > 15.625 → HalfUp=3.
-            ['26', 3, RoundingMode::Unnecessary, null],
-            ['26', 3, RoundingMode::Down, '2'],
-            ['26', 3, RoundingMode::Up, '3'],
-            ['26', 3, RoundingMode::HalfUp, '3'],
-
-            // truncatedRoot=9, nextStep=10, threshold=(9.5)^3=857.375.
-            //   864: 864 > 857.375 → HalfUp=10.
-            ['864', 3, RoundingMode::Unnecessary, null],
-            ['864', 3, RoundingMode::Down, '9'],
-            ['864', 3, RoundingMode::Up, '10'],
-            ['864', 3, RoundingMode::HalfUp, '10'],
-
-            //   865: 865 > 857.375 → HalfUp=10.
-            ['865', 3, RoundingMode::Unnecessary, null],
-            ['865', 3, RoundingMode::Down, '9'],
-            ['865', 3, RoundingMode::Up, '10'],
-            ['865', 3, RoundingMode::HalfUp, '10'],
-
-            // Tightest possible Half* boundaries, where 2^n·|V| differs from (2·|t|+1)^n by ±1.
-            // V=43, n=3: 2^3·43 = 344 vs 7^3 = 343 (diff +1) → smallest "round up". ∛43 ≈ 3.5034.
-            ['43', 3, RoundingMode::Unnecessary, null],
-            ['43', 3, RoundingMode::Down, '3'],
-            ['43', 3, RoundingMode::Up, '4'],
-            ['43', 3, RoundingMode::HalfUp, '4'],
-
-            // V=91, n=3: 2^3·91 = 728 vs 9^3 = 729 (diff -1) → smallest "round down". ∛91 ≈ 4.4979.
-            ['91', 3, RoundingMode::Unnecessary, null],
-            ['91', 3, RoundingMode::Down, '4'],
-            ['91', 3, RoundingMode::Up, '5'],
-            ['91', 3, RoundingMode::HalfUp, '4'],
-
-            // Perfect cubes (negative).
-            ['-8', 3, RoundingMode::Unnecessary, '-2'],
-            ['-27', 3, RoundingMode::Unnecessary, '-3'],
-            ['-1000', 3, RoundingMode::Unnecessary, '-10'],
-
-            // Non-exact (negative).
-            // truncatedRoot=-1, nextStep=-2, threshold=(1.5)^3=3.375 in magnitude.
-            //   -7: 7 > 3.375 → HalfUp=-2 (further from zero). Up (away from zero) = -2. Down = -1.
-            ['-7', 3, RoundingMode::Unnecessary, null],
-            ['-7', 3, RoundingMode::Down, '-1'],
-            ['-7', 3, RoundingMode::Up, '-2'],
-            ['-7', 3, RoundingMode::HalfUp, '-2'],
-
-            // truncatedRoot=-2, nextStep=-3, threshold=(2.5)^3=15.625 in magnitude.
-            //   -17: 17 > 15.625 → HalfUp=-3.
-            ['-17', 3, RoundingMode::Unnecessary, null],
-            ['-17', 3, RoundingMode::Down, '-2'],
-            ['-17', 3, RoundingMode::Up, '-3'],
-            ['-17', 3, RoundingMode::HalfUp, '-3'],
-
-            //   -18: 18 > 15.625 → HalfUp=-3.
-            ['-18', 3, RoundingMode::Unnecessary, null],
-            ['-18', 3, RoundingMode::Down, '-2'],
-            ['-18', 3, RoundingMode::Up, '-3'],
-            ['-18', 3, RoundingMode::HalfUp, '-3'],
-
-            // Tight Half* boundaries (negative).
-            ['-43', 3, RoundingMode::Unnecessary, null],
-            ['-43', 3, RoundingMode::Down, '-3'],
-            ['-43', 3, RoundingMode::Up, '-4'],
-            ['-43', 3, RoundingMode::HalfUp, '-4'],
-
-            ['-91', 3, RoundingMode::Unnecessary, null],
-            ['-91', 3, RoundingMode::Down, '-4'],
-            ['-91', 3, RoundingMode::Up, '-5'],
-            ['-91', 3, RoundingMode::HalfUp, '-4'],
-
-            // Large perfect cube: 10^30 = (10^10)^3.
-            ['1000000000000000000000000000000', 3, RoundingMode::Unnecessary, '10000000000'],
-
-            // Just above a large cube: truncated = 10^10, next = 10^10 + 1.
-            ['1000000000000000000000000000001', 3, RoundingMode::Unnecessary, null],
-            ['1000000000000000000000000000001', 3, RoundingMode::Down, '10000000000'],
-            ['1000000000000000000000000000001', 3, RoundingMode::Up, '10000000001'],
-            ['1000000000000000000000000000001', 3, RoundingMode::HalfUp, '10000000000'],
-
-            // n = 4
-
-            // Perfect 4th powers.
-            ['16', 4, RoundingMode::Unnecessary, '2'],
-            ['81', 4, RoundingMode::Unnecessary, '3'],
-            ['10000', 4, RoundingMode::Unnecessary, '10'],
-            ['100000000', 4, RoundingMode::Unnecessary, '100'],
-
-            // Non-exact. truncatedRoot=1, nextStep=2, threshold=(1.5)^4=5.0625.
-            // Tightest Half* boundary at t=1: V is the integer immediately above/below 1.5^4.
-            // For n=4, mod 2^4 forbids 2^n·V differing from (2t+1)^n by exactly +1, so the
-            // smallest "round up" diff is +15.
-            // V=5: 2^4·5 = 80 vs 3^4 = 81 (diff -1) → smallest "round down". ⁴√5 ≈ 1.4953.
-            ['5', 4, RoundingMode::Unnecessary, null],
-            ['5', 4, RoundingMode::Down, '1'],
-            ['5', 4, RoundingMode::Up, '2'],
-            ['5', 4, RoundingMode::HalfUp, '1'],
-
-            // V=6: 2^4·6 = 96 vs 3^4 = 81 (diff +15). ⁴√6 ≈ 1.5651.
-            ['6', 4, RoundingMode::Unnecessary, null],
-            ['6', 4, RoundingMode::Down, '1'],
-            ['6', 4, RoundingMode::Up, '2'],
-            ['6', 4, RoundingMode::HalfUp, '2'],
-
-            //   8: 8 > 5.0625 → HalfUp=2.
-            ['8', 4, RoundingMode::Unnecessary, null],
-            ['8', 4, RoundingMode::Down, '1'],
-            ['8', 4, RoundingMode::Up, '2'],
-            ['8', 4, RoundingMode::HalfUp, '2'],
-
-            //   9: 9 > 5.0625 → HalfUp=2.
-            ['9', 4, RoundingMode::Unnecessary, null],
-            ['9', 4, RoundingMode::Down, '1'],
-            ['9', 4, RoundingMode::Up, '2'],
-            ['9', 4, RoundingMode::HalfUp, '2'],
-
-            // n = 5
-
-            // Perfect 5th powers.
-            ['32', 5, RoundingMode::Unnecessary, '2'],
-            ['243', 5, RoundingMode::Unnecessary, '3'],
-            ['100000', 5, RoundingMode::Unnecessary, '10'],
-
-            // Non-exact. truncatedRoot=1, nextStep=2, threshold=(1.5)^5=7.59375.
-            // Tightest Half* boundary at t=1: V is the integer immediately above/below 1.5^5.
-            // V=7: 2^5·7 = 224 vs 3^5 = 243 (diff -19). ⁵√7 ≈ 1.4758.
-            ['7', 5, RoundingMode::Unnecessary, null],
-            ['7', 5, RoundingMode::Down, '1'],
-            ['7', 5, RoundingMode::Up, '2'],
-            ['7', 5, RoundingMode::HalfUp, '1'],
-
-            // V=8: 2^5·8 = 256 vs 3^5 = 243 (diff +13). ⁵√8 ≈ 1.5157.
-            ['8', 5, RoundingMode::Unnecessary, null],
-            ['8', 5, RoundingMode::Down, '1'],
-            ['8', 5, RoundingMode::Up, '2'],
-            ['8', 5, RoundingMode::HalfUp, '2'],
-
-            //   15: 15 > 7.59375 → HalfUp=2.
-            ['15', 5, RoundingMode::Unnecessary, null],
-            ['15', 5, RoundingMode::Down, '1'],
-            ['15', 5, RoundingMode::Up, '2'],
-            ['15', 5, RoundingMode::HalfUp, '2'],
-
-            //   17: 17 > 7.59375 → HalfUp=2.
-            ['17', 5, RoundingMode::Unnecessary, null],
-            ['17', 5, RoundingMode::Down, '1'],
-            ['17', 5, RoundingMode::Up, '2'],
-            ['17', 5, RoundingMode::HalfUp, '2'],
-
-            //   31: 31 > 7.59375 → HalfUp=2.
-            ['31', 5, RoundingMode::Unnecessary, null],
-            ['31', 5, RoundingMode::Down, '1'],
-            ['31', 5, RoundingMode::Up, '2'],
-            ['31', 5, RoundingMode::HalfUp, '2'],
-
-            // Negative (odd).
-            ['-32', 5, RoundingMode::Unnecessary, '-2'],
-            ['-243', 5, RoundingMode::Unnecessary, '-3'],
-
-            ['-15', 5, RoundingMode::Unnecessary, null],
-            ['-15', 5, RoundingMode::Down, '-1'],
-            ['-15', 5, RoundingMode::Up, '-2'],
-            ['-15', 5, RoundingMode::HalfUp, '-2'],
-
-            ['-17', 5, RoundingMode::Unnecessary, null],
-            ['-17', 5, RoundingMode::Down, '-1'],
-            ['-17', 5, RoundingMode::Up, '-2'],
-            ['-17', 5, RoundingMode::HalfUp, '-2'],
-
-            // Large perfect 5th power: (10^6)^5 = 10^30.
-            ['1000000000000000000000000000000', 5, RoundingMode::Unnecessary, '1000000'],
-
-            // n = 7
-
-            // Perfect 7th powers.
-            ['128', 7, RoundingMode::Unnecessary, '2'],
-            ['2187', 7, RoundingMode::Unnecessary, '3'],
-            ['-128', 7, RoundingMode::Unnecessary, '-2'],
-
-            // Non-exact. truncatedRoot=1, nextStep=2, threshold=(1.5)^7≈17.086.
-            // Tightest Half* boundary at t=1: V is the integer immediately above/below 1.5^7.
-            // V=17: 2^7·17 = 2176 vs 3^7 = 2187 (diff -11). ⁷√17 ≈ 1.4995.
-            ['17', 7, RoundingMode::Unnecessary, null],
-            ['17', 7, RoundingMode::Down, '1'],
-            ['17', 7, RoundingMode::Up, '2'],
-            ['17', 7, RoundingMode::HalfUp, '1'],
-
-            // V=18: 2^7·18 = 2304 vs 3^7 = 2187 (diff +117). ⁷√18 ≈ 1.5026.
-            ['18', 7, RoundingMode::Unnecessary, null],
-            ['18', 7, RoundingMode::Down, '1'],
-            ['18', 7, RoundingMode::Up, '2'],
-            ['18', 7, RoundingMode::HalfUp, '2'],
-
-            //   127: 127 > 17.086 → HalfUp=2.
-            ['127', 7, RoundingMode::Unnecessary, null],
-            ['127', 7, RoundingMode::Down, '1'],
-            ['127', 7, RoundingMode::Up, '2'],
-            ['127', 7, RoundingMode::HalfUp, '2'],
-
-            // Large perfect 7th power: 13^7 = 62748517.
-            ['62748517', 7, RoundingMode::Unnecessary, '13'],
-
-            // n = 100
-
-            // Input 2 → truncated 1, threshold=(1.5)^100 ≈ 4.07e17. 2 ≪ threshold → HalfUp=1.
-            ['2', 100, RoundingMode::Unnecessary, null],
-            ['2', 100, RoundingMode::Down, '1'],
-            ['2', 100, RoundingMode::Up, '2'],
-            ['2', 100, RoundingMode::HalfUp, '1'],
-
-            // 2^100 is exact.
-            ['1267650600228229401496703205376', 100, RoundingMode::Unnecessary, '2'],
-
-            // n = 1000
-
-            // 2^1000
-            ['10715086071862673209484250490600018105614048117055336074437503883703510511249361224931983788156958581275946729175531468251871452856923140435984577574698574803934567774824230985421074605062371141877954182153046474983581941267398767559165543946077062914571196477686542167660429831652624386837205668069376', 1000, RoundingMode::Unnecessary, '2'],
-
-            // 2^1000 + 1
-            ['10715086071862673209484250490600018105614048117055336074437503883703510511249361224931983788156958581275946729175531468251871452856923140435984577574698574803934567774824230985421074605062371141877954182153046474983581941267398767559165543946077062914571196477686542167660429831652624386837205668069377', 1000, RoundingMode::Unnecessary, null],
-            ['10715086071862673209484250490600018105614048117055336074437503883703510511249361224931983788156958581275946729175531468251871452856923140435984577574698574803934567774824230985421074605062371141877954182153046474983581941267398767559165543946077062914571196477686542167660429831652624386837205668069377', 1000, RoundingMode::Down, '2'],
-            ['10715086071862673209484250490600018105614048117055336074437503883703510511249361224931983788156958581275946729175531468251871452856923140435984577574698574803934567774824230985421074605062371141877954182153046474983581941267398767559165543946077062914571196477686542167660429831652624386837205668069377', 1000, RoundingMode::Up, '3'],
-            ['10715086071862673209484250490600018105614048117055336074437503883703510511249361224931983788156958581275946729175531468251871452856923140435984577574698574803934567774824230985421074605062371141877954182153046474983581941267398767559165543946077062914571196477686542167660429831652624386837205668069377', 1000, RoundingMode::HalfUp, '2'],
-
-            // 2^1000 - 1
-            ['10715086071862673209484250490600018105614048117055336074437503883703510511249361224931983788156958581275946729175531468251871452856923140435984577574698574803934567774824230985421074605062371141877954182153046474983581941267398767559165543946077062914571196477686542167660429831652624386837205668069375', 1000, RoundingMode::Unnecessary, null],
-            ['10715086071862673209484250490600018105614048117055336074437503883703510511249361224931983788156958581275946729175531468251871452856923140435984577574698574803934567774824230985421074605062371141877954182153046474983581941267398767559165543946077062914571196477686542167660429831652624386837205668069375', 1000, RoundingMode::Down, '1'],
-            ['10715086071862673209484250490600018105614048117055336074437503883703510511249361224931983788156958581275946729175531468251871452856923140435984577574698574803934567774824230985421074605062371141877954182153046474983581941267398767559165543946077062914571196477686542167660429831652624386837205668069375', 1000, RoundingMode::Up, '2'],
-            ['10715086071862673209484250490600018105614048117055336074437503883703510511249361224931983788156958581275946729175531468251871452856923140435984577574698574803934567774824230985421074605062371141877954182153046474983581941267398767559165543946077062914571196477686542167660429831652624386837205668069375', 1000, RoundingMode::HalfUp, '2'],
-
-            // n = 1001
-
-            // -(2^1001)
-            ['-21430172143725346418968500981200036211228096234110672148875007767407021022498722449863967576313917162551893458351062936503742905713846280871969155149397149607869135549648461970842149210124742283755908364306092949967163882534797535118331087892154125829142392955373084335320859663305248773674411336138752', 1001, RoundingMode::Unnecessary, '-2'],
-
-            // -(2^1001 + 1)
-            ['-21430172143725346418968500981200036211228096234110672148875007767407021022498722449863967576313917162551893458351062936503742905713846280871969155149397149607869135549648461970842149210124742283755908364306092949967163882534797535118331087892154125829142392955373084335320859663305248773674411336138753', 1001, RoundingMode::Unnecessary, null],
-            ['-21430172143725346418968500981200036211228096234110672148875007767407021022498722449863967576313917162551893458351062936503742905713846280871969155149397149607869135549648461970842149210124742283755908364306092949967163882534797535118331087892154125829142392955373084335320859663305248773674411336138753', 1001, RoundingMode::Down,        '-2'],
-            ['-21430172143725346418968500981200036211228096234110672148875007767407021022498722449863967576313917162551893458351062936503742905713846280871969155149397149607869135549648461970842149210124742283755908364306092949967163882534797535118331087892154125829142392955373084335320859663305248773674411336138753', 1001, RoundingMode::Up,          '-3'],
-            ['-21430172143725346418968500981200036211228096234110672148875007767407021022498722449863967576313917162551893458351062936503742905713846280871969155149397149607869135549648461970842149210124742283755908364306092949967163882534797535118331087892154125829142392955373084335320859663305248773674411336138753', 1001, RoundingMode::HalfUp,      '-2'],
-
-            // -(2^1001 - 1)
-            ['-21430172143725346418968500981200036211228096234110672148875007767407021022498722449863967576313917162551893458351062936503742905713846280871969155149397149607869135549648461970842149210124742283755908364306092949967163882534797535118331087892154125829142392955373084335320859663305248773674411336138751', 1001, RoundingMode::Unnecessary, null],
-            ['-21430172143725346418968500981200036211228096234110672148875007767407021022498722449863967576313917162551893458351062936503742905713846280871969155149397149607869135549648461970842149210124742283755908364306092949967163882534797535118331087892154125829142392955373084335320859663305248773674411336138751', 1001, RoundingMode::Down,        '-1'],
-            ['-21430172143725346418968500981200036211228096234110672148875007767407021022498722449863967576313917162551893458351062936503742905713846280871969155149397149607869135549648461970842149210124742283755908364306092949967163882534797535118331087892154125829142392955373084335320859663305248773674411336138751', 1001, RoundingMode::Up,          '-2'],
-            ['-21430172143725346418968500981200036211228096234110672148875007767407021022498722449863967576313917162551893458351062936503742905713846280871969155149397149607869135549648461970842149210124742283755908364306092949967163882534797535118331087892154125829142392955373084335320859663305248773674411336138751', 1001, RoundingMode::HalfUp,      '-2'],
-        ];
-
-        foreach ($tests as [$number, $n, $roundingMode, $expected]) {
-            yield [$number, $n, $roundingMode, $expected];
-
-            // For integer nth root, a midpoint tie is impossible, so HalfUp can expand to every
-            // other Half* mode. Unnecessary expands to every mode for exact rows only (where
-            // every mode returns the same exact value); non-exact rows ($expected === null)
-            // skip the expansion because only Unnecessary itself throws.
-            $eqs = match ($roundingMode) {
-                RoundingMode::Unnecessary => $expected === null ? [] : self::ALL_ROUNDING_MODES_BUT_UNNECESSARY,
-                RoundingMode::Up => ($number[0] === '-') ? [RoundingMode::Floor] : [RoundingMode::Ceiling],
-                RoundingMode::Down => ($number[0] === '-') ? [RoundingMode::Ceiling] : [RoundingMode::Floor],
-                RoundingMode::HalfUp => [
-                    RoundingMode::HalfDown,
-                    RoundingMode::HalfCeiling,
-                    RoundingMode::HalfFloor,
-                    RoundingMode::HalfEven,
-                    RoundingMode::HalfOdd,
-                ],
-                default => [],
-            };
-
-            foreach ($eqs as $eq) {
-                yield [$number, $n, $eq, $expected];
-            }
-        }
-    }
-
     /**
-     * Replays the entire providerSqrt dataset at n=2, verifying that nthRoot(2) matches sqrt()
-     * semantics across every case sqrt is tested on. Any future addition to providerSqrt
-     * automatically extends nthRoot(2) coverage too.
-     */
-    public static function providerNthRootFromSqrt(): Generator
-    {
-        foreach (self::providerSqrt() as [$number, $roundingMode, $expected]) {
-            yield [$number, 2, $roundingMode, $expected];
-        }
-    }
-
-    public function testNthRootOfNegativeNumberWithEvenDegree(): void
-    {
-        $number = BigInteger::of(-8);
-        $this->expectException(NegativeNumberException::class);
-        $this->expectExceptionMessageExact('Cannot take an even nth root of a negative number.');
-
-        $number->nthRoot(2);
-    }
-
-    public function testNthRootOfNegativeNumberWithLargeEvenDegree(): void
-    {
-        $number = BigInteger::of(-1);
-        $this->expectException(NegativeNumberException::class);
-        $this->expectExceptionMessageExact('Cannot take an even nth root of a negative number.');
-
-        $number->nthRoot(100);
-    }
-
-    public function testNthRootWithZeroDegree(): void
-    {
-        $number = BigInteger::of(8);
-        $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessageExact('The degree of an nth root must be a positive integer.');
-
-        $number->nthRoot(0);
-    }
-
-    public function testNthRootWithNegativeDegree(): void
-    {
-        $number = BigInteger::of(8);
-        $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessageExact('The degree of an nth root must be a positive integer.');
-
-        $number->nthRoot(-3);
-    }
-
-    /**
+     * @dataProvider providerAbs
+     *
      * @param string $number   The number as a string.
      * @param string $expected The expected absolute result.
      */
-    #[DataProvider('providerAbs')]
-    public function testAbs(string $number, string $expected): void
+    public function testAbs(string $number, string $expected) : void
     {
         self::assertBigIntegerEquals($expected, BigInteger::of($number)->abs());
     }
 
-    public static function providerAbs(): array
+    public function providerAbs() : array
     {
         return [
             ['0', '0'],
@@ -3719,16 +2009,17 @@ class BigIntegerTest extends AbstractTestCase
     }
 
     /**
+     * @dataProvider providerNegated
+     *
      * @param string $number   The number to negate as a string.
      * @param string $expected The expected negated result.
      */
-    #[DataProvider('providerNegated')]
-    public function testNegated(string $number, string $expected): void
+    public function testNegated(string $number, string $expected) : void
     {
         self::assertBigIntegerEquals($expected, BigInteger::of($number)->negated());
     }
 
-    public static function providerNegated(): array
+    public function providerNegated() : array
     {
         return [
             ['0', '0'],
@@ -3738,17 +2029,18 @@ class BigIntegerTest extends AbstractTestCase
     }
 
     /**
+     * @dataProvider providerOr
+     *
      * @param string $a The base number as a string.
      * @param string $b The second operand as a string.
      * @param string $c The expected result.
      */
-    #[DataProvider('providerOr')]
-    public function testOr(string $a, string $b, string $c): void
+    public function testOr(string $a, string $b, string $c) : void
     {
         self::assertBigIntegerEquals($c, BigInteger::of($a)->or($b));
     }
 
-    public static function providerOr(): array
+    public function providerOr() : array
     {
         return [
             ['-1', '-2', '-1'],
@@ -3809,17 +2101,18 @@ class BigIntegerTest extends AbstractTestCase
     }
 
     /**
+     * @dataProvider providerAnd
+     *
      * @param string $a The base number as a string.
      * @param string $b The second operand as a string.
      * @param string $c The expected result.
      */
-    #[DataProvider('providerAnd')]
-    public function testAnd(string $a, string $b, string $c): void
+    public function testAnd(string $a, string $b, string $c) : void
     {
         self::assertBigIntegerEquals($c, BigInteger::of($a)->and($b));
     }
 
-    public static function providerAnd(): array
+    public function providerAnd() : array
     {
         return [
             ['-1', '-2', '-2'],
@@ -3885,17 +2178,18 @@ class BigIntegerTest extends AbstractTestCase
     }
 
     /**
+     * @dataProvider providerXor
+     *
      * @param string $a The base number as a string.
      * @param string $b The second operand as a string.
      * @param string $c The expected result.
      */
-    #[DataProvider('providerXor')]
-    public function testXor(string $a, string $b, string $c): void
+    public function testXor(string $a, string $b, string $c) : void
     {
         self::assertBigIntegerEquals($c, BigInteger::of($a)->xor($b));
     }
 
-    public static function providerXor(): array
+    public function providerXor() : array
     {
         return [
             ['-1', '-2', '1'],
@@ -3957,13 +2251,15 @@ class BigIntegerTest extends AbstractTestCase
         ];
     }
 
-    #[DataProvider('providerNot')]
-    public function testNot(string $number, string $expected): void
+    /**
+     * @dataProvider providerNot
+     */
+    public function testNot(string $number, string $expected) : void
     {
         self::assertBigIntegerEquals($expected, BigInteger::of($number)->not());
     }
 
-    public static function providerNot(): array
+    public function providerNot() : array
     {
         return [
             ['-32769', '32768'],
@@ -3989,28 +2285,30 @@ class BigIntegerTest extends AbstractTestCase
     }
 
     /**
+     * @dataProvider providerShiftedLeft
+     *
      * @param string $a The base number as a string.
      * @param int    $b The distance to shift.
      * @param string $c The expected shifted result.
      */
-    #[DataProvider('providerShiftedLeft')]
-    public function testShiftedLeft(string $a, int $b, string $c): void
+    public function testShiftedLeft(string $a, int $b, string $c) : void
     {
         self::assertBigIntegerEquals($c, BigInteger::of($a)->shiftedLeft($b));
     }
 
     /**
+     * @dataProvider providerShiftedLeft
+     *
      * @param string $a The base number as a string.
      * @param int    $b The distance to shift, negated.
      * @param string $c The expected shifted result.
      */
-    #[DataProvider('providerShiftedLeft')]
-    public function testShiftedRight(string $a, int $b, string $c): void
+    public function testShiftedRight(string $a, int $b, string $c) : void
     {
-        self::assertBigIntegerEquals($c, BigInteger::of($a)->shiftedRight(-$b));
+        self::assertBigIntegerEquals($c, BigInteger::of($a)->shiftedRight(- $b));
     }
 
-    public static function providerShiftedLeft(): array
+    public function providerShiftedLeft() : array
     {
         return [
             ['-1', 1, '-2'],
@@ -4156,16 +2454,17 @@ class BigIntegerTest extends AbstractTestCase
     }
 
     /**
+     * @dataProvider providerGetBitLength
+     *
      * @param string $number    The number to test.
      * @param int    $bitLength The expected bit length.
      */
-    #[DataProvider('providerGetBitLength')]
-    public function testGetBitLength(string $number, int $bitLength): void
+    public function testGetBitLength(string $number, int $bitLength) : void
     {
         self::assertSame($bitLength, BigInteger::of($number)->getBitLength());
     }
 
-    public static function providerGetBitLength(): array
+    public function providerGetBitLength() : array
     {
         return [
             ['-10141204801825835211973625643009', 104],
@@ -4232,16 +2531,17 @@ class BigIntegerTest extends AbstractTestCase
     }
 
     /**
-     * @param string   $number       The number to test.
-     * @param int|null $lowestSetBit The expected lowest set bit.
+     * @dataProvider providerGetLowestSetBit
+     *
+     * @param string $number       The number to test.
+     * @param int    $lowestSetBit The expected lowest set bit.
      */
-    #[DataProvider('providerGetLowestSetBit')]
-    public function testGetLowestSetBit(string $number, ?int $lowestSetBit): void
+    public function testGetLowestSetBit(string $number, int $lowestSetBit) : void
     {
         self::assertSame($lowestSetBit, BigInteger::of($number)->getLowestSetBit());
     }
 
-    public static function providerGetLowestSetBit(): array
+    public function providerGetLowestSetBit() : array
     {
         return [
             ['-10', 1],
@@ -4254,7 +2554,7 @@ class BigIntegerTest extends AbstractTestCase
             ['-3', 0],
             ['-2', 1],
             ['-1', 0],
-            ['0', null],
+            ['0', -1],
             ['1', 0],
             ['2', 1],
             ['3', 0],
@@ -4277,17 +2577,61 @@ class BigIntegerTest extends AbstractTestCase
     }
 
     /**
+     * @dataProvider providerIsOdd
+     *
+     * @param string $number The number to test.
+     * @param bool   $isOdd  Whether the number is even.
+     */
+    public function testIsEven(string $number, bool $isOdd) : void
+    {
+        self::assertSame(! $isOdd, BigInteger::of($number)->isEven());
+    }
+
+    /**
+     * @dataProvider providerIsOdd
+     *
+     * @param string $number The number to test.
+     * @param bool   $isOdd  Whether the number is even.
+     */
+    public function testIsOdd(string $number, bool $isOdd) : void
+    {
+        self::assertSame($isOdd, BigInteger::of($number)->isOdd());
+    }
+
+    public function providerIsOdd() : \Generator
+    {
+        $tests = [
+            ['123456789012345678900', false],
+            ['123456789012345678901', true],
+            ['123456789012345678902', false],
+            ['123456789012345678903', true],
+            ['123456789012345678904', false],
+            ['123456789012345678905', true],
+            ['123456789012345678906', false],
+            ['123456789012345678907', true],
+            ['123456789012345678908', false],
+            ['123456789012345678909', true],
+        ];
+
+        foreach ($tests as [$number, $isOdd]) {
+            yield [$number, $isOdd];
+            yield ['-' . $number, $isOdd];
+        }
+    }
+
+    /**
+     * @dataProvider providerTestBit
+     *
      * @param BigInteger $number   The number in base 2.
      * @param int        $n        The bit to test.
      * @param bool       $expected The expected result.
      */
-    #[DataProvider('providerIsBitSet')]
-    public function testIsBitSet(BigInteger $number, int $n, bool $expected): void
+    public function testTestBit(BigInteger $number, int $n, bool $expected) : void
     {
-        self::assertSame($expected, $number->isBitSet($n));
+        self::assertSame($expected, $number->testBit($n));
     }
 
-    public static function providerIsBitSet(): Generator
+    public function providerTestBit() : \Generator
     {
         $base2BitsSetTests = [
             ['0', []],
@@ -4340,64 +2684,26 @@ class BigIntegerTest extends AbstractTestCase
         }
     }
 
-    public function testIsBitSetWithNegativeBitThrowsException(): void
+    public function testTestNegativeBitThrowsException() : void
     {
         $number = BigInteger::one();
 
-        $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessageExact('The bit index must not be negative.');
-
-        $number->isBitSet(-1);
+        $this->expectException(\InvalidArgumentException::class);
+        $number->testBit(-1);
     }
 
     /**
-     * @param string $number The number to test.
-     * @param bool   $isOdd  Whether the number is even.
+     * @dataProvider providerModInverse
      */
-    #[DataProvider('providerIsOdd')]
-    public function testIsEven(string $number, bool $isOdd): void
+    public function testModInverse(string $x, string $m, string $expectedResult) : void
     {
-        self::assertSame(! $isOdd, BigInteger::of($number)->isEven());
+        $x = BigInteger::of($x);
+        $m = BigInteger::of($m);
+
+        self::assertSame($expectedResult, (string) $x->modInverse($m));
     }
 
-    /**
-     * @param string $number The number to test.
-     * @param bool   $isOdd  Whether the number is even.
-     */
-    #[DataProvider('providerIsOdd')]
-    public function testIsOdd(string $number, bool $isOdd): void
-    {
-        self::assertSame($isOdd, BigInteger::of($number)->isOdd());
-    }
-
-    public static function providerIsOdd(): Generator
-    {
-        $tests = [
-            ['123456789012345678900', false],
-            ['123456789012345678901', true],
-            ['123456789012345678902', false],
-            ['123456789012345678903', true],
-            ['123456789012345678904', false],
-            ['123456789012345678905', true],
-            ['123456789012345678906', false],
-            ['123456789012345678907', true],
-            ['123456789012345678908', false],
-            ['123456789012345678909', true],
-        ];
-
-        foreach ($tests as [$number, $isOdd]) {
-            yield [$number, $isOdd];
-            yield ['-' . $number, $isOdd];
-        }
-    }
-
-    #[DataProvider('providerModInverse')]
-    public function testModInverse(string $x, BigNumber|int|string $m, string $expectedResult): void
-    {
-        self::assertBigIntegerEquals($expectedResult, BigInteger::of($x)->modInverse($m));
-    }
-
-    public static function providerModInverse(): array
+    public function providerModInverse() : array
     {
         return [
             ['1', '1', '0'],
@@ -4414,109 +2720,108 @@ class BigIntegerTest extends AbstractTestCase
             ['590295810358705600000', '137', '128'],
             ['18506109802501380149367860917982816833935316655779336003703143134999470532428', '115792089237316195423570985008687907853269984665640564039457584007908834671663', '95929095851002583825372225918533539673793386278360575987103577151530201707061'],
             ['-18506109802501380149367860917982816833935316655779336003703143134999470532428', '115792089237316195423570985008687907853269984665640564039457584007908834671663', '19862993386313611598198759090154368179476598387279988052354006856378632964602'],
-            ['3', 7, '5'],
-            ['3', 11, '4'],
-            ['3', BigInteger::of(17), '6'],
         ];
     }
 
-    #[DataProvider('providerModInverseThrows')]
-    public function testModInverseThrows(string $x, string $m, string $expectedException): void
+    /**
+     * @dataProvider providerModInverseThrows
+     */
+    public function testModInverseThrows(string $x, string $m, string $expectedException) : void
     {
         $x = BigInteger::of($x);
         $m = BigInteger::of($m);
 
         $this->expectException($expectedException);
-        $this->expectExceptionMessageExact(match ($expectedException) {
-            DivisionByZeroException::class => 'The modulus must not be zero.',
-            InvalidArgumentException::class => 'The modulus must not be negative.',
-            NoInverseException::class => 'This number has no multiplicative inverse modulo the given modulus (they are not coprime).',
-        });
-
         $x->modInverse($m);
     }
 
-    public static function providerModInverseThrows(): array
+    public function providerModInverseThrows() : array
     {
         return [
             ['0', '0', DivisionByZeroException::class],
             ['1', '0', DivisionByZeroException::class],
-            ['-1234567890', '-19', InvalidArgumentException::class],
-            ['0', '1000000001', NoInverseException::class],
-            ['2', '4', NoInverseException::class],
-            ['99', '9', NoInverseException::class],
-            ['19', '1000000001', NoInverseException::class],
-            ['123456789012345678901234567890', '123456789012345678901234567899', NoInverseException::class],
+            ['-1234567890', '-19', NegativeNumberException::class],
+            ['0', '1000000001', MathException::class],
+            ['2', '4', MathException::class],
+            ['99', '9', MathException::class],
+            ['19', '1000000001', MathException::class],
+            ['123456789012345678901234567890', '123456789012345678901234567899', MathException::class],
         ];
     }
 
     /**
+     * @dataProvider providerCompareTo
+     *
      * @param string $a The base number as a string.
      * @param string $b The number to compare to as a string.
      * @param int    $c The expected comparison result.
      */
-    #[DataProvider('providerCompareTo')]
-    public function testCompareTo(string $a, string $b, int $c): void
+    public function testCompareTo(string $a, string $b, int $c) : void
     {
         self::assertSame($c, BigInteger::of($a)->compareTo($b));
     }
 
     /**
+     * @dataProvider providerCompareTo
+     *
      * @param string $a The base number as a string.
      * @param string $b The number to compare to as a string.
      * @param int    $c The comparison result.
      */
-    #[DataProvider('providerCompareTo')]
-    public function testIsEqualTo(string $a, string $b, int $c): void
+    public function testIsEqualTo(string $a, string $b, int $c) : void
     {
         self::assertSame($c === 0, BigInteger::of($a)->isEqualTo($b));
     }
 
     /**
+     * @dataProvider providerCompareTo
+     *
      * @param string $a The base number as a string.
      * @param string $b The number to compare to as a string.
      * @param int    $c The comparison result.
      */
-    #[DataProvider('providerCompareTo')]
-    public function testIsLessThan(string $a, string $b, int $c): void
+    public function testIsLessThan(string $a, string $b, int $c) : void
     {
         self::assertSame($c < 0, BigInteger::of($a)->isLessThan($b));
     }
 
     /**
+     * @dataProvider providerCompareTo
+     *
      * @param string $a The base number as a string.
      * @param string $b The number to compare to as a string.
      * @param int    $c The comparison result.
      */
-    #[DataProvider('providerCompareTo')]
-    public function testIsLessThanOrEqualTo(string $a, string $b, int $c): void
+    public function testIsLessThanOrEqualTo(string $a, string $b, int $c) : void
     {
         self::assertSame($c <= 0, BigInteger::of($a)->isLessThanOrEqualTo($b));
     }
 
     /**
+     * @dataProvider providerCompareTo
+     *
      * @param string $a The base number as a string.
      * @param string $b The number to compare to as a string.
      * @param int    $c The comparison result.
      */
-    #[DataProvider('providerCompareTo')]
-    public function testIsGreaterThan(string $a, string $b, int $c): void
+    public function testIsGreaterThan(string $a, string $b, int $c) : void
     {
         self::assertSame($c > 0, BigInteger::of($a)->isGreaterThan($b));
     }
 
     /**
+     * @dataProvider providerCompareTo
+     *
      * @param string $a The base number as a string.
      * @param string $b The number to compare to as a string.
      * @param int    $c The comparison result.
      */
-    #[DataProvider('providerCompareTo')]
-    public function testIsGreaterThanOrEqualTo(string $a, string $b, int $c): void
+    public function testIsGreaterThanOrEqualTo(string $a, string $b, int $c) : void
     {
         self::assertSame($c >= 0, BigInteger::of($a)->isGreaterThanOrEqualTo($b));
     }
 
-    public static function providerCompareTo(): array
+    public function providerCompareTo() : array
     {
         return [
             ['123', '123',  0],
@@ -4526,11 +2831,11 @@ class BigIntegerTest extends AbstractTestCase
 
             ['-123', '-123',  0],
             ['-123',  '456', -1],
-            ['456', '-123',  1],
-            ['456',  '456',  0],
+            [ '456', '-123',  1],
+            [ '456',  '456',  0],
 
-            ['123',  '123',  0],
-            ['123', '-456',  1],
+            [ '123',  '123',  0],
+            [ '123', '-456',  1],
             ['-456',  '123', -1],
             ['-456',  '456', -1],
 
@@ -4539,15 +2844,15 @@ class BigIntegerTest extends AbstractTestCase
             ['-456', '-123', -1],
             ['-456', '-456',  0],
 
-            ['9999999999999999999999999',  '11111111111111111111111111111111111111111111', -1],
-            ['9999999999999999999999999', '-11111111111111111111111111111111111111111111',  1],
+            [ '9999999999999999999999999',  '11111111111111111111111111111111111111111111', -1],
+            [ '9999999999999999999999999', '-11111111111111111111111111111111111111111111',  1],
             ['-9999999999999999999999999',  '11111111111111111111111111111111111111111111', -1],
             ['-9999999999999999999999999', '-11111111111111111111111111111111111111111111',  1],
 
-            ['11111111111111111111111111111111111111111111', '9999999999999999999999999',  1],
-            ['11111111111111111111111111111111111111111111', '-9999999999999999999999999', 1],
+            [ '11111111111111111111111111111111111111111111', '9999999999999999999999999',  1],
+            [ '11111111111111111111111111111111111111111111', '-9999999999999999999999999', 1],
             ['-11111111111111111111111111111111111111111111', '9999999999999999999999999', -1],
-            ['-11111111111111111111111111111111111111111111', '-9999999999999999999999999', -1],
+            ['-11111111111111111111111111111111111111111111','-9999999999999999999999999', -1],
 
             ['123', '123.000000000000000000000000000000000000000000000000000000001', -1],
             ['123', '123.000000000000000000000000000000000000000000000000000000000', 0],
@@ -4560,88 +2865,100 @@ class BigIntegerTest extends AbstractTestCase
     }
 
     /**
+     * @dataProvider providerSign
+     *
      * @param int|string $number The number to test.
      * @param int        $sign   The sign of the number.
      */
-    #[DataProvider('providerSign')]
-    public function testGetSign(int|string $number, int $sign): void
+    public function testGetSign($number, int $sign) : void
     {
         self::assertSame($sign, BigInteger::of($number)->getSign());
     }
 
     /**
+     * @dataProvider providerSign
+     *
      * @param int|string $number The number to test.
      * @param int        $sign   The sign of the number.
      */
-    #[DataProvider('providerSign')]
-    public function testIsZero(int|string $number, int $sign): void
+    public function testIsZero($number, int $sign) : void
     {
         self::assertSame($sign === 0, BigInteger::of($number)->isZero());
     }
 
     /**
+     * @dataProvider providerSign
+     *
      * @param int|string $number The number to test.
      * @param int        $sign   The sign of the number.
      */
-    #[DataProvider('providerSign')]
-    public function testIsNegative(int|string $number, int $sign): void
+    public function testIsNegative($number, int $sign) : void
     {
         self::assertSame($sign < 0, BigInteger::of($number)->isNegative());
     }
 
     /**
+     * @dataProvider providerSign
+     *
      * @param int|string $number The number to test.
      * @param int        $sign   The sign of the number.
      */
-    #[DataProvider('providerSign')]
-    public function testIsNegativeOrZero(int|string $number, int $sign): void
+    public function testIsNegativeOrZero($number, int $sign) : void
     {
         self::assertSame($sign <= 0, BigInteger::of($number)->isNegativeOrZero());
     }
 
     /**
+     * @dataProvider providerSign
+     *
      * @param int|string $number The number to test.
      * @param int        $sign   The sign of the number.
      */
-    #[DataProvider('providerSign')]
-    public function testIsPositive(int|string $number, int $sign): void
+    public function testIsPositive($number, int $sign) : void
     {
         self::assertSame($sign > 0, BigInteger::of($number)->isPositive());
     }
 
     /**
+     * @dataProvider providerSign
+     *
      * @param int|string $number The number to test.
      * @param int        $sign   The sign of the number.
      */
-    #[DataProvider('providerSign')]
-    public function testIsPositiveOrZero(int|string $number, int $sign): void
+    public function testIsPositiveOrZero($number, int $sign) : void
     {
         self::assertSame($sign >= 0, BigInteger::of($number)->isPositiveOrZero());
     }
 
-    public static function providerSign(): array
+    public function providerSign() : array
     {
         return [
-            [0,  0],
+            [ 0,  0],
             [-0,  0],
-            [1,  1],
+            [ 1,  1],
             [-1, -1],
 
             [PHP_INT_MAX, 1],
             [PHP_INT_MIN, -1],
 
-            ['1000000000000000000000000000000000000000000000000000000000000000000000000000000000', 1],
-            ['-1000000000000000000000000000000000000000000000000000000000000000000000000000000000', -1],
+            [ '1000000000000000000000000000000000000000000000000000000000000000000000000000000000', 1],
+            ['-1000000000000000000000000000000000000000000000000000000000000000000000000000000000', -1]
         ];
     }
 
-    #[DataProvider('providerToScale')]
-    public function testToScale(string $number, int $scale, string $expected): void
+    /**
+     * @dataProvider providerToScale
+     *
+     * @param string $number
+     * @param int    $scale
+     * @param string $expected
+     */
+    public function testToScale(string $number, int $scale, string $expected) : void
     {
         self::assertBigDecimalEquals($expected, BigInteger::of($number)->toScale($scale));
     }
 
-    public static function providerToScale(): array
+    public function providerToScale() : array
     {
         return [
             ['12345678901234567890123456789', 0, '12345678901234567890123456789'],
@@ -4650,23 +2967,15 @@ class BigIntegerTest extends AbstractTestCase
         ];
     }
 
-    public function testToScaleWithNegativeScale(): void
-    {
-        $number = BigInteger::one();
-
-        $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessageExact('The scale must not be negative.');
-
-        $number->toScale(-1);
-    }
-
-    #[DataProvider('providerToInt')]
-    public function testToInt(int $number): void
+    /**
+     * @dataProvider providerToInt
+     */
+    public function testToInt(int $number) : void
     {
         self::assertSame($number, BigInteger::of((string) $number)->toInt());
     }
 
-    public static function providerToInt(): array
+    public function providerToInt() : array
     {
         return [
             [PHP_INT_MIN],
@@ -4675,41 +2984,34 @@ class BigIntegerTest extends AbstractTestCase
             [0],
             [1],
             [123456789],
-            [PHP_INT_MAX],
+            [PHP_INT_MAX]
         ];
     }
 
-    public function testToIntNegativeOverflowThrowsException(): void
+    public function testToIntNegativeOverflowThrowsException() : void
     {
-        $number = BigInteger::of(PHP_INT_MIN)->minus(1);
-
         $this->expectException(IntegerOverflowException::class);
-        $this->expectExceptionMessageMatches('/^\-[0-9]+ is out of range \[\-[0-9]+, [0-9]+\] and cannot be represented as an integer\.$/');
-
-        $number->toInt();
+        BigInteger::of(PHP_INT_MIN)->minus(1)->toInt();
     }
 
-    public function testToIntPositiveOverflowThrowsException(): void
+    public function testToIntPositiveOverflowThrowsException() : void
     {
-        $number = BigInteger::of(PHP_INT_MAX)->plus(1);
-
         $this->expectException(IntegerOverflowException::class);
-        $this->expectExceptionMessageMatches('/^[0-9]+ is out of range \[\-[0-9]+, [0-9]+\] and cannot be represented as an integer\.$/');
-
-        $number->toInt();
+        BigInteger::of(PHP_INT_MAX)->plus(1)->toInt();
     }
 
     /**
+     * @dataProvider providerToFloat
+     *
      * @param string $value The big integer value.
      * @param float  $float The expected float value.
      */
-    #[DataProvider('providerToFloat')]
-    public function testToFloat(string $value, float $float): void
+    public function testToFloat(string $value, float $float) : void
     {
         self::assertSame($float, BigInteger::of($value)->toFloat());
     }
 
-    public static function providerToFloat(): array
+    public function providerToFloat() : array
     {
         return [
             ['0', 0.0],
@@ -4723,17 +3025,18 @@ class BigIntegerTest extends AbstractTestCase
     }
 
     /**
+     * @dataProvider providerToBase
+     *
      * @param string $number   The number to convert, in base 10.
      * @param int    $base     The base to convert the number to.
      * @param string $expected The expected result.
      */
-    #[DataProvider('providerToBase')]
-    public function testToBase(string $number, int $base, string $expected): void
+    public function testToBase(string $number, int $base, string $expected) : void
     {
         self::assertSame($expected, BigInteger::of($number)->toBase($base));
     }
 
-    public static function providerToBase(): Generator
+    public function providerToBase() : \Generator
     {
         $tests = [
             ['640998479760579495168036691627608949', 36, '110011001100110011001111'],
@@ -4824,39 +3127,39 @@ class BigIntegerTest extends AbstractTestCase
         }
     }
 
-    #[DataProvider('providerToInvalidBaseThrowsException')]
-    public function testToInvalidBaseThrowsException(int $base): void
+    /**
+     * @dataProvider providerToInvalidBaseThrowsException
+     */
+    public function testToInvalidBaseThrowsException(int $base) : void
     {
-        $zero = BigInteger::zero();
-
-        $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessageExact(sprintf('Base %d is out of range [2, 36].', $base));
-
-        $zero->toBase($base);
+        $this->expectException(\InvalidArgumentException::class);
+        BigInteger::of(0)->toBase($base);
     }
 
-    public static function providerToInvalidBaseThrowsException(): array
+    public function providerToInvalidBaseThrowsException() : array
     {
         return [
             [-2],
             [-1],
             [0],
             [1],
-            [37],
+            [37]
         ];
     }
 
-    #[DataProvider('providerFromArbitraryBase')]
-    public function testFromArbitraryBase(string $base10, string $alphabet, string $baseN): void
+    /**
+     * @dataProvider providerFromArbitraryBase
+     */
+    public function testFromArbitraryBase(string $base10, string $alphabet, string $baseN) : void
     {
         $number = BigInteger::fromArbitraryBase($baseN, $alphabet);
 
         self::assertBigIntegerEquals($base10, $number);
     }
 
-    public static function providerFromArbitraryBase(): Generator
+    public function providerFromArbitraryBase() : \Generator
     {
-        foreach (self::providerArbitraryBase() as [$base10, $alphabet, $baseN]) {
+        foreach ($this->providerArbitraryBase() as [$base10, $alphabet, $baseN]) {
             yield [$base10, $alphabet, $baseN];
 
             // test with a number of leading "zeros"
@@ -4865,8 +3168,10 @@ class BigIntegerTest extends AbstractTestCase
         }
     }
 
-    #[DataProvider('providerArbitraryBase')]
-    public function testToArbitraryBase(string $base10, string $alphabet, string $baseN): void
+    /**
+     * @dataProvider providerArbitraryBase
+     */
+    public function testToArbitraryBase(string $base10, string $alphabet, string $baseN) : void
     {
         $base10 = BigInteger::of($base10);
         $actual = $base10->toArbitraryBase($alphabet);
@@ -4874,11 +3179,11 @@ class BigIntegerTest extends AbstractTestCase
         self::assertSame($baseN, $actual);
     }
 
-    public static function providerArbitraryBase(): array
+    public function providerArbitraryBase() : array
     {
-        $base7 = '0123456';
-        $base8 = '01234567';
-        $base9 = '012345678';
+        $base7  = '0123456';
+        $base8  = '01234567';
+        $base9  = '012345678';
         $base10 = '0123456789';
         $base11 = '0123456789A';
         $base12 = '0123456789AB';
@@ -4949,109 +3254,87 @@ class BigIntegerTest extends AbstractTestCase
         ];
     }
 
-    #[DataProvider('providerArbitraryBaseWithInvalidAlphabet')]
-    public function testFromArbitraryBaseWithInvalidAlphabet(string $alphabet): void
+    /**
+     * @dataProvider providerArbitraryBaseWithInvalidAlphabet
+     */
+    public function testFromArbitraryBaseWithInvalidAlphabet(string $alphabet) : void
     {
-        $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessageExact('The alphabet must contain at least 2 characters.');
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('The alphabet must contain at least 2 chars.');
 
         BigInteger::fromArbitraryBase('0', $alphabet);
     }
 
-    #[DataProvider('providerFromArbitraryBaseWithInvalidNumber')]
-    public function testFromArbitraryBaseWithInvalidNumber(string $number, string $alphabet, string $expectedMessage): void
+    /**
+     * @dataProvider providerFromArbitraryBaseWithInvalidNumber
+     */
+    public function testFromArbitraryBaseWithInvalidNumber(string $number, string $alphabet, string $expectedMessage) : void
     {
         $this->expectException(NumberFormatException::class);
-        $this->expectExceptionMessageExact($expectedMessage);
+        $this->expectExceptionMessage($expectedMessage);
 
         BigInteger::fromArbitraryBase($number, $alphabet);
     }
 
-    public static function providerFromArbitraryBaseWithInvalidNumber(): array
+    public function providerFromArbitraryBaseWithInvalidNumber() : array
     {
         return [
-            ['', '01', 'The number must not be empty.'],
-            ['X', '01', 'Character "X" is not valid in the given alphabet.'],
-            ['1', 'XY', 'Character "1" is not valid in the given alphabet.'],
-            [' ', 'XY', 'Character " " is not valid in the given alphabet.'],
+            ['', '01', 'The number cannot be empty.'],
+            ['X', '01', 'Char "X" is not a valid character in the given alphabet.'],
+            ['1', 'XY', 'Char "1" is not a valid character in the given alphabet.'],
+            [' ', 'XY', 'Char " " is not a valid character in the given alphabet.'],
 
-            ["\x00", '01', 'Character 0x00 is not valid in the given alphabet.'],
-            ["\x0A", '01', 'Character 0x0A is not valid in the given alphabet.'],
-            ["\x1F", '01', 'Character 0x1F is not valid in the given alphabet.'],
-            ["\x7F", '01', 'Character 0x7F is not valid in the given alphabet.'],
-            ["\x80", '01', 'Character 0x80 is not valid in the given alphabet.'],
-            ["\xFF", '01', 'Character 0xFF is not valid in the given alphabet.'],
+            ["\x00", '01', 'Char 00 is not a valid character in the given alphabet.'],
+            ["\x1F", '01', 'Char 1F is not a valid character in the given alphabet.'],
+            ["\x7F", '01', 'Char 7F is not a valid character in the given alphabet.'],
+            ["\x80", '01', 'Char 80 is not a valid character in the given alphabet.'],
+            ["\xFF", '01', 'Char FF is not a valid character in the given alphabet.'],
         ];
     }
 
-    #[DataProvider('providerArbitraryBaseWithInvalidAlphabet')]
-    public function testToArbitraryBaseWithInvalidAlphabet(string $alphabet): void
+    /**
+     * @dataProvider providerArbitraryBaseWithInvalidAlphabet
+     */
+    public function testToArbitraryBaseWithInvalidAlphabet(string $alphabet) : void
     {
         $number = BigInteger::of(123);
 
-        $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessageExact('The alphabet must contain at least 2 characters.');
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('The alphabet must contain at least 2 chars.');
 
         $number->toArbitraryBase($alphabet);
     }
 
-    public static function providerArbitraryBaseWithInvalidAlphabet(): array
+    public function providerArbitraryBaseWithInvalidAlphabet() : array
     {
         return [
             [''],
-            ['0'],
+            ['0']
         ];
     }
 
-    #[DataProvider('providerArbitraryBaseWithDuplicateChars')]
-    public function testFromArbitraryBaseWithDuplicateCharsInAlphabet(string $alphabet): void
-    {
-        $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessageExact('The alphabet must not contain duplicate characters.');
-
-        BigInteger::fromArbitraryBase('0', $alphabet);
-    }
-
-    #[DataProvider('providerArbitraryBaseWithDuplicateChars')]
-    public function testToArbitraryBaseWithDuplicateCharsInAlphabet(string $alphabet): void
-    {
-        $number = BigInteger::of(123);
-
-        $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessageExact('The alphabet must not contain duplicate characters.');
-
-        $number->toArbitraryBase($alphabet);
-    }
-
-    public static function providerArbitraryBaseWithDuplicateChars(): array
-    {
-        return [
-            ['001'],
-            ['abcdea'],
-            ['XYX'],
-        ];
-    }
-
-    public function testToArbitraryBaseOnNegativeNumber(): void
+    public function testToArbitraryBaseOnNegativeNumber() : void
     {
         $number = BigInteger::of(-123);
 
         $this->expectException(NegativeNumberException::class);
-        $this->expectExceptionMessageExact('Cannot convert a negative number to an arbitrary base.');
+        $this->expectExceptionMessage('toArbitraryBase() does not support negative numbers.');
 
         $number->toArbitraryBase('01');
     }
 
-    #[DataProvider('providerFromBytes')]
-    public function testFromBytes(string $byteStringHex, bool $signed, string $expectedNumber): void
+    /**
+     * @dataProvider providerFromBytes
+     */
+    public function testFromBytes(string $byteStringHex, bool $signed, string $expectedNumber) : void
     {
         $number = BigInteger::fromBytes(hex2bin($byteStringHex), $signed);
-        self::assertBigIntegerEquals($expectedNumber, $number);
+        self::assertSame($expectedNumber, (string) $number);
     }
 
-    public static function providerFromBytes(): Generator
+    public function providerFromBytes() : Generator
     {
-        foreach (self::providerToBytes() as [$expectedNumber, $signed, $byteStringHex]) {
+        foreach ($this->providerToBytes() as [$expectedNumber, $signed, $byteStringHex]) {
             yield [$byteStringHex, $signed, $expectedNumber];
 
             // test with extra leading bits: these should return the same number
@@ -5060,22 +3343,22 @@ class BigIntegerTest extends AbstractTestCase
         }
     }
 
-    public function testFromBytesWithEmptyString(): void
+    public function testFromBytesWithEmptyString() : void
     {
         $this->expectException(NumberFormatException::class);
-        $this->expectExceptionMessageExact('The byte string must not be empty.');
-
         BigInteger::fromBytes('');
     }
 
-    #[DataProvider('providerToBytes')]
-    public function testToBytes(string $number, bool $signed, string $expectedByteStringHex): void
+    /**
+     * @dataProvider providerToBytes
+     */
+    public function testToBytes(string $number, bool $signed, string $expectedByteStringHex) : void
     {
         $byteString = BigInteger::of($number)->toBytes($signed);
         self::assertSame($expectedByteStringHex, strtoupper(bin2hex($byteString)));
     }
 
-    public static function providerToBytes(): array
+    public function providerToBytes() : array
     {
         return [
             ['-549755813889', true, 'FF7FFFFFFFFF'],
@@ -5263,26 +3546,26 @@ class BigIntegerTest extends AbstractTestCase
         ];
     }
 
-    public function testToBytesNotSignedWithNegativeNumber(): void
+    public function testToBytesNotSignedWithNegativeNumber() : void
     {
         $number = BigInteger::of(-1);
         $this->expectException(NegativeNumberException::class);
-        $this->expectExceptionMessageExact('Cannot convert a negative number to a byte string in unsigned mode.');
-
         $number->toBytes(false);
     }
 
-    #[DataProvider('providerRandomBits')]
-    public function testRandomBits(int $numBits, string $randomBytesHex, string $expectedNumber): void
+    /**
+     * @dataProvider providerRandomBits
+     */
+    public function testRandomBits(int $numBits, string $randomBytesHex, string $expectedNumber) : void
     {
-        $randomBytesGenerator = function (int $numBytes) use ($randomBytesHex): string {
+        $randomBytesGenerator = function(int $numBytes) use ($randomBytesHex) : string {
             $randomBytes = hex2bin($randomBytesHex);
             $randomBytesLength = strlen($randomBytes);
 
             if ($randomBytesLength !== $numBytes) {
                 self::fail(
                     "randomBits() was expected to request $randomBytesLength bytes, " .
-                    "but requested $numBytes bytes instead.",
+                    "but requested $numBytes bytes instead."
                 );
             }
 
@@ -5294,7 +3577,7 @@ class BigIntegerTest extends AbstractTestCase
         self::assertBigIntegerEquals($expectedNumber, $actualNumber);
     }
 
-    public static function providerRandomBits(): array
+    public function providerRandomBits() : array
     {
         return [
             [1, '00', '0'],
@@ -5327,63 +3610,34 @@ class BigIntegerTest extends AbstractTestCase
         ];
     }
 
-    public function testRandomBitsWithNegativeBitCount(): void
+    public function testRandomBitsWithNegativeBits() : void
     {
-        $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessageExact('The bit count must not be negative.');
-
+        $this->expectException(\InvalidArgumentException::class);
         BigInteger::randomBits(-1);
     }
 
-    public function testRandomBitsWithZeroBits(): void
+    public function testRandomBitsWithZeroBits() : void
     {
         $random = BigInteger::randomBits(0);
         self::assertBigIntegerEquals('0', $random);
     }
 
-    public function testRandomBitsWithGeneratorException(): void
-    {
-        $exception = new LogicException('RNG failed.');
-
-        try {
-            BigInteger::randomBits(8, fn () => throw $exception);
-            self::fail('RandomSourceException was not thrown as expected.');
-        } catch (RandomSourceException $e) {
-            self::assertSame('Random byte generation failed.', $e->getMessage());
-            self::assertSame($exception, $e->getPrevious());
-        }
-    }
-
-    public function testRandomBitsWithInvalidGeneratorReturnType(): void
-    {
-        $this->expectException(RandomSourceException::class);
-        $this->expectExceptionMessageExact('The random bytes generator must return a string, got int.');
-
-        BigInteger::randomBits(8, fn () => 123);
-    }
-
-    public function testRandomBitsWithInvalidGeneratorLength(): void
-    {
-        $this->expectException(RandomSourceException::class);
-        $this->expectExceptionMessageExact('The random bytes generator returned 0 byte(s), expected 1.');
-
-        BigInteger::randomBits(8, fn () => '');
-    }
-
-    #[DataProvider('providerRandomRange')]
-    public function testRandomRange(string $min, string $max, array $randomBytesHex, string $expectedNumber): void
+    /**
+     * @dataProvider providerRandomRange
+     */
+    public function testRandomRange(string $min, string $max, array $randomBytesHex, string $expectedNumber) : void
     {
         $randomBytesCounter = 0;
 
-        $failCounter = function () use ($randomBytesHex, &$randomBytesCounter): void {
+        $failCounter = function() use ($randomBytesHex, & $randomBytesCounter) {
             self::fail(sprintf(
                 'randomRange() was expected to request random bytes %d time(s), but requested %d time(s) instead.',
                 count($randomBytesHex),
-                $randomBytesCounter,
+                $randomBytesCounter
             ));
         };
 
-        $randomBytesGenerator = function (int $numBytes) use ($randomBytesHex, $failCounter, &$randomBytesCounter) {
+        $randomBytesGenerator = function(int $numBytes) use ($randomBytesHex, $failCounter, & $randomBytesCounter) {
             if (! isset($randomBytesHex[$randomBytesCounter])) {
                 $randomBytesCounter++;
                 $failCounter();
@@ -5395,7 +3649,7 @@ class BigIntegerTest extends AbstractTestCase
             if ($randomBytesLength !== $numBytes) {
                 self::fail(
                     "randomRange() was expected to request $randomBytesLength bytes, " .
-                    "but requested $numBytes bytes instead.",
+                    "but requested $numBytes bytes instead."
                 );
             }
 
@@ -5413,7 +3667,7 @@ class BigIntegerTest extends AbstractTestCase
         self::assertBigIntegerEquals($expectedNumber, $actualNumber);
     }
 
-    public static function providerRandomRange(): array
+    public function providerRandomRange() : array
     {
         return [
             ['0', '1', ['00'], '0'],
@@ -5449,123 +3703,40 @@ class BigIntegerTest extends AbstractTestCase
         ];
     }
 
-    public function testRandomRangeWithMinGreaterThanMax(): void
+    public function testRandomRangeWithMinGreaterThanMax() : void
     {
-        $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessageExact('The minimum value must be less than or equal to the maximum value.');
-
+        $this->expectException(MathException::class);
         BigInteger::randomRange(3, 2);
     }
 
-    public function testRandomRangeWithSingleValue(): void
+    public function testRandomRangeWithSingleValue() : void
     {
         $value = '123456789123456789123456789123456789';
         $random = BigInteger::randomRange($value, $value);
         self::assertBigIntegerEquals($value, $random);
     }
 
-    public function testRandomRangeWithGeneratorException(): void
-    {
-        $exception = new LogicException('RNG failed.');
-
-        try {
-            BigInteger::randomRange(0, 1, fn () => throw $exception);
-            self::fail('RandomSourceException was not thrown as expected.');
-        } catch (RandomSourceException $e) {
-            self::assertSame('Random byte generation failed.', $e->getMessage());
-            self::assertSame($exception, $e->getPrevious());
-        }
-    }
-
-    public function testRandomRangeWithInvalidGeneratorReturnType(): void
-    {
-        $this->expectException(RandomSourceException::class);
-        $this->expectExceptionMessageExact('The random bytes generator must return a string, got int.');
-
-        BigInteger::randomRange(0, 1, fn () => 123);
-    }
-
-    public function testRandomRangeWithInvalidGeneratorLength(): void
-    {
-        $this->expectException(RandomSourceException::class);
-        $this->expectExceptionMessageExact('The random bytes generator returned 0 byte(s), expected 1.');
-
-        BigInteger::randomRange(0, 1, fn () => '');
-    }
-
-    #[DataProvider('providerToString')]
-    public function testToString(int|string $value, string $expected): void
-    {
-        $bigInteger = BigInteger::of($value);
-        self::assertSame($expected, $bigInteger->toString());
-        self::assertSame($expected, (string) $bigInteger);
-    }
-
-    public static function providerToString(): array
-    {
-        return [
-            [-1, '-1'],
-            [0, '0'],
-            [1, '1'],
-            ['1e2', '100'],
-            ['-1e3', '-1000'],
-            ['7349837498278937849739739878293798239223', '7349837498278937849739739878293798239223'],
-            ['-7349837498278937849739739878293798239223', '-7349837498278937849739739878293798239223'],
-        ];
-    }
-
-    public function testSerialize(): void
+    public function testSerialize() : void
     {
         $value = '-1234567890987654321012345678909876543210123456789';
 
         $number = BigInteger::of($value);
 
-        self::assertBigIntegerEquals($value, unserialize(serialize($number)));
+        self::assertBigIntegerEquals($value, \unserialize(\serialize($number)));
     }
 
-    public function testDirectCallToUnserialize(): void
+    public function testDirectCallToUnserialize() : void
     {
-        $zero = BigInteger::zero();
-
-        $this->expectException(LogicException::class);
-        $this->expectExceptionMessageExact('__unserialize() is an internal function, it must not be called directly.');
-
-        $zero->__unserialize([]);
+        $this->expectException(\LogicException::class);
+        BigInteger::zero()->unserialize('123');
     }
 
-    public function testJsonSerialize(): void
+    public function testJsonSerialize() : void
     {
         $value = '-1234567890987654321012345678909876543210123456789';
 
         $number = BigInteger::of($value);
 
         self::assertSame($value, $number->jsonSerialize());
-    }
-
-    /**
-     * @param RoundingMode $roundingMode The rounding mode.
-     * @param BigInteger   $number       The number to round.
-     * @param string       $divisor      The divisor.
-     * @param string|null  $ten          The expected result of the division by 10 times the divisor, or null if an exception is expected.
-     * @param string|null  $hundred      The expected result of the division by 100 times the divisor, or null if an exception is expected.
-     * @param string|null  $thousand     The expected result of the division by 1000 times the divisor, or null if an exception is expected.
-     */
-    private function doTestDividedByWithRoundingMode(RoundingMode $roundingMode, BigInteger $number, string $divisor, ?string $ten, ?string $hundred, ?string $thousand): void
-    {
-        foreach ([$ten, $hundred, $thousand] as $expected) {
-            $divisor .= '0';
-
-            if ($expected === null) {
-                try {
-                    $number->dividedBy($divisor, $roundingMode);
-                    self::fail(sprintf('Dividing %s by %s should throw a RoundingNecessaryException.', $number, $divisor));
-                } catch (RoundingNecessaryException $e) {
-                    self::assertSame('The division has a non-zero remainder and cannot be represented as an integer without rounding.', $e->getMessage());
-                }
-            } else {
-                $actual = $number->dividedBy($divisor, $roundingMode);
-                self::assertBigIntegerEquals($expected, $actual);
-            }
-        }
     }
 }
