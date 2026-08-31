@@ -7,6 +7,18 @@
 
 declare(strict_types=1);
 
+// ---------------------------------------------------------------------
+// Fuso horário do PHP - ALTERE se o servidor não estiver no Brasil.
+// Sem isso, o PHP usa o fuso horário padrão configurado no php.ini do
+// servidor (no XAMPP, geralmente "Europe/Berlin" por padrão!), o que
+// deixa TODO horário calculado pelo sistema errado por várias horas —
+// data/hora de manutenções registradas, "dias parado" dos chamados,
+// alerta de troca de toner, "gerado em" da ficha de impressão, etc.
+// Datas que vêm prontas do banco de dados (ex.: quando um chamado foi
+// criado) não são afetadas por isso, só as calculadas pelo PHP na hora.
+// ---------------------------------------------------------------------
+date_default_timezone_set('America/Sao_Paulo');
+
 // Carrega as bibliotecas de terceiros (Composer) — hoje só a lib de envio
 // de notificação push (minishlink/web-push). A pasta vendor/ já vem pronta
 // no repositório, não é necessário rodar "composer install".
