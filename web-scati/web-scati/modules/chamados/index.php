@@ -63,9 +63,9 @@ if ($filtroDiasParado !== '' && is_numeric($filtroDiasParado) && (int) $filtroDi
     $params['dias_parado'] = (int) $filtroDiasParado;
 }
 if ($filtroUrgentes) {
-    // Mesmo critério do cartão "Urgentes em Aberto": prioridade Alta/Urgente
+    // Mesmo critério do cartão "Urgentes em Aberto": prioridade Urgente
     // (a aba já garante que está em aberto).
-    $sql .= " AND c.prioridade IN ('Alta', 'Urgente')";
+    $sql .= " AND c.prioridade = 'Urgente'";
 }
 if ($souSolicitante) {
     // O perfil Solicitante só enxerga os chamados que ele mesmo abriu.
@@ -114,7 +114,7 @@ $kpiAndamento = (int) ($totalPorStatus['Em andamento'] ?? 0);
 $kpiAguardando = (int) ($totalPorStatus['Aguardando'] ?? 0);
 
 $stmtUrgentes = $pdo->prepare(
-    "SELECT COUNT(*) FROM chamados WHERE prioridade IN ('Alta', 'Urgente') AND status NOT IN ('Concluído', 'Cancelado')"
+    "SELECT COUNT(*) FROM chamados WHERE prioridade = 'Urgente' AND status NOT IN ('Concluído', 'Cancelado')"
     . ($souSolicitante ? ' AND criado_por_id = :meu_id' : '')
 );
 $stmtUrgentes->execute($paramsMeus);
