@@ -328,6 +328,15 @@ a.scati-kpi-card-link .scati-kpi-card.kpi-ativo {
 .scati-porta-dot-inativa { background: #4a2530; border: 2px solid #a83f52; }
 
 /* =====================================================
+   Tela de Senhas: valor mascarado por padrão, fonte
+   monoespaçada para a senha ficar fácil de ler/conferir.
+   ===================================================== */
+.senha-mono {
+    font-family: "Courier New", monospace;
+    letter-spacing: 1px;
+}
+
+/* =====================================================
    Impressão / exportação em PDF: exibe apenas o conteúdo
    principal da página, sem navbar, menu lateral ou ações.
    ===================================================== */

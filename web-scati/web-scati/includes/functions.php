@@ -827,6 +827,26 @@ function perfilUsuarioBadgeClass(string $perfil): string
 }
 
 /**
+ * Lista fixa das categorias aceitas no cadastro de Senhas (tela Senhas).
+ */
+function categoriasSenha(): array
+{
+    return ['Rede', 'Servidor', 'Sistema', 'Wi-Fi', 'Licença', 'Outro'];
+}
+
+function categoriaSenhaBadgeClass(string $categoria): string
+{
+    return match ($categoria) {
+        'Rede'      => 'bg-primary',
+        'Servidor'  => 'bg-dark',
+        'Sistema'   => 'bg-success',
+        'Wi-Fi'     => 'bg-info text-dark',
+        'Licença'   => 'bg-warning text-dark',
+        default     => 'bg-secondary',
+    };
+}
+
+/**
  * Conta em quantos chamados existe uma "novidade" ainda não vista pelo
  * usuário informado: ou uma resposta de outra pessoa, ou o próprio chamado
  * (uma solicitação nova que ele nunca abriu). Usado para o sininho de

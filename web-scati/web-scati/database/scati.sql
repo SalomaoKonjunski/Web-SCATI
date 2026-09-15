@@ -579,6 +579,26 @@ CREATE TABLE chamado_observacoes (
 CREATE INDEX idx_obs_chamado ON chamado_observacoes(chamado_id, usuario_id);
 
 -- ---------------------------------------------------------------------
+-- Tabela: senhas
+-- Cofre simples de credenciais de TI (roteadores, servidores, sistemas,
+-- Wi-Fi, licenças, etc.), acessível só a Administrador e perfil Padrão.
+-- A senha é sempre guardada cifrada (AES-256-CBC, ver criptografar() /
+-- descriptografar() em includes/functions.php), nunca em texto puro.
+-- ---------------------------------------------------------------------
+CREATE TABLE senhas (
+    id              INT AUTO_INCREMENT PRIMARY KEY,
+    nome            VARCHAR(120) NOT NULL,
+    categoria       VARCHAR(30)  NOT NULL,
+    usuario         VARCHAR(120) NULL,
+    senha_cifrada   TEXT         NOT NULL,
+    observacoes     TEXT         NULL,
+    criado_por      VARCHAR(50)  NULL,
+    atualizado_por  VARCHAR(50)  NULL,
+    criado_em       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    atualizado_em   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+-- ---------------------------------------------------------------------
 -- Índices auxiliares para pesquisa (seção 13 da documentação)
 -- ---------------------------------------------------------------------
 CREATE INDEX idx_equip_hostname   ON equipamentos(hostname);

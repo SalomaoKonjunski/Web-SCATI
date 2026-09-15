@@ -523,4 +523,71 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         });
     }
+
+    // Tela de Senhas (listagem): cada senha vem mascarada por padrão; o
+    // valor real já está no data-senha do próprio elemento (a máscara é só
+    // visual), então mostrar/ocultar e copiar não precisam de ida ao
+    // servidor.
+    document.querySelectorAll('.js-toggle-senha').forEach(function (botao) {
+        botao.addEventListener('click', function () {
+            const campo = botao.closest('.senha-campo');
+            const valorEl = campo.querySelector('.senha-valor');
+            const icone = botao.querySelector('i');
+            const revelado = valorEl.dataset.revelado === '1';
+            if (revelado) {
+                valorEl.textContent = '••••••••••';
+                valorEl.dataset.revelado = '0';
+                icone.classList.replace('bi-eye-slash', 'bi-eye');
+                botao.title = 'Mostrar';
+            } else {
+                valorEl.textContent = valorEl.dataset.senha;
+                valorEl.dataset.revelado = '1';
+                icone.classList.replace('bi-eye', 'bi-eye-slash');
+                botao.title = 'Ocultar';
+            }
+        });
+    });
+
+    document.querySelectorAll('.js-copiar-senha').forEach(function (botao) {
+        botao.addEventListener('click', function () {
+            const campo = botao.closest('.senha-campo');
+            const valorEl = campo.querySelector('.senha-valor');
+            navigator.clipboard.writeText(valorEl.dataset.senha || '').then(function () {
+                const icone = botao.querySelector('i');
+                icone.classList.replace('bi-clipboard', 'bi-clipboard-check');
+                setTimeout(function () { icone.classList.replace('bi-clipboard-check', 'bi-clipboard'); }, 1200);
+            }).catch(function () {
+                // navegador sem permissão/suporte para clipboard - sem erro visível
+            });
+        });
+    });
+
+    // Tela de Senhas (formulário): mostrar/ocultar e copiar o valor digitado.
+    const campoSenhaForm = document.querySelector('.js-senha-input');
+    if (campoSenhaForm) {
+        const botaoToggleForm = document.querySelector('.js-toggle-senha-form');
+        const botaoCopiarForm = document.querySelector('.js-copiar-senha-form');
+
+        if (botaoToggleForm) {
+            botaoToggleForm.addEventListener('click', function () {
+                const oculto = campoSenhaForm.type === 'password';
+                campoSenhaForm.type = oculto ? 'text' : 'password';
+                const icone = botaoToggleForm.querySelector('i');
+                icone.classList.toggle('bi-eye', !oculto);
+                icone.classList.toggle('bi-eye-slash', oculto);
+            });
+        }
+
+        if (botaoCopiarForm) {
+            botaoCopiarForm.addEventListener('click', function () {
+                navigator.clipboard.writeText(campoSenhaForm.value || '').then(function () {
+                    const icone = botaoCopiarForm.querySelector('i');
+                    icone.classList.replace('bi-clipboard', 'bi-clipboard-check');
+                    setTimeout(function () { icone.classList.replace('bi-clipboard-check', 'bi-clipboard'); }, 1200);
+                }).catch(function () {
+                    // navegador sem permissão/suporte para clipboard - sem erro visível
+                });
+            });
+        }
+    }
 });

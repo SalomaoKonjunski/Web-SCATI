@@ -272,6 +272,12 @@ Funcional (v1.0).
    mysql --default-character-set=utf8mb4 -u root -p scati < database/migration_portas_switch.sql
    ```
 
+   Se o banco já existia antes da tela **Senhas** (ainda não tem a tabela
+   `senhas`), rode também esta migração incremental **uma única vez**:
+   ```bash
+   mysql --default-character-set=utf8mb4 -u root -p scati < database/migration_senhas.sql
+   ```
+
    > Importante: ao importar qualquer um dos arquivos `.sql` deste projeto,
    > garanta que o cliente MySQL use UTF-8 (ex.: `mysql --default-character-set=utf8mb4 -u root -p < arquivo.sql`),
    > caso contrário os valores acentuados dos campos `ENUM` (como "Disponível")
@@ -558,6 +564,13 @@ web-scati/
   (campo "Quantidade de Portas"); reduzir a quantidade não apaga os
   vínculos das portas além do novo limite, elas só ficam ocultas até a
   quantidade ser aumentada de novo.
+- **Senhas**: cofre simples de credenciais de TI (roteador, servidor,
+  sistema, Wi-Fi, licença, etc.) — nome/serviço, categoria, usuário,
+  senha e observações. A senha fica sempre cifrada no banco (AES-256-CBC,
+  mesma chave `ENCRYPTION_KEY` já usada para a senha de email corporativo
+  em Usuários — nunca em texto puro) e aparece mascarada por padrão na
+  tela, com botões para mostrar ou copiar. Acesso restrito a
+  Administrador e perfil Padrão; o perfil Usuário não vê essa aba.
 - **Interface responsiva** com Bootstrap 5, menu lateral recolhível em
   telas pequenas.
 - **Configurações**: tela central (menu lateral) com vários ajustes do
