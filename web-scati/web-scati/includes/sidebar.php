@@ -56,11 +56,6 @@ $totalChamadosNaoLidos = contarChamadosNaoLidos((int) $usuarioAtualSidebar['id']
             </a>
         </li>
         <li class="nav-item">
-            <a class="nav-link <?= isActive('/modules/senhas/', $currentPath) ?>" href="<?= BASE_URL ?>/modules/senhas/index.php">
-                <i class="bi bi-shield-lock"></i> Senhas
-            </a>
-        </li>
-        <li class="nav-item">
             <a class="nav-link <?= isActive('/modules/relatorios/', $currentPath) ?>" href="<?= BASE_URL ?>/modules/relatorios/index.php">
                 <i class="bi bi-bar-chart-line"></i> Relatórios
             </a>
@@ -77,6 +72,11 @@ $totalChamadosNaoLidos = contarChamadosNaoLidos((int) $usuarioAtualSidebar['id']
         </li>
         <?php endif; ?>
         <?php if ((usuarioLogado()['admin'] ?? false)): ?>
+        <li class="nav-item">
+            <a class="nav-link <?= isActive('/modules/senhas/', $currentPath) ?>" href="<?= BASE_URL ?>/modules/senhas/index.php">
+                <i class="bi bi-shield-lock"></i> Senhas
+            </a>
+        </li>
         <li class="nav-item">
             <a class="nav-link <?= isActive('/modules/usuarios/', $currentPath) ?>" href="<?= BASE_URL ?>/modules/usuarios/index.php">
                 <i class="bi bi-people"></i> Usuários

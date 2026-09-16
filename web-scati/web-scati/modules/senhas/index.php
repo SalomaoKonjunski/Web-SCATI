@@ -3,7 +3,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../includes/functions.php';
 require_once __DIR__ . '/../../includes/auth.php';
-exigirNaoSolicitante();
+exigirAdmin();
 
 $pdo = db();
 $pageTitle = 'Senhas';
@@ -112,6 +112,6 @@ include __DIR__ . '/../../includes/header.php';
         </table>
     </div>
 </div>
-<p class="text-muted small mt-2"><i class="bi bi-info-circle"></i> Só Administrador e perfil Padrão têm acesso a esta tela.</p>
+<p class="text-muted small mt-2"><i class="bi bi-info-circle"></i> Só o perfil Administrador tem acesso a esta tela.</p>
 
 <?php include __DIR__ . '/../../includes/footer.php'; ?>

@@ -570,7 +570,7 @@ web-scati/
   mesma chave `ENCRYPTION_KEY` já usada para a senha de email corporativo
   em Usuários — nunca em texto puro) e aparece mascarada por padrão na
   tela, com botões para mostrar ou copiar. Acesso restrito a
-  Administrador e perfil Padrão; o perfil Usuário não vê essa aba.
+  só o perfil Administrador; Padrão e Usuário não veem essa aba.
 - **Interface responsiva** com Bootstrap 5, menu lateral recolhível em
   telas pequenas.
 - **Configurações**: tela central (menu lateral) com vários ajustes do
