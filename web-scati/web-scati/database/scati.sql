@@ -439,6 +439,7 @@ CREATE TABLE notas (
     usuario_id      INT          NOT NULL,
     titulo          VARCHAR(150) NOT NULL,
     conteudo        TEXT         NULL,
+    ordem           INT          NOT NULL DEFAULT 0,
     criado_em       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     atualizado_em   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 

@@ -590,4 +590,51 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         }
     }
+
+    // Bloco de Notas: arrastar e soltar os cartões para escolher a ordem.
+    // Ao soltar, envia a ordem atual de todos os cartões da grade para o
+    // servidor salvar (só grava as notas que realmente pertencem ao
+    // usuário logado — validado em reordenar.php).
+    const notasGrid = document.getElementById('notasGrid');
+    if (notasGrid) {
+        let cartaoArrastado = null;
+
+        notasGrid.querySelectorAll('.js-nota-card').forEach(function (cartao) {
+            cartao.addEventListener('dragstart', function () {
+                cartaoArrastado = cartao;
+                cartao.classList.add('nota-arrastando');
+            });
+            cartao.addEventListener('dragend', function () {
+                cartao.classList.remove('nota-arrastando');
+            });
+            cartao.addEventListener('dragover', function (e) {
+                e.preventDefault();
+                if (!cartaoArrastado || cartaoArrastado === cartao) return;
+                const meio = cartao.getBoundingClientRect().top + cartao.offsetHeight / 2;
+                if (e.clientY > meio) {
+                    cartao.after(cartaoArrastado);
+                } else {
+                    cartao.before(cartaoArrastado);
+                }
+            });
+            cartao.addEventListener('drop', function (e) {
+                e.preventDefault();
+            });
+        });
+
+        notasGrid.addEventListener('dragend', function () {
+            const ids = Array.from(notasGrid.querySelectorAll('.js-nota-card')).map(function (c) {
+                return c.dataset.id;
+            });
+            fetch(window.SCATI_BASE_URL + '/modules/notas/reordenar.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify({ ids: ids }),
+            }).catch(function () {
+                // falha de rede - a ordem visual já mudou, mas não foi salva;
+                // recarregar a página volta pra última ordem salva no servidor
+            });
+        });
+    }
 });

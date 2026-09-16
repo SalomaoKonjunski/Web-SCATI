@@ -337,6 +337,17 @@ a.scati-kpi-card-link .scati-kpi-card.kpi-ativo {
 }
 
 /* =====================================================
+   Bloco de Notas: cartões arrastáveis para reordenar.
+   ===================================================== */
+.js-nota-card .bi-grip-vertical {
+    cursor: grab;
+}
+
+.js-nota-card.nota-arrastando {
+    opacity: 0.4;
+}
+
+/* =====================================================
    Impressão / exportação em PDF: exibe apenas o conteúdo
    principal da página, sem navbar, menu lateral ou ações.
    ===================================================== */
