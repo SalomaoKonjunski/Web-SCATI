@@ -285,6 +285,13 @@ Funcional (v1.0).
    mysql --default-character-set=utf8mb4 -u root -p scati < database/migration_notas_ordem.sql
    ```
 
+   Se o banco já existia antes dos **anexos no Bloco de Notas** (ainda não
+   tem a tabela `anexos_notas`), rode também esta migração incremental
+   **uma única vez**:
+   ```bash
+   mysql --default-character-set=utf8mb4 -u root -p scati < database/migration_anexos_notas.sql
+   ```
+
    > Importante: ao importar qualquer um dos arquivos `.sql` deste projeto,
    > garanta que o cliente MySQL use UTF-8 (ex.: `mysql --default-character-set=utf8mb4 -u root -p < arquivo.sql`),
    > caso contrário os valores acentuados dos campos `ENUM` (como "Disponível")
@@ -547,7 +554,10 @@ web-scati/
   logado, então nem trocando o id na URL dá para acessar a nota de
   outra pessoa). A ordem dos cartões pode ser escolhida arrastando pelo
   ícone de "alça" no canto do cartão — fica salva por usuário e não muda
-  sozinha depois (nem editando o conteúdo da nota). Não aparece
+  sozinha depois (nem editando o conteúdo da nota). Cada nota aceita
+  arquivos anexados (PDF, Word, Excel, imagens, etc. — mesma lista de
+  extensões e limite de 10 MB dos anexos de Equipamentos), com download
+  também restrito ao dono da nota. Não aparece
   para o perfil Usuário, que só tem acesso à aba Chamados.
 - **App instalável (PWA) e notificações push**: o sistema pode ser
   "instalado" pelo navegador — Chrome/Edge no computador, Chrome no

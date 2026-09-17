@@ -58,6 +58,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $pageTitle = $edicao ? 'Editar Nota' : 'Nova Nota';
 
+// Anexos (só existem para notas já salvas)
+$anexos = [];
+if ($edicao) {
+    $stmtAnexos = $pdo->prepare('SELECT * FROM anexos_notas WHERE nota_id = :id ORDER BY criado_em DESC');
+    $stmtAnexos->execute(['id' => $id]);
+    $anexos = $stmtAnexos->fetchAll();
+}
+
 include __DIR__ . '/../../includes/header.php';
 ?>
 
@@ -90,5 +98,67 @@ include __DIR__ . '/../../includes/header.php';
         <a href="index.php" class="btn btn-outline-secondary">Cancelar</a>
     </div>
 </form>
+
+<?php if (!$edicao): ?>
+    <div class="card mb-5">
+        <div class="card-body">
+            <p class="text-muted mb-0">
+                <i class="bi bi-info-circle me-1"></i>
+                Salve a nota primeiro — depois disso, uma seção "Anexos" aparece aqui para
+                vincular arquivos (PDF, Word, Excel, etc.) a ela.
+            </p>
+        </div>
+    </div>
+<?php else: ?>
+    <div class="card mb-5" id="anexos">
+        <div class="card-header bg-white"><strong><i class="bi bi-paperclip me-1"></i> Anexos</strong></div>
+        <div class="card-body">
+            <form method="post" action="anexo_upload.php" enctype="multipart/form-data" class="mb-4">
+                <label class="form-label fw-semibold">+ Novo Anexo</label>
+                <input type="hidden" name="nota_id" value="<?= (int) $id ?>">
+                <div class="row g-2">
+                    <div class="col-md-9">
+                        <input type="file" name="arquivo" class="form-control" required>
+                    </div>
+                    <div class="col-md-3">
+                        <button type="submit" class="btn btn-primary w-100"><i class="bi bi-upload"></i> Enviar</button>
+                    </div>
+                </div>
+                <div class="form-text">
+                    Tamanho máximo 10 MB. Formatos aceitos: <?= e(implode(', ', extensoesAnexoPermitidas())) ?>.
+                </div>
+            </form>
+
+            <?php if (empty($anexos)): ?>
+                <p class="text-muted mb-0">Nenhum anexo vinculado a esta nota.</p>
+            <?php else: ?>
+                <table class="table table-sm table-hover mb-0">
+                    <thead class="table-light">
+                        <tr><th>Arquivo</th><th>Tamanho</th><th>Enviado em</th><th class="text-end">Ações</th></tr>
+                    </thead>
+                    <tbody>
+                    <?php foreach ($anexos as $anexo): ?>
+                        <?php $extensaoAnexo = pathinfo($anexo['nome_original'], PATHINFO_EXTENSION); ?>
+                        <tr>
+                            <td><i class="bi <?= iconeAnexo($extensaoAnexo) ?> me-1 text-muted"></i><?= e($anexo['nome_original']) ?></td>
+                            <td><?= formatBytes((int) $anexo['tamanho']) ?></td>
+                            <td><?= formatDateTime($anexo['criado_em']) ?></td>
+                            <td class="text-end">
+                                <a href="anexo_download.php?id=<?= (int) $anexo['id'] ?>" class="btn btn-sm btn-outline-primary" title="Baixar">
+                                    <i class="bi bi-download"></i>
+                                </a>
+                                <a href="anexo_excluir.php?id=<?= (int) $anexo['id'] ?>" class="btn btn-sm btn-outline-danger js-confirm-delete"
+                                   data-confirm-msg="Excluir o anexo &quot;<?= e($anexo['nome_original']) ?>&quot;? Esta ação não pode ser desfeita." title="Excluir">
+                                    <i class="bi bi-trash"></i>
+                                </a>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                    </tbody>
+                </table>
+            <?php endif; ?>
+        </div>
+    </div>
+<?php endif; ?>
 
 <?php include __DIR__ . '/../../includes/footer.php'; ?>

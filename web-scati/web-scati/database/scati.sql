@@ -447,6 +447,24 @@ CREATE TABLE notas (
 ) ENGINE=InnoDB;
 
 -- ---------------------------------------------------------------------
+-- Tabela: anexos_notas
+-- Arquivos (PDF, Word, Excel, imagens, etc.) vinculados a uma nota do
+-- Bloco de Notas. Mesmo mecanismo de upload dos anexos de Equipamentos.
+-- ---------------------------------------------------------------------
+CREATE TABLE anexos_notas (
+    id              INT AUTO_INCREMENT PRIMARY KEY,
+    nota_id         INT NOT NULL,
+    nome_original   VARCHAR(255) NOT NULL,
+    nome_arquivo    VARCHAR(255) NOT NULL,
+    tipo_mime       VARCHAR(100) NULL,
+    tamanho         INT NOT NULL,
+    criado_em       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_anexo_nota
+        FOREIGN KEY (nota_id) REFERENCES notas(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- ---------------------------------------------------------------------
 -- Tabela: push_subscriptions
 -- Uma linha por navegador/dispositivo em que o usuário ativou notificação
 -- push (o mesmo usuário pode ter várias — celular, computador do trabalho,

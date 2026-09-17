@@ -9,7 +9,14 @@ $pdo = db();
 $pageTitle = 'Bloco de Notas';
 $usuarioId = usuarioLogado()['id'];
 
-$stmt = $pdo->prepare('SELECT * FROM notas WHERE usuario_id = :usuario_id ORDER BY ordem ASC, atualizado_em DESC');
+$stmt = $pdo->prepare(
+    'SELECT n.*, COUNT(a.id) AS qtd_anexos
+     FROM notas n
+     LEFT JOIN anexos_notas a ON a.nota_id = n.id
+     WHERE n.usuario_id = :usuario_id
+     GROUP BY n.id
+     ORDER BY n.ordem ASC, n.atualizado_em DESC'
+);
 $stmt->execute(['usuario_id' => $usuarioId]);
 $notas = $stmt->fetchAll();
 
@@ -42,7 +49,14 @@ include __DIR__ . '/../../includes/header.php';
                             <i class="bi bi-grip-vertical text-muted flex-shrink-0" title="Arraste para reordenar"></i>
                         </div>
                         <p class="card-text text-muted small flex-grow-1 mt-2" style="white-space: pre-wrap; max-height: 130px; overflow: hidden;"><?= e($nota['conteudo'] ?? '') ?></p>
-                        <div class="text-muted small mb-2">Atualizado em <?= formatDateTime($nota['atualizado_em']) ?></div>
+                        <div class="text-muted small mb-2">
+                            Atualizado em <?= formatDateTime($nota['atualizado_em']) ?>
+                            <?php if ((int) $nota['qtd_anexos'] > 0): ?>
+                                <span class="badge bg-light text-dark border ms-1" title="Anexo(s) vinculado(s)">
+                                    <i class="bi bi-paperclip"></i> <?= (int) $nota['qtd_anexos'] ?>
+                                </span>
+                            <?php endif; ?>
+                        </div>
                         <div class="d-flex gap-2">
                             <a href="form.php?id=<?= (int) $nota['id'] ?>" class="btn btn-sm btn-outline-primary flex-grow-1"><i class="bi bi-pencil"></i> Editar</a>
                             <a href="delete.php?id=<?= (int) $nota['id'] ?>" class="btn btn-sm btn-outline-danger js-confirm-delete"
