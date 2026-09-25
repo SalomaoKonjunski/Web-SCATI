@@ -52,6 +52,8 @@ $fusoHorarioAtual = configGet('fuso_horario', 'America/Sao_Paulo');
 $totalCategorias = (int) $pdo->query('SELECT COUNT(*) FROM categorias_estoque')->fetchColumn();
 $totalCategoriasEquipamento = (int) $pdo->query('SELECT COUNT(*) FROM categorias_equipamento')->fetchColumn();
 $totalTiposManutencao = (int) $pdo->query('SELECT COUNT(*) FROM tipos_manutencao')->fetchColumn();
+$usuarioAtual = usuarioLogado();
+$totalCategoriasSenha = $usuarioAtual['admin'] ? (int) $pdo->query('SELECT COUNT(*) FROM categorias_senha')->fetchColumn() : 0;
 
 include __DIR__ . '/../../includes/header.php';
 ?>
@@ -114,6 +116,24 @@ include __DIR__ . '/../../includes/header.php';
             </div>
         </div>
     </div>
+
+    <?php if ($usuarioAtual['admin']): ?>
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-body d-flex flex-column">
+                <h5 class="card-title"><i class="bi bi-shield-lock me-1"></i> Categorias de Senhas</h5>
+                <p class="card-text text-muted">
+                    Cadastre, renomeie ou exclua as categorias usadas para classificar as senhas
+                    (Rede, Servidor, Sistema, Wi-Fi, Licença, etc.).
+                </p>
+                <p class="text-muted small mb-3"><?= $totalCategoriasSenha ?> categoria(s) cadastrada(s).</p>
+                <a href="../categorias_senha/index.php" class="btn btn-outline-primary mt-auto">
+                    <i class="bi bi-arrow-right"></i> Gerenciar Categorias
+                </a>
+            </div>
+        </div>
+    </div>
+    <?php endif; ?>
 
     <div class="col-md-6">
         <div class="card h-100">

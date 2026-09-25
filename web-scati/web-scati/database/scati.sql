@@ -598,9 +598,25 @@ CREATE TABLE chamado_observacoes (
 CREATE INDEX idx_obs_chamado ON chamado_observacoes(chamado_id, usuario_id);
 
 -- ---------------------------------------------------------------------
+-- Tabela: categorias_senha
+-- Categorias usadas no campo "Categoria" da tela Senhas (Rede, Servidor,
+-- Sistema, Wi-Fi, Licença, Outro pré-cadastradas, editável em
+-- Configurações > Categorias de Senhas). senhas.categoria guarda o nome
+-- como texto "ao vivo" (sem FK), igual equipamentos.tipo — renomear uma
+-- categoria aqui atualiza junto as senhas que já usavam o nome antigo.
+-- ---------------------------------------------------------------------
+CREATE TABLE categorias_senha (
+    id      INT AUTO_INCREMENT PRIMARY KEY,
+    nome    VARCHAR(30) NOT NULL UNIQUE
+) ENGINE=InnoDB;
+
+INSERT INTO categorias_senha (nome) VALUES
+('Rede'), ('Servidor'), ('Sistema'), ('Wi-Fi'), ('Licença'), ('Outro');
+
+-- ---------------------------------------------------------------------
 -- Tabela: senhas
 -- Cofre simples de credenciais de TI (roteadores, servidores, sistemas,
--- Wi-Fi, licenças, etc.), acessível só a Administrador e perfil Padrão.
+-- Wi-Fi, licenças, etc.), acessível só ao perfil Administrador.
 -- A senha é sempre guardada cifrada (AES-256-CBC, ver criptografar() /
 -- descriptografar() em includes/functions.php), nunca em texto puro.
 -- ---------------------------------------------------------------------

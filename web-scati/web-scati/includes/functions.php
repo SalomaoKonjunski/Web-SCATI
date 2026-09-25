@@ -827,11 +827,12 @@ function perfilUsuarioBadgeClass(string $perfil): string
 }
 
 /**
- * Lista fixa das categorias aceitas no cadastro de Senhas (tela Senhas).
+ * Categorias cadastradas em Configurações > Categorias de Senhas (tabela
+ * categorias_senha), usadas no campo "Categoria" do cadastro de Senhas.
  */
 function categoriasSenha(): array
 {
-    return ['Rede', 'Servidor', 'Sistema', 'Wi-Fi', 'Licença', 'Outro'];
+    return db()->query('SELECT nome FROM categorias_senha ORDER BY nome')->fetchAll(PDO::FETCH_COLUMN);
 }
 
 function categoriaSenhaBadgeClass(string $categoria): string

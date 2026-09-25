@@ -292,6 +292,13 @@ Funcional (v1.0).
    mysql --default-character-set=utf8mb4 -u root -p scati < database/migration_anexos_notas.sql
    ```
 
+   Se o banco já existia antes das **categorias editáveis de Senhas** (ainda
+   não tem a tabela `categorias_senha`), rode também esta migração
+   incremental **uma única vez**:
+   ```bash
+   mysql --default-character-set=utf8mb4 -u root -p scati < database/migration_categorias_senha.sql
+   ```
+
    > Importante: ao importar qualquer um dos arquivos `.sql` deste projeto,
    > garanta que o cliente MySQL use UTF-8 (ex.: `mysql --default-character-set=utf8mb4 -u root -p < arquivo.sql`),
    > caso contrário os valores acentuados dos campos `ENUM` (como "Disponível")
@@ -629,6 +636,13 @@ web-scati/
     registrar uma manutenção no histórico de um equipamento — antes era
     uma lista fixa no código. Excluir um tipo não afeta os registros já
     existentes no histórico.
+  - **Categorias de Senhas** *(visível só para Administrador)*: CRUD
+    completo das categorias usadas no campo "Categoria" do cadastro de
+    Senhas — antes era uma lista fixa no código (Rede, Servidor, Sistema,
+    Wi-Fi, Licença, Outro), que agora vem pré-cadastrada como ponto de
+    partida editável. Uma categoria com senhas cadastradas nela não pode
+    ser excluída; renomear uma categoria atualiza automaticamente a
+    categoria de todas as senhas que já usavam o nome antigo.
   - **Alerta de Licenças**: define com quantos dias de antecedência uma
     licença a vencer aparece na Central de Alertas do Dashboard (antes
     fixo em 30 dias).

@@ -11,7 +11,7 @@ $edicao = $id !== null;
 $usuarioAtual = usuarioLogado();
 
 $item = [
-    'nome' => '', 'categoria' => 'Rede', 'usuario' => '', 'senha' => '', 'observacoes' => '',
+    'nome' => '', 'categoria' => categoriasSenha()[0] ?? '', 'usuario' => '', 'senha' => '', 'observacoes' => '',
 ];
 
 if ($edicao) {
