@@ -16,19 +16,34 @@ if (file_exists($scatiAutoload)) {
 }
 
 // ---------------------------------------------------------------------
-// Dados de acesso ao MySQL - ALTERE conforme seu ambiente
+// Dados de acesso ao MySQL - ALTERE conforme seu ambiente (XAMPP local).
+//
+// Em hospedagens como o Render, em vez de editar os valores fixos abaixo,
+// defina as variáveis de ambiente correspondentes (DB_HOST, DB_PORT,
+// DB_NAME, DB_USER, DB_PASS, DB_SSL_CA, BASE_URL, ENCRYPTION_KEY,
+// VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT) no painel do
+// serviço — elas têm prioridade sobre os valores fixos aqui, que
+// continuam servindo de padrão para quem roda localmente via XAMPP sem
+// configurar nada.
 // ---------------------------------------------------------------------
-define('DB_HOST', 'localhost');
-define('DB_NAME', 'scati');
-define('DB_USER', 'root');
-define('DB_PASS', '');
+define('DB_HOST', getenv('DB_HOST') ?: 'localhost');
+define('DB_PORT', getenv('DB_PORT') ?: '3306');
+define('DB_NAME', getenv('DB_NAME') ?: 'scati');
+define('DB_USER', getenv('DB_USER') ?: 'root');
+define('DB_PASS', getenv('DB_PASS') ?: '');
 define('DB_CHARSET', 'utf8mb4');
+// Caminho de um certificado CA (.pem), exigido por alguns provedores de
+// MySQL externos (ex.: Aiven) que só aceitam conexão via SSL. Deixe sem
+// definir (padrão) quando o banco é local, como no XAMPP.
+define('DB_SSL_CA', getenv('DB_SSL_CA') ?: '');
 
 // ---------------------------------------------------------------------
 // URL base da aplicação - ALTERE para o caminho onde o sistema
 // está hospedado (sem barra no final). Ex: http://localhost/web-scati
+// Em hospedagens que servem o sistema na raiz do domínio (como o
+// Render), defina a variável de ambiente BASE_URL como uma string vazia.
 // ---------------------------------------------------------------------
-define('BASE_URL', '/web-scati');
+define('BASE_URL', getenv('BASE_URL') !== false ? getenv('BASE_URL') : '/web-scati');
 
 // ---------------------------------------------------------------------
 // Chave de criptografia - usada só para cifrar a senha de email
@@ -39,7 +54,7 @@ define('BASE_URL', '/web-scati');
 // Atenção: trocar a chave depois de já ter senhas de email salvas torna
 // essas senhas antigas ilegíveis (é preciso recadastrá-las).
 // ---------------------------------------------------------------------
-define('ENCRYPTION_KEY', hex2bin('79a5a63ff45630192437fbd0fafc62bba7de1632871773b1c086fe1f7d540c6f'));
+define('ENCRYPTION_KEY', hex2bin(getenv('ENCRYPTION_KEY') ?: '79a5a63ff45630192437fbd0fafc62bba7de1632871773b1c086fe1f7d540c6f'));
 
 // ---------------------------------------------------------------------
 // Chaves VAPID - identificam o servidor para os serviços de notificação
@@ -49,11 +64,11 @@ define('ENCRYPTION_KEY', hex2bin('79a5a63ff45630192437fbd0fafc62bba7de1632871773
 // Atenção: trocar as chaves invalida as inscrições de notificação já
 // feitas pelos usuários (cada um precisaria ativar de novo).
 // ---------------------------------------------------------------------
-define('VAPID_PUBLIC_KEY', 'BJ8wNDG2l9CHsX_Zv3wEklC3gGNUKMFoc997t5EAR6qXxrtPgd6yWkzlwELQUlRRgOP5guXT1QWlBg-cEwypCFg');
-define('VAPID_PRIVATE_KEY', 'ym_7jS6Y6Qfc3Y1iOpMHxhAW2hBEdkVca2ywWpHxY44');
+define('VAPID_PUBLIC_KEY', getenv('VAPID_PUBLIC_KEY') ?: 'BJ8wNDG2l9CHsX_Zv3wEklC3gGNUKMFoc997t5EAR6qXxrtPgd6yWkzlwELQUlRRgOP5guXT1QWlBg-cEwypCFg');
+define('VAPID_PRIVATE_KEY', getenv('VAPID_PRIVATE_KEY') ?: 'ym_7jS6Y6Qfc3Y1iOpMHxhAW2hBEdkVca2ywWpHxY44');
 // E-mail de contato exigido pelo padrão VAPID — os serviços de push podem
 // usá-lo para avisar o administrador do servidor em caso de abuso.
-define('VAPID_SUBJECT', 'mailto:admin@example.com');
+define('VAPID_SUBJECT', getenv('VAPID_SUBJECT') ?: 'mailto:admin@example.com');
 
 /**
  * Retorna uma conexão PDO única (padrão Singleton simples).
@@ -63,14 +78,19 @@ function db(): PDO
     static $pdo = null;
 
     if ($pdo === null) {
-        $dsn = 'mysql:host=' . DB_HOST . ';dbname=' . DB_NAME . ';charset=' . DB_CHARSET;
+        $dsn = 'mysql:host=' . DB_HOST . ';port=' . DB_PORT . ';dbname=' . DB_NAME . ';charset=' . DB_CHARSET;
+
+        $opcoes = [
+            PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            PDO::ATTR_EMULATE_PREPARES   => false,
+        ];
+        if (DB_SSL_CA !== '') {
+            $opcoes[PDO::MYSQL_ATTR_SSL_CA] = DB_SSL_CA;
+        }
 
         try {
-            $pdo = new PDO($dsn, DB_USER, DB_PASS, [
-                PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
-                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-                PDO::ATTR_EMULATE_PREPARES   => false,
-            ]);
+            $pdo = new PDO($dsn, DB_USER, DB_PASS, $opcoes);
         } catch (PDOException $e) {
             die('Erro ao conectar ao banco de dados: ' . htmlspecialchars($e->getMessage()));
         }

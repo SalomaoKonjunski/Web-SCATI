@@ -311,6 +311,13 @@ Funcional (v1.0).
      (ex.: `/web-scati` se acessado em `http://localhost/web-scati`,
      ou `''` se estiver na raiz do domínio)
 
+   > Em vez de editar o arquivo, também dá pra definir tudo isso (mais
+   > `DB_PORT`, `DB_SSL_CA`, `ENCRYPTION_KEY`, `VAPID_PUBLIC_KEY`,
+   > `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`) como **variáveis de ambiente**
+   > — elas têm prioridade sobre os valores do arquivo. É o jeito usado
+   > para publicar em hospedagens como o Render (veja a seção
+   > [Publicação no Render](#publicação-no-render-plano-grátis) abaixo).
+
 3. **Publicação**
    Copie a pasta `web-scati` inteira para o diretório público do seu
    servidor web (ex.: `htdocs`, `www`, `public_html`).
@@ -328,6 +335,84 @@ Funcional (v1.0).
    **Usuários** (menu lateral). Depois, comece cadastrando as **Redes** e
    **Categorias de Estoque** (já vêm pré-cadastradas) antes dos equipamentos,
    para poder vinculá-los.
+
+## Publicação no Render (plano grátis)
+
+O Render não roda PHP nativamente (precisa de Docker) nem oferece MySQL
+gerenciado de graça (só Postgres é gratuito lá), então a publicação usa
+duas peças: o site no Render (via `Dockerfile`, já incluso no projeto) e
+um banco MySQL gratuito em outro provedor (recomendado: **Aiven**, que
+tem um plano sempre-gratuito de 1 GB, sem cartão de crédito).
+
+> No plano grátis do Render o site "dorme" depois de 15 minutos sem
+> acesso (demora uns 30s pra acordar no acesso seguinte) e **não tem
+> disco persistente** — anexos enviados em Equipamentos e no Bloco de
+> Notas são perdidos a cada novo deploy ou reinício do serviço. Pra um
+> uso sério do dia a dia, considere migrar pro plano pago mais pra
+> frente.
+
+### 1. Criar o banco MySQL grátis no Aiven
+
+1. Crie uma conta em [aiven.io](https://aiven.io) (não pede cartão).
+2. Crie um serviço **MySQL**, plano **Free**, na região mais próxima.
+3. Quando o serviço ficar com status "Running", na página dele copie:
+   **Host**, **Port**, **User**, **Password** e baixe o **CA Certificate**
+   (arquivo `ca.pem`).
+4. Importe o banco (rode do seu computador, usando o `mysql.exe` que já
+   vem dentro do XAMPP, ajustando host/porta/usuário/senha e o caminho
+   do `ca.pem` baixado):
+   ```bash
+   "C:\xampp\mysql\bin\mysql.exe" --host=SEU-HOST --port=SUA-PORTA --user=SEU-USUARIO --password --ssl-ca="C:\caminho\para\ca.pem" < database\scati.sql
+   ```
+   O próprio script já cria o banco `scati` dentro do serviço Aiven — não
+   precisa criar nada manualmente antes.
+5. Guarde host, porta, usuário, senha e o arquivo `ca.pem` — vão ser
+   usados no passo 3.
+
+   > O plano grátis do Aiven desliga o banco sozinho depois de um tempo
+   > sem uso (ele avisa por e-mail antes). Se o sistema no Render parar
+   > de conectar no banco depois de dias parado, entre no painel do
+   > Aiven e clique em "Power on" no serviço.
+
+### 2. Colocar o código no GitHub
+
+O branch `claude/equipment-system-update-qmyr0j` já está publicado em
+`SalomaoKonjunski/Web-SCATI` — não precisa fazer nada extra aqui, é só
+apontar o Render pra esse repositório no próximo passo (ou mesclar o
+branch na `main`/`master` antes, se preferir publicar a partir dela).
+
+### 3. Criar o Web Service no Render
+
+1. Em [render.com](https://render.com), **New +** → **Web Service**.
+2. Conecte a conta do GitHub e selecione o repositório `Web-SCATI`.
+3. Preencha:
+   - **Root Directory**: `web-scati/web-scati` (é onde ficam o
+     `Dockerfile` e o resto do sistema dentro do repositório)
+   - **Runtime**: `Docker` (o Render detecta o `Dockerfile` sozinho)
+   - **Instance Type**: `Free`
+4. Em **Environment Variables**, adicione (uma por linha, "Add Environment Variable"):
+   | Chave | Valor |
+   |---|---|
+   | `DB_HOST` | host copiado do Aiven |
+   | `DB_PORT` | porta copiada do Aiven |
+   | `DB_NAME` | `scati` |
+   | `DB_USER` | usuário copiado do Aiven |
+   | `DB_PASS` | senha copiada do Aiven |
+   | `DB_SSL_CA` | `/etc/secrets/aiven-ca.pem` |
+   | `BASE_URL` | *(deixe o valor vazio)* |
+5. Ainda em **Advanced**, em **Secret Files**, adicione um arquivo com
+   **Filename** `/etc/secrets/aiven-ca.pem` e cole dentro o conteúdo do
+   `ca.pem` baixado do Aiven no passo anterior.
+6. Clique em **Create Web Service**. O primeiro build demora alguns
+   minutos — acompanhe em **Logs**.
+7. Quando aparecer "Live", acesse a URL `https://SEU-SERVICO.onrender.com`
+   e entre com o usuário padrão (**usuário:** `Salomao`, **senha:**
+   `scati2026`) — troque essa senha logo depois de entrar.
+
+   > Trocar `ENCRYPTION_KEY` e as chaves `VAPID_*` (mesmas variáveis de
+   > ambiente descritas no passo 2 da seção de instalação acima) antes
+   > de cadastrar senhas de email ou ativar notificações push em uso
+   > real, seguindo as instruções já comentadas em `config/database.php`.
 
 ## Estrutura do projeto
 
