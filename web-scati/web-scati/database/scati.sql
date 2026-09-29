@@ -414,7 +414,10 @@ CREATE TABLE compartilhamento_computadores (
 -- ---------------------------------------------------------------------
 CREATE TABLE tipos_manutencao (
     id      INT AUTO_INCREMENT PRIMARY KEY,
-    nome    VARCHAR(80) NOT NULL UNIQUE
+    nome    VARCHAR(80) NOT NULL UNIQUE,
+    -- Posição de exibição nos menus/listas (menor primeiro); tipos com o
+    -- mesmo valor caem no critério de desempate alfabético.
+    ordem   INT NOT NULL DEFAULT 0
 ) ENGINE=InnoDB;
 
 INSERT INTO tipos_manutencao (nome) VALUES

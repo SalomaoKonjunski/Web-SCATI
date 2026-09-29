@@ -308,6 +308,14 @@ Funcional (v1.0).
    mysql --default-character-set=utf8mb4 -u root -p scati < database/migration_ordem_categorias.sql
    ```
 
+   Se o banco já existia antes de dar pra **arrastar e reordenar os Tipos
+   de Manutenção** (ainda não tem a coluna `ordem` em
+   `tipos_manutencao`), rode também esta migração incremental **uma
+   única vez**:
+   ```bash
+   mysql --default-character-set=utf8mb4 -u root -p scati < database/migration_ordem_tipos_manutencao.sql
+   ```
+
    > Importante: ao importar qualquer um dos arquivos `.sql` deste projeto,
    > garanta que o cliente MySQL use UTF-8 (ex.: `mysql --default-character-set=utf8mb4 -u root -p < arquivo.sql`),
    > caso contrário os valores acentuados dos campos `ENUM` (como "Disponível")
@@ -733,7 +741,9 @@ web-scati/
   - **Tipos de Manutenção**: CRUD completo dos tipos disponíveis ao
     registrar uma manutenção no histórico de um equipamento — antes era
     uma lista fixa no código. Excluir um tipo não afeta os registros já
-    existentes no histórico.
+    existentes no histórico. Dá pra arrastar um tipo pelo ícone de
+    "alça" para escolher a ordem em que ele aparece nessa lista e no
+    dropdown "Tipo de manutenção" da ficha de Equipamentos.
   - **Categorias de Senhas** *(visível só para Administrador)*: CRUD
     completo das categorias usadas no campo "Categoria" do cadastro de
     Senhas — antes era uma lista fixa no código (Rede, Servidor, Sistema,

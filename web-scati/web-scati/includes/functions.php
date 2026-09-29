@@ -236,7 +236,7 @@ function statusServidorBadgeClass(?string $status): string
  */
 function tiposManutencao(): array
 {
-    return array_column(db()->query('SELECT nome FROM tipos_manutencao ORDER BY nome')->fetchAll(), 'nome');
+    return array_column(db()->query('SELECT nome FROM tipos_manutencao ORDER BY ordem ASC, nome ASC')->fetchAll(), 'nome');
 }
 
 /**

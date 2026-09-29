@@ -643,4 +643,5 @@ document.addEventListener('DOMContentLoaded', function () {
     iniciarArrastarParaReordenar(document.getElementById('categoriasEstoqueTabela'), '.js-categoria-linha', 'categoria-arrastando', '/modules/categorias_estoque/reordenar.php');
     iniciarArrastarParaReordenar(document.getElementById('categoriasEquipamentoTabela'), '.js-categoria-linha', 'categoria-arrastando', '/modules/categorias_equipamento/reordenar.php');
     iniciarArrastarParaReordenar(document.getElementById('categoriasSenhaTabela'), '.js-categoria-linha', 'categoria-arrastando', '/modules/categorias_senha/reordenar.php');
+    iniciarArrastarParaReordenar(document.getElementById('categoriasTiposManutencaoTabela'), '.js-categoria-linha', 'categoria-arrastando', '/modules/tipos_manutencao/reordenar.php');
 });

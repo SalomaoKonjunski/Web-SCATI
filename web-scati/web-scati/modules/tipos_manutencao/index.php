@@ -12,7 +12,7 @@ $tipos = $pdo->query(
     'SELECT t.*,
         (SELECT COUNT(*) FROM historico_equipamentos h WHERE h.evento = t.nome) AS total_usos
      FROM tipos_manutencao t
-     ORDER BY t.nome ASC'
+     ORDER BY t.ordem ASC, t.nome ASC'
 )->fetchAll();
 
 include __DIR__ . '/../../includes/header.php';
@@ -26,22 +26,26 @@ include __DIR__ . '/../../includes/header.php';
     <a href="form.php" class="btn btn-primary"><i class="bi bi-plus-lg"></i> Novo Tipo</a>
 </div>
 
+<p class="small text-muted">Arraste um tipo pelo <i class="bi bi-grip-vertical"></i> para mudar a ordem em que ele aparece nos menus do sistema.</p>
+
 <div class="card">
     <div class="table-responsive">
         <table class="table table-hover align-middle mb-0">
             <thead class="table-light">
                 <tr>
+                    <th style="width: 2.5rem;"></th>
                     <th>Nome</th>
                     <th class="text-center">Usado no Histórico</th>
                     <th class="text-end">Ações</th>
                 </tr>
             </thead>
-            <tbody>
+            <tbody id="categoriasTiposManutencaoTabela">
                 <?php if (empty($tipos)): ?>
-                    <tr><td colspan="3" class="text-center text-muted py-4">Nenhum tipo de manutenção cadastrado.</td></tr>
+                    <tr><td colspan="4" class="text-center text-muted py-4">Nenhum tipo de manutenção cadastrado.</td></tr>
                 <?php endif; ?>
                 <?php foreach ($tipos as $tipo): ?>
-                    <tr>
+                    <tr class="js-categoria-linha" draggable="true" data-id="<?= (int) $tipo['id'] ?>">
+                        <td class="text-muted" style="cursor: grab;"><i class="bi bi-grip-vertical" title="Arraste para reordenar"></i></td>
                         <td><strong><?= e($tipo['nome']) ?></strong></td>
                         <td class="text-center"><span class="badge bg-secondary"><?= (int) $tipo['total_usos'] ?></span></td>
                         <td class="text-end">
