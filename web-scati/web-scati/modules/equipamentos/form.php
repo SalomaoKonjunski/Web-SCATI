@@ -347,7 +347,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $redes = $pdo->query('SELECT id, nome FROM redes ORDER BY nome')->fetchAll();
-$categoriasEquip = $pdo->query('SELECT * FROM categorias_equipamento ORDER BY nome')->fetchAll();
+$categoriasEquip = $pdo->query('SELECT * FROM categorias_equipamento ORDER BY ordem ASC, nome ASC')->fetchAll();
 $gruposEquipamento = gruposCamposEquipamento();
 $pageTitle = $edicao ? 'Editar Equipamento' : 'Novo Equipamento';
 
@@ -376,7 +376,7 @@ $tonersVinculados = [];
 $tonersDisponiveis = [];
 $categoriaTonerId = 0;
 if ($edicao && ehImpressora($equipamento['tipo'])) {
-    $categoriasEstoque = $pdo->query('SELECT id, nome FROM categorias_estoque ORDER BY nome')->fetchAll();
+    $categoriasEstoque = $pdo->query('SELECT id, nome FROM categorias_estoque ORDER BY ordem ASC, nome ASC')->fetchAll();
     foreach ($categoriasEstoque as $catEst) {
         if ($catEst['nome'] === 'Toner') {
             $categoriaTonerId = (int) $catEst['id'];

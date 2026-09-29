@@ -157,7 +157,7 @@ function registrarHistorico(int $equipamentoId, string $evento, string $descrica
  */
 function tiposEquipamento(): array
 {
-    return db()->query('SELECT nome FROM categorias_equipamento ORDER BY nome')->fetchAll(PDO::FETCH_COLUMN);
+    return db()->query('SELECT nome FROM categorias_equipamento ORDER BY ordem ASC, nome ASC')->fetchAll(PDO::FETCH_COLUMN);
 }
 
 /**
@@ -832,7 +832,7 @@ function perfilUsuarioBadgeClass(string $perfil): string
  */
 function categoriasSenha(): array
 {
-    return db()->query('SELECT nome FROM categorias_senha ORDER BY nome')->fetchAll(PDO::FETCH_COLUMN);
+    return db()->query('SELECT nome FROM categorias_senha ORDER BY ordem ASC, nome ASC')->fetchAll(PDO::FETCH_COLUMN);
 }
 
 function categoriaSenhaBadgeClass(string $categoria): string

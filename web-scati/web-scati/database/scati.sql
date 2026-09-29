@@ -56,6 +56,10 @@ CREATE TABLE redes (
 CREATE TABLE categorias_estoque (
     id                      INT AUTO_INCREMENT PRIMARY KEY,
     nome                    VARCHAR(60) NOT NULL UNIQUE,
+    -- Posição de exibição nos menus/listas (menor primeiro); categorias com
+    -- o mesmo valor (ex.: todas em 0, caso ainda ninguém tenha reordenado)
+    -- caem no critério de desempate alfabético.
+    ordem                   INT NOT NULL DEFAULT 0,
 
     -- Quais grupos de campos (os mesmos do cadastro de Equipamentos) também
     -- aparecem ao criar/editar um item de estoque desta categoria. Com tudo
@@ -83,6 +87,9 @@ INSERT INTO categorias_estoque (nome) VALUES
 CREATE TABLE categorias_equipamento (
     id                      INT AUTO_INCREMENT PRIMARY KEY,
     nome                    VARCHAR(30) NOT NULL UNIQUE,
+    -- Posição de exibição nos menus/listas (menor primeiro); categorias com
+    -- o mesmo valor caem no critério de desempate alfabético.
+    ordem                   INT NOT NULL DEFAULT 0,
 
     -- Quais cards de campos (os mesmos do cadastro de Equipamentos) aparecem
     -- ao criar/editar um equipamento desta categoria. Para as 4 categorias
@@ -607,7 +614,10 @@ CREATE INDEX idx_obs_chamado ON chamado_observacoes(chamado_id, usuario_id);
 -- ---------------------------------------------------------------------
 CREATE TABLE categorias_senha (
     id      INT AUTO_INCREMENT PRIMARY KEY,
-    nome    VARCHAR(30) NOT NULL UNIQUE
+    nome    VARCHAR(30) NOT NULL UNIQUE,
+    -- Posição de exibição nos menus/listas (menor primeiro); categorias com
+    -- o mesmo valor caem no critério de desempate alfabético.
+    ordem   INT NOT NULL DEFAULT 0
 ) ENGINE=InnoDB;
 
 INSERT INTO categorias_senha (nome) VALUES

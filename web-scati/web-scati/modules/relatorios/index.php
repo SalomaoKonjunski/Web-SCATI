@@ -51,7 +51,7 @@ $eventosHistorico = $pdo->query(
         SELECT evento COLLATE utf8mb4_unicode_ci AS evento FROM historico_chamados
     ) t ORDER BY evento"
 )->fetchAll(PDO::FETCH_COLUMN);
-$categoriasHistorico = $pdo->query('SELECT nome FROM categorias_estoque ORDER BY nome')->fetchAll(PDO::FETCH_COLUMN);
+$categoriasHistorico = $pdo->query('SELECT nome FROM categorias_estoque ORDER BY ordem ASC, nome ASC')->fetchAll(PDO::FETCH_COLUMN);
 
 $favoritosPersonalizados = $pdo->query('SELECT id, nome FROM relatorios_personalizados ORDER BY nome')->fetchAll();
 

@@ -299,6 +299,15 @@ Funcional (v1.0).
    mysql --default-character-set=utf8mb4 -u root -p scati < database/migration_categorias_senha.sql
    ```
 
+   Se o banco já existia antes de dar pra **arrastar e reordenar as
+   categorias** de Estoque, Equipamentos e Senhas (ainda não tem a coluna
+   `ordem` em `categorias_estoque`, `categorias_equipamento` e
+   `categorias_senha`), rode também esta migração incremental **uma única
+   vez**:
+   ```bash
+   mysql --default-character-set=utf8mb4 -u root -p scati < database/migration_ordem_categorias.sql
+   ```
+
    > Importante: ao importar qualquer um dos arquivos `.sql` deste projeto,
    > garanta que o cliente MySQL use UTF-8 (ex.: `mysql --default-character-set=utf8mb4 -u root -p < arquivo.sql`),
    > caso contrário os valores acentuados dos campos `ENUM` (como "Disponível")
@@ -690,7 +699,9 @@ web-scati/
     classificar itens do Estoque — antes só podiam ser criadas via SQL
     direto. A categoria "Toner" é protegida contra renomeação e exclusão
     (é usada por nome em outras partes do sistema), e uma categoria com
-    itens de estoque vinculados não pode ser excluída.
+    itens de estoque vinculados não pode ser excluída. Dá pra arrastar
+    uma categoria pelo ícone de "alça" para escolher a ordem em que ela
+    aparece nessa lista e em todo dropdown "Categoria" do sistema.
   - **Categorias de Equipamentos**: CRUD completo dos tipos disponíveis
     no campo "Tipo" do cadastro de Equipamentos — antes era uma lista
     fixa no código (Computador, Notebook, Impressora, Monitor, Switch,
@@ -716,7 +727,9 @@ web-scati/
     Os cards aparecem/somem no formulário assim que o Tipo é trocado, e
     o servidor sempre confere de novo quais grupos o tipo escolhido tem
     antes de salvar — ignora valores de campos escondidos, mesmo se
-    forçados via inspecionar elemento.
+    forçados via inspecionar elemento. Dá pra arrastar uma categoria pelo
+    ícone de "alça" para escolher a ordem em que ela aparece nessa lista
+    e no dropdown "Tipo" do cadastro de Equipamentos.
   - **Tipos de Manutenção**: CRUD completo dos tipos disponíveis ao
     registrar uma manutenção no histórico de um equipamento — antes era
     uma lista fixa no código. Excluir um tipo não afeta os registros já
@@ -727,7 +740,10 @@ web-scati/
     Wi-Fi, Licença, Outro), que agora vem pré-cadastrada como ponto de
     partida editável. Uma categoria com senhas cadastradas nela não pode
     ser excluída; renomear uma categoria atualiza automaticamente a
-    categoria de todas as senhas que já usavam o nome antigo.
+    categoria de todas as senhas que já usavam o nome antigo. Dá pra
+    arrastar uma categoria pelo ícone de "alça" para escolher a ordem em
+    que ela aparece nessa lista e no dropdown "Categoria" do cadastro de
+    Senhas.
   - **Alerta de Licenças**: define com quantos dias de antecedência uma
     licença a vencer aparece na Central de Alertas do Dashboard (antes
     fixo em 30 dias).

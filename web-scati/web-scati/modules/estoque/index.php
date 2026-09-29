@@ -47,7 +47,7 @@ $itens = $stmt->fetchAll();
 $itensNaoVinculados = array_values(array_filter($itens, fn($item) => (int) $item['qtd_vinculada'] === 0));
 $itensVinculados = array_values(array_filter($itens, fn($item) => (int) $item['qtd_vinculada'] > 0));
 
-$categorias = $pdo->query('SELECT id, nome FROM categorias_estoque ORDER BY nome')->fetchAll();
+$categorias = $pdo->query('SELECT id, nome FROM categorias_estoque ORDER BY ordem ASC, nome ASC')->fetchAll();
 
 include __DIR__ . '/../../includes/header.php';
 ?>

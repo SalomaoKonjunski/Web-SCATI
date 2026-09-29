@@ -15,7 +15,7 @@ $pageTitle = 'Categorias de Equipamentos';
 $categorias = $pdo->query(
     "SELECT c.*, (SELECT COUNT(*) FROM equipamentos e WHERE e.tipo COLLATE utf8mb4_unicode_ci = c.nome COLLATE utf8mb4_unicode_ci) AS total_equipamentos
      FROM categorias_equipamento c
-     ORDER BY c.nome ASC"
+     ORDER BY c.ordem ASC, c.nome ASC"
 )->fetchAll();
 
 $nomesProtegidos = tiposEquipamentoProtegidos();
@@ -32,26 +32,28 @@ include __DIR__ . '/../../includes/header.php';
     <a href="form.php" class="btn btn-primary"><i class="bi bi-plus-lg"></i> Nova Categoria</a>
 </div>
 
-<p class="text-muted small">Estes são os tipos disponíveis no campo "Tipo" do cadastro de Equipamentos.</p>
+<p class="text-muted small">Estes são os tipos disponíveis no campo "Tipo" do cadastro de Equipamentos. Arraste uma categoria pelo <i class="bi bi-grip-vertical"></i> para mudar a ordem em que ela aparece nos menus do sistema.</p>
 
 <div class="card">
     <div class="table-responsive">
         <table class="table table-hover align-middle mb-0">
             <thead class="table-light">
                 <tr>
+                    <th style="width: 2.5rem;"></th>
                     <th>Nome</th>
                     <th>Campos Extras</th>
                     <th class="text-center">Equipamentos</th>
                     <th class="text-end">Ações</th>
                 </tr>
             </thead>
-            <tbody>
+            <tbody id="categoriasEquipamentoTabela">
                 <?php if (empty($categorias)): ?>
-                    <tr><td colspan="4" class="text-center text-muted py-4">Nenhuma categoria cadastrada.</td></tr>
+                    <tr><td colspan="5" class="text-center text-muted py-4">Nenhuma categoria cadastrada.</td></tr>
                 <?php endif; ?>
                 <?php foreach ($categorias as $cat): ?>
                     <?php $protegida = in_array($cat['nome'], $nomesProtegidos, true); ?>
-                    <tr>
+                    <tr class="js-categoria-linha" draggable="true" data-id="<?= (int) $cat['id'] ?>">
+                        <td class="text-muted" style="cursor: grab;"><i class="bi bi-grip-vertical" title="Arraste para reordenar"></i></td>
                         <td>
                             <strong><?= e($cat['nome']) ?></strong>
                             <?php if ($protegida): ?>

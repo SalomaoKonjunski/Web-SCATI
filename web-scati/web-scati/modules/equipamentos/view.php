@@ -365,7 +365,7 @@ $tonersVinculados = array_values(array_filter($itensVinculados, fn($iv) => $iv['
 $tonersDisponiveis = array_values(array_filter($itensDisponiveis, fn($disp) => $disp['categoria_nome'] === 'Toner'));
 
 // Categorias de estoque, usadas no formulário de cadastro rápido de item (abaixo)
-$categoriasEstoque = $pdo->query('SELECT id, nome FROM categorias_estoque ORDER BY nome')->fetchAll();
+$categoriasEstoque = $pdo->query('SELECT id, nome FROM categorias_estoque ORDER BY ordem ASC, nome ASC')->fetchAll();
 $categoriaTonerId = 0;
 foreach ($categoriasEstoque as $catEst) {
     if ($catEst['nome'] === 'Toner') {

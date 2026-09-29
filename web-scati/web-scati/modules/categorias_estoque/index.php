@@ -13,7 +13,7 @@ $categorias = $pdo->query(
      FROM categorias_estoque c
      LEFT JOIN estoque es ON es.categoria_id = c.id
      GROUP BY c.id, c.nome
-     ORDER BY c.nome ASC'
+     ORDER BY c.ordem ASC, c.nome ASC'
 )->fetchAll();
 
 include __DIR__ . '/../../includes/header.php';
@@ -27,22 +27,26 @@ include __DIR__ . '/../../includes/header.php';
     <a href="form.php" class="btn btn-primary"><i class="bi bi-plus-lg"></i> Nova Categoria</a>
 </div>
 
+<p class="small text-muted">Arraste uma categoria pelo <i class="bi bi-grip-vertical"></i> para mudar a ordem em que ela aparece nos menus do sistema.</p>
+
 <div class="card">
     <div class="table-responsive">
         <table class="table table-hover align-middle mb-0">
             <thead class="table-light">
                 <tr>
+                    <th style="width: 2.5rem;"></th>
                     <th>Nome</th>
                     <th class="text-center">Itens de Estoque</th>
                     <th class="text-end">Ações</th>
                 </tr>
             </thead>
-            <tbody>
+            <tbody id="categoriasEstoqueTabela">
                 <?php if (empty($categorias)): ?>
-                    <tr><td colspan="3" class="text-center text-muted py-4">Nenhuma categoria cadastrada.</td></tr>
+                    <tr><td colspan="4" class="text-center text-muted py-4">Nenhuma categoria cadastrada.</td></tr>
                 <?php endif; ?>
                 <?php foreach ($categorias as $cat): ?>
-                    <tr>
+                    <tr class="js-categoria-linha" draggable="true" data-id="<?= (int) $cat['id'] ?>">
+                        <td class="text-muted" style="cursor: grab;"><i class="bi bi-grip-vertical" title="Arraste para reordenar"></i></td>
                         <td><strong><?= e($cat['nome']) ?></strong></td>
                         <td class="text-center"><span class="badge bg-secondary"><?= (int) $cat['total_itens'] ?></span></td>
                         <td class="text-end">

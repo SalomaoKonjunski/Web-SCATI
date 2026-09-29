@@ -139,7 +139,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$categorias = $pdo->query('SELECT * FROM categorias_estoque ORDER BY nome')->fetchAll();
+$categorias = $pdo->query('SELECT * FROM categorias_estoque ORDER BY ordem ASC, nome ASC')->fetchAll();
 $pageTitle = $edicao ? 'Editar Item de Estoque' : 'Novo Item de Estoque';
 
 include __DIR__ . '/../../includes/header.php';

@@ -591,42 +591,43 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    // Bloco de Notas: arrastar e soltar os cartões para escolher a ordem.
-    // Ao soltar, envia a ordem atual de todos os cartões da grade para o
-    // servidor salvar (só grava as notas que realmente pertencem ao
-    // usuário logado — validado em reordenar.php).
-    const notasGrid = document.getElementById('notasGrid');
-    if (notasGrid) {
-        let cartaoArrastado = null;
+    // Arrastar e soltar itens de uma lista/tabela para escolher a ordem em
+    // que aparecem (Bloco de Notas e as telas de Categorias). Ao soltar,
+    // envia a ordem atual de todos os itens do container para o servidor
+    // salvar (o endpoint valida a posse/existência de cada id antes de
+    // gravar — nunca confia direto na ordem que veio do navegador).
+    function iniciarArrastarParaReordenar(container, seletorItem, classeArrastando, endpoint) {
+        if (!container) return;
+        let itemArrastado = null;
 
-        notasGrid.querySelectorAll('.js-nota-card').forEach(function (cartao) {
-            cartao.addEventListener('dragstart', function () {
-                cartaoArrastado = cartao;
-                cartao.classList.add('nota-arrastando');
+        container.querySelectorAll(seletorItem).forEach(function (item) {
+            item.addEventListener('dragstart', function () {
+                itemArrastado = item;
+                item.classList.add(classeArrastando);
             });
-            cartao.addEventListener('dragend', function () {
-                cartao.classList.remove('nota-arrastando');
+            item.addEventListener('dragend', function () {
+                item.classList.remove(classeArrastando);
             });
-            cartao.addEventListener('dragover', function (e) {
+            item.addEventListener('dragover', function (e) {
                 e.preventDefault();
-                if (!cartaoArrastado || cartaoArrastado === cartao) return;
-                const meio = cartao.getBoundingClientRect().top + cartao.offsetHeight / 2;
+                if (!itemArrastado || itemArrastado === item) return;
+                const meio = item.getBoundingClientRect().top + item.offsetHeight / 2;
                 if (e.clientY > meio) {
-                    cartao.after(cartaoArrastado);
+                    item.after(itemArrastado);
                 } else {
-                    cartao.before(cartaoArrastado);
+                    item.before(itemArrastado);
                 }
             });
-            cartao.addEventListener('drop', function (e) {
+            item.addEventListener('drop', function (e) {
                 e.preventDefault();
             });
         });
 
-        notasGrid.addEventListener('dragend', function () {
-            const ids = Array.from(notasGrid.querySelectorAll('.js-nota-card')).map(function (c) {
-                return c.dataset.id;
+        container.addEventListener('dragend', function () {
+            const ids = Array.from(container.querySelectorAll(seletorItem)).map(function (item) {
+                return item.dataset.id;
             });
-            fetch(window.SCATI_BASE_URL + '/modules/notas/reordenar.php', {
+            fetch(window.SCATI_BASE_URL + endpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'same-origin',
@@ -637,4 +638,9 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         });
     }
+
+    iniciarArrastarParaReordenar(document.getElementById('notasGrid'), '.js-nota-card', 'nota-arrastando', '/modules/notas/reordenar.php');
+    iniciarArrastarParaReordenar(document.getElementById('categoriasEstoqueTabela'), '.js-categoria-linha', 'categoria-arrastando', '/modules/categorias_estoque/reordenar.php');
+    iniciarArrastarParaReordenar(document.getElementById('categoriasEquipamentoTabela'), '.js-categoria-linha', 'categoria-arrastando', '/modules/categorias_equipamento/reordenar.php');
+    iniciarArrastarParaReordenar(document.getElementById('categoriasSenhaTabela'), '.js-categoria-linha', 'categoria-arrastando', '/modules/categorias_senha/reordenar.php');
 });
