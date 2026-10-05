@@ -725,7 +725,8 @@ web-scati/
     itens de estoque vinculados não pode ser excluída. Dá pra arrastar
     uma categoria pelo ícone de "alça" para escolher a ordem em que ela
     aparece nessa lista e em todo dropdown "Categoria" do sistema, e
-    escolher a **cor** dela (12 opções fixas) para destacá-la em listas e
+    escolher a **cor** dela — 12 opções prontas ou, pelo seletor
+    "Outra cor...", qualquer cor livre — para destacá-la em listas e
     menus.
   - **Categorias de Equipamentos**: CRUD completo dos tipos disponíveis
     no campo "Tipo" do cadastro de Equipamentos — antes era uma lista
@@ -755,14 +756,16 @@ web-scati/
     forçados via inspecionar elemento. Dá pra arrastar uma categoria pelo
     ícone de "alça" para escolher a ordem em que ela aparece nessa lista
     e no dropdown "Tipo" do cadastro de Equipamentos, e escolher a **cor**
-    dela (12 opções fixas) para destacá-la em listas e menus.
+    dela — 12 opções prontas ou, pelo seletor "Outra cor...", qualquer cor
+    livre — para destacá-la em listas e menus.
   - **Tipos de Manutenção**: CRUD completo dos tipos disponíveis ao
     registrar uma manutenção no histórico de um equipamento — antes era
     uma lista fixa no código. Excluir um tipo não afeta os registros já
     existentes no histórico. Dá pra arrastar um tipo pelo ícone de
     "alça" para escolher a ordem em que ele aparece nessa lista e no
     dropdown "Tipo de manutenção" da ficha de Equipamentos, e escolher a
-    **cor** dele (12 opções fixas) para destacá-lo em listas e menus.
+    **cor** dele — 12 opções prontas ou, pelo seletor "Outra cor...",
+    qualquer cor livre — para destacá-lo em listas e menus.
   - **Categorias de Senhas** *(visível só para Administrador)*: CRUD
     completo das categorias usadas no campo "Categoria" do cadastro de
     Senhas — antes era uma lista fixa no código (Rede, Servidor, Sistema,
@@ -772,7 +775,8 @@ web-scati/
     categoria de todas as senhas que já usavam o nome antigo. Dá pra
     arrastar uma categoria pelo ícone de "alça" para escolher a ordem em
     que ela aparece nessa lista e no dropdown "Categoria" do cadastro de
-    Senhas, e escolher a **cor** dela (12 opções fixas) para destacá-la em
+    Senhas, e escolher a **cor** dela — 12 opções prontas ou, pelo
+    seletor "Outra cor...", qualquer cor livre — para destacá-la em
     listas e menus.
   - **Alerta de Licenças**: define com quantos dias de antecedência uma
     licença a vencer aparece na Central de Alertas do Dashboard (antes

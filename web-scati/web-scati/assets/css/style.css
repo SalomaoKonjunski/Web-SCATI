@@ -352,12 +352,10 @@ a.scati-kpi-card-link .scati-kpi-card.kpi-ativo {
 }
 
 /* Seletor de cor (Categorias de Estoque/Equipamentos/Senhas e Tipos de
-   Manutenção) - bolinhas clicáveis, a selecionada ganha um anel e um
-   check via o estado :checked do rádio escondido ao lado. */
-.scati-cor-opcao {
-    cursor: pointer;
-}
-
+   Manutenção) - bolinhas clicáveis; a selecionada ganha um anel e um
+   check (classe .scati-cor-selecionada, alternada via JS em scripts.js).
+   A última bolinha ("Outra cor...") é um <input type="color"> nativo
+   disfarçado de bolinha, pra liberar qualquer cor além da paleta fixa. */
 .scati-cor-bolha {
     display: flex;
     align-items: center;
@@ -368,10 +366,13 @@ a.scati-kpi-card-link .scati-kpi-card.kpi-ativo {
     color: #fff;
     font-size: .95rem;
     border: 2px solid transparent;
+    cursor: pointer;
     transition: transform .1s ease;
+    padding: 0;
+    position: relative;
 }
 
-.scati-cor-opcao:hover .scati-cor-bolha {
+.scati-cor-bolha:hover {
     transform: scale(1.08);
 }
 
@@ -379,13 +380,35 @@ a.scati-kpi-card-link .scati-kpi-card.kpi-ativo {
     opacity: 0;
 }
 
-.js-cor-categoria-input:checked + .scati-cor-bolha {
+.scati-cor-bolha.scati-cor-selecionada {
     border-color: #212529;
     box-shadow: 0 0 0 2px #fff, 0 0 0 4px #212529;
 }
 
-.js-cor-categoria-input:checked + .scati-cor-bolha .scati-cor-check {
+.scati-cor-bolha.scati-cor-selecionada .scati-cor-check {
     opacity: 1;
+}
+
+.scati-cor-custom {
+    background: conic-gradient(red, yellow, lime, cyan, blue, magenta, red);
+}
+
+.scati-cor-custom-icon {
+    opacity: 1;
+    text-shadow: 0 0 2px rgba(0, 0, 0, .5);
+}
+
+.scati-cor-custom.scati-cor-selecionada .scati-cor-custom-icon {
+    opacity: 0;
+}
+
+.scati-cor-custom input[type="color"] {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
 }
 
 /* Anexos (fotos e arquivos) nas respostas de um Chamado. */

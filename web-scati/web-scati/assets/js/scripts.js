@@ -646,15 +646,49 @@ document.addEventListener('DOMContentLoaded', function () {
     iniciarArrastarParaReordenar(document.getElementById('categoriasTiposManutencaoTabela'), '.js-categoria-linha', 'categoria-arrastando', '/modules/tipos_manutencao/reordenar.php');
 
     // Formulário de categoria (Estoque/Equipamentos/Senhas/Tipos de
-    // Manutenção): atualiza a cor de fundo da pré-visualização assim que
-    // outra bolinha de cor é escolhida.
-    document.querySelectorAll('.js-cor-categoria-input').forEach(function (input) {
-        input.addEventListener('change', function () {
-            const preview = document.getElementById('previewCorCategoria');
+    // Manutenção): clicar numa bolinha da paleta fixa escolhe aquela cor;
+    // a última bolinha ("Outra cor...") esconde um <input type="color">
+    // nativo por cima, liberando qualquer cor além das pré-definidas. As
+    // duas formas só escrevem no mesmo input escondido (name="cor"), que
+    // é o que de fato é enviado no formulário.
+    document.querySelectorAll('.js-seletor-cor-categoria').forEach(function (seletor) {
+        const inputValor = seletor.querySelector('.js-cor-categoria-valor');
+        const opcoesPaleta = seletor.querySelectorAll('.js-cor-categoria-opcao');
+        const bolhaPersonalizada = seletor.querySelector('.js-cor-categoria-custom-swatch');
+        const inputPersonalizado = seletor.querySelector('.js-cor-categoria-custom-input');
+        const preview = document.getElementById('previewCorCategoria');
+
+        const aplicarCor = function (cor) {
+            inputValor.value = cor;
             if (preview) {
-                preview.style.backgroundColor = input.value;
+                preview.style.backgroundColor = cor;
             }
+
+            const corNaPaleta = Array.from(opcoesPaleta).some(function (botao) {
+                return botao.dataset.cor.toLowerCase() === cor.toLowerCase();
+            });
+
+            opcoesPaleta.forEach(function (botao) {
+                botao.classList.toggle('scati-cor-selecionada', botao.dataset.cor.toLowerCase() === cor.toLowerCase());
+            });
+
+            if (bolhaPersonalizada) {
+                bolhaPersonalizada.classList.toggle('scati-cor-selecionada', !corNaPaleta);
+                bolhaPersonalizada.style.backgroundColor = corNaPaleta ? '' : cor;
+            }
+        };
+
+        opcoesPaleta.forEach(function (botao) {
+            botao.addEventListener('click', function () {
+                aplicarCor(botao.dataset.cor);
+            });
         });
+
+        if (inputPersonalizado) {
+            inputPersonalizado.addEventListener('input', function () {
+                aplicarCor(inputPersonalizado.value);
+            });
+        }
     });
 
     // Respostas de um Chamado: botão de anexar (clipe) abre o seletor de

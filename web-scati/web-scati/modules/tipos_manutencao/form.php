@@ -31,7 +31,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($tipo['nome'] === '') {
         $erros[] = 'O campo Nome é obrigatório.';
     }
-    if (!array_key_exists($tipo['cor'], paletaCoresCategoria())) {
+    if (!corCategoriaValida($tipo['cor'])) {
         $erros[] = 'Selecione uma cor válida.';
     }
 
@@ -88,16 +88,21 @@ include __DIR__ . '/../../includes/header.php';
             <div class="col-12">
                 <label class="form-label d-block">Cor do Tipo</label>
                 <p class="text-muted small mb-2">Usada para destacar este tipo em listas e menus do sistema.</p>
-                <div class="d-flex flex-wrap gap-2">
+                <?php $corPersonalizada = !array_key_exists($tipo['cor'], paletaCoresCategoria()); ?>
+                <div class="d-flex flex-wrap gap-2 js-seletor-cor-categoria">
                     <?php foreach (paletaCoresCategoria() as $corOpcao => $nomeCor): ?>
-                        <label class="scati-cor-opcao" title="<?= e($nomeCor) ?>">
-                            <input type="radio" name="cor" value="<?= e($corOpcao) ?>" class="visually-hidden js-cor-categoria-input"
-                                   <?= $tipo['cor'] === $corOpcao ? 'checked' : '' ?>>
-                            <span class="scati-cor-bolha" style="background-color: <?= e($corOpcao) ?>;">
-                                <i class="bi bi-check-lg scati-cor-check"></i>
-                            </span>
-                        </label>
+                        <button type="button" class="scati-cor-bolha js-cor-categoria-opcao <?= $tipo['cor'] === $corOpcao ? 'scati-cor-selecionada' : '' ?>"
+                                data-cor="<?= e($corOpcao) ?>" style="background-color: <?= e($corOpcao) ?>;" title="<?= e($nomeCor) ?>">
+                            <i class="bi bi-check-lg scati-cor-check"></i>
+                        </button>
                     <?php endforeach; ?>
+                    <span class="scati-cor-bolha scati-cor-custom js-cor-categoria-custom-swatch <?= $corPersonalizada ? 'scati-cor-selecionada' : '' ?>"
+                          style="<?= $corPersonalizada ? 'background-color: ' . e($tipo['cor']) . ';' : '' ?>" title="Outra cor...">
+                        <input type="color" class="js-cor-categoria-custom-input" value="<?= e($corPersonalizada ? $tipo['cor'] : '#808080') ?>">
+                        <i class="bi bi-eyedropper scati-cor-custom-icon"></i>
+                        <i class="bi bi-check-lg scati-cor-check"></i>
+                    </span>
+                    <input type="hidden" name="cor" value="<?= e($tipo['cor']) ?>" class="js-cor-categoria-valor">
                 </div>
             </div>
             <div class="col-12">

@@ -856,6 +856,18 @@ function corCategoriaPadrao(): string
     return '#6c757d';
 }
 
+/**
+ * Valida uma cor de categoria vinda do formulário: além das opções da
+ * paleta fixa, aceita qualquer cor hex de 6 dígitos escolhida livremente
+ * no seletor "Outra cor...". Só esse formato é aceito porque o valor é
+ * usado direto num atributo style="background-color: ..." — nunca confiar
+ * em nada fora de #RRGGBB aqui.
+ */
+function corCategoriaValida(string $cor): bool
+{
+    return (bool) preg_match('/^#[0-9a-fA-F]{6}$/', $cor);
+}
+
 /** Monta o HTML de um badge colorido (categoria/tipo + sua cor). */
 function badgeCor(string $texto, string $cor): string
 {
