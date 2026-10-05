@@ -55,7 +55,7 @@ $flash = getFlash();
                     <i class="bi bi-bell"></i>
                     <span class="badge rounded-pill bg-danger position-absolute top-0 start-100 translate-middle d-none" id="scatiNotificacaoBadge">0</span>
                 </button>
-                <div class="dropdown-menu dropdown-menu-end p-0 shadow" id="scatiNotificacaoMenu" style="width: 340px; max-height: 420px; overflow-y: auto;">
+                <div class="dropdown-menu dropdown-menu-end p-0 shadow scati-notificacao-menu" id="scatiNotificacaoMenu">
                     <div class="px-3 py-2 border-bottom fw-semibold small text-uppercase text-muted">Notificações</div>
                     <div class="px-3 py-4 text-muted small text-center scati-notif-vazio">Nenhuma notificação.</div>
                 </div>
