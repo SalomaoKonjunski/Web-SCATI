@@ -55,8 +55,29 @@ VALUES ((SELECT id FROM perfis_acesso WHERE nome = 'Usuário'), 'chamados', 1, 0
 -- o nome de um perfil em perfis_acesso — renomear um perfil atualiza
 -- sozinho (ON UPDATE CASCADE) todo usuário que já usava o nome antigo, e
 -- a tabela não deixa excluir um perfil ainda em uso (ON DELETE RESTRICT).
+-- Esse MODIFY (sem COLLATE explícito) faz a coluna assumir o collation
+-- padrão da tabela usuarios — por isso o alinhamento abaixo roda só
+-- depois dele, lendo o collation que ela realmente ficou tendo.
 ALTER TABLE usuarios
     MODIFY COLUMN perfil VARCHAR(50) NOT NULL DEFAULT 'Padrão';
+
+-- Alinha o collation de perfis_acesso.nome com o de usuarios.perfil.
+-- Em instalações mais antigas as tabelas existentes costumam estar em
+-- utf8mb4_general_ci, enquanto uma tabela nova criada agora pode cair em
+-- utf8mb4_unicode_ci (ou outro padrão do servidor) — sem alinhar os
+-- dois, comparar as duas colunas (ex.: na tela de Perfis de Acesso) dá
+-- erro "Illegal mix of collations", e a foreign key abaixo nem chega a
+-- ser criada.
+SET @perfil_collation = (
+    SELECT COLLATION_NAME FROM information_schema.COLUMNS
+    WHERE table_schema = DATABASE() AND table_name = 'usuarios' AND column_name = 'perfil'
+);
+SET @sql_collation = CONCAT(
+    'ALTER TABLE perfis_acesso MODIFY COLUMN nome VARCHAR(50) NOT NULL COLLATE ', @perfil_collation
+);
+PREPARE stmt_collation FROM @sql_collation;
+EXECUTE stmt_collation;
+DEALLOCATE PREPARE stmt_collation;
 
 -- Adiciona a chave estrangeira só se ela ainda não existir.
 SET @fk_existe = (
