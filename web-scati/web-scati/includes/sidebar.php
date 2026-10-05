@@ -84,6 +84,13 @@ $divisorConfigAplicado = false;
             </a>
         </li>
         <?php endif; ?>
+        <?php if (temPermissao('tarefas', 'ver')): ?>
+        <li class="nav-item">
+            <a class="nav-link <?= isActive('/modules/tarefas/', $currentPath) ?>" href="<?= BASE_URL ?>/modules/tarefas/index.php">
+                <i class="bi bi-arrow-repeat"></i> Tarefas Periódicas
+            </a>
+        </li>
+        <?php endif; ?>
         <?php if (temPermissao('configuracoes', 'ver')): $divisorConfigAplicado = true; ?>
         <li class="nav-item mt-3 border-top border-secondary-subtle pt-3">
             <a class="nav-link <?= isActive('/modules/configuracoes/', $currentPath) ?: (isActive('/modules/categorias_estoque/', $currentPath) ?: (isActive('/modules/categorias_equipamento/', $currentPath) ?: (isActive('/modules/categorias_senha/', $currentPath) ?: (isActive('/modules/tipos_manutencao/', $currentPath) ?: isActive('/modules/perfis_acesso/', $currentPath))))) ?>" href="<?= BASE_URL ?>/modules/configuracoes/index.php">

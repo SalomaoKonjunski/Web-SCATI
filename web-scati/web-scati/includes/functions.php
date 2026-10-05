@@ -806,6 +806,7 @@ function modulosSistema(): array
         'licencas'      => ['label' => 'Licenças', 'icone' => 'bi-key'],
         'relatorios'    => ['label' => 'Relatórios', 'icone' => 'bi-bar-chart-line'],
         'notas'         => ['label' => 'Bloco de Notas', 'icone' => 'bi-journal-text'],
+        'tarefas'       => ['label' => 'Tarefas Periódicas', 'icone' => 'bi-arrow-repeat'],
         'senhas'        => ['label' => 'Senhas', 'icone' => 'bi-shield-lock'],
         'usuarios'      => ['label' => 'Usuários', 'icone' => 'bi-people'],
         'configuracoes' => ['label' => 'Configurações', 'icone' => 'bi-gear'],
@@ -1129,4 +1130,47 @@ function registrarHistoricoChamado(int $chamadoId, string $evento, string $descr
         'descricao'    => mb_substr($descricao, 0, 255),
         'usuario_nome' => usuarioLogado()['usuario'] ?? null,
     ]);
+}
+
+/**
+ * Registra um evento no histórico de uma Tarefa Periódica (hoje só
+ * "Concluída", quando alguém marca a execução), com o usuário logado.
+ */
+function registrarHistoricoTarefa(int $tarefaId, string $evento, string $descricao): void
+{
+    $stmt = db()->prepare(
+        'INSERT INTO historico_tarefas_periodicas (tarefa_id, evento, descricao, usuario_nome)
+         VALUES (:tarefa_id, :evento, :descricao, :usuario_nome)'
+    );
+    $stmt->execute([
+        'tarefa_id'    => $tarefaId,
+        'evento'       => $evento,
+        'descricao'    => mb_substr($descricao, 0, 255),
+        'usuario_nome' => usuarioLogado()['usuario'] ?? null,
+    ]);
+}
+
+/**
+ * Soma a frequência de uma Tarefa Periódica (tipo + valor) a uma data
+ * base, devolvendo a próxima data de vencimento no formato Y-m-d. Usa
+ * DateTime (não dá pra parametrizar a unidade de um INTERVAL direto no
+ * SQL), pra "meses" e "semanas" respeitarem o calendário (ex.: mensal a
+ * partir de 31/01 cai em 28 ou 29/02, não em "+30 dias").
+ */
+function proximaExecucaoTarefa(string $frequenciaTipo, int $frequenciaValor, string $apartirDe): string
+{
+    $unidade = ['dias' => 'day', 'semanas' => 'week', 'meses' => 'month'][$frequenciaTipo] ?? 'day';
+    $dt = DateTime::createFromFormat('Y-m-d', $apartirDe) ?: new DateTime($apartirDe);
+    $dt->modify('+' . max(1, $frequenciaValor) . ' ' . $unidade);
+    return $dt->format('Y-m-d');
+}
+
+/** Texto curto pra exibir a frequência de uma Tarefa Periódica (ex.: "a cada 2 semanas"). */
+function descricaoFrequenciaTarefa(string $frequenciaTipo, int $frequenciaValor): string
+{
+    $singular = ['dias' => 'dia', 'semanas' => 'semana', 'meses' => 'mês'][$frequenciaTipo] ?? 'dia';
+    if ($frequenciaValor === 1) {
+        return 'a cada ' . $singular;
+    }
+    return 'a cada ' . $frequenciaValor . ' ' . $frequenciaTipo;
 }

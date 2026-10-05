@@ -340,6 +340,13 @@ Funcional (v1.0).
    mysql --default-character-set=utf8mb4 -u root -p scati < database/migration_perfis_acesso.sql
    ```
 
+   Se o banco já existia antes do **compartilhamento de notas e das
+   Tarefas Periódicas** (ainda não tem a tabela `tarefas_periodicas`),
+   rode também esta migração incremental **uma única vez**:
+   ```bash
+   mysql --default-character-set=utf8mb4 -u root -p scati < database/migration_notas_tarefas.sql
+   ```
+
    > Importante: ao importar qualquer um dos arquivos `.sql` deste projeto,
    > garanta que o cliente MySQL use UTF-8 (ex.: `mysql --default-character-set=utf8mb4 -u root -p < arquivo.sql`),
    > caso contrário os valores acentuados dos campos `ENUM` (como "Disponível")
@@ -489,8 +496,9 @@ web-scati/
 - **Dashboard** com indicadores de equipamentos, estoque, licenças e (se
   preenchido) valor total do patrimônio, além de uma **Central de Alertas**
   no topo da página reunindo licenças vencidas ou vencendo nos próximos 30
-  dias, itens de estoque abaixo do mínimo, impressoras sem toner vinculado
-  e impressoras com a troca de toner por tempo de uso próxima ou vencida —
+  dias, itens de estoque abaixo do mínimo, impressoras sem toner vinculado,
+  impressoras com a troca de toner por tempo de uso próxima ou vencida e
+  Tarefas Periódicas (ver abaixo) vencidas ou se aproximando do prazo —
   cada alerta linka direto para a tela correspondente. Logo
   abaixo, o card **"Itens de Estoque por Categoria"** mostra em um gráfico
   de pizza (donut) como a quantidade em estoque está distribuída entre as
@@ -682,16 +690,39 @@ web-scati/
     nunca são interpoladas direto no SQL, então não há risco de SQL
     injection mesmo essa configuração vindo inteiramente do usuário.
 - **Bloco de Notas**: menu lateral, cada usuário cria quantas notas
-  quiser (título + conteúdo) — são **pessoais**, só quem criou enxerga,
-  edita ou exclui a própria nota (toda consulta filtra por usuário
-  logado, então nem trocando o id na URL dá para acessar a nota de
-  outra pessoa). A ordem dos cartões pode ser escolhida arrastando pelo
-  ícone de "alça" no canto do cartão — fica salva por usuário e não muda
-  sozinha depois (nem editando o conteúdo da nota). Cada nota aceita
-  arquivos anexados (PDF, Word, Excel, imagens, etc. — mesma lista de
-  extensões e limite de 10 MB dos anexos de Equipamentos), com download
-  também restrito ao dono da nota. Não aparece
-  para o perfil Usuário, que só tem acesso à aba Chamados.
+  quiser (título + conteúdo) — por padrão são **pessoais**, só o dono
+  enxerga, edita ou exclui a própria nota (toda consulta filtra por
+  usuário logado ou pelo compartilhamento explícito abaixo, então nem
+  trocando o id na URL dá para acessar a nota de outra pessoa sem
+  permissão). A ordem dos cartões em "Minhas Notas" pode ser escolhida
+  arrastando pelo ícone de "alça" no canto do cartão — fica salva por
+  usuário e não muda sozinha depois (nem editando o conteúdo da nota).
+  Cada nota aceita arquivos anexados (PDF, Word, Excel, imagens, etc. —
+  mesma lista de extensões e limite de 10 MB dos anexos de Equipamentos).
+  Não aparece para o perfil Usuário, que só tem acesso à aba Chamados.
+  - **Compartilhar nota**: o botão de compartilhar (ícone de "share") em
+    cada nota própria abre uma lista com todas as outras pessoas
+    cadastradas no sistema, com duas colunas de marcação por pessoa —
+    **Compartilhar** (dá acesso à nota) e **Pode editar** (por padrão
+    desmarcado: a pessoa só visualiza o conteúdo e baixa os anexos; se
+    marcado, ela também edita o conteúdo e gerencia os anexos, como se
+    fosse dona). Notas compartilhadas com alguém aparecem pra essa
+    pessoa numa seção própria, "Compartilhadas comigo", com o nome de
+    quem compartilhou — excluir a nota ou reconfigurar quem tem acesso
+    a ela continua sendo exclusivo do dono, mesmo para quem pode editar.
+- **Tarefas Periódicas**: menu lateral, cadastro de avisos recorrentes de
+  manutenção que não pertencem a nenhum equipamento específico — ex.:
+  troca de toner, limpeza do cortador de papel, reinicialização de
+  servidor. Cada tarefa tem título, descrição opcional, responsável
+  opcional (ou "Qualquer um da equipe"), frequência (a cada N dia(s),
+  semana(s) ou mês(es)) e quantos dias de antecedência ela deve aparecer
+  na **Central de Alertas** do Dashboard. O botão de concluir marca a
+  execução de hoje e recalcula a próxima data automaticamente a partir de
+  hoje + frequência (ex.: mensal a partir de 31/01 cai em 28 ou 29/02,
+  não em "+30 dias" fixos); tarefas pausadas (campo "ativa" desmarcado)
+  saem da Central de Alertas sem precisar ser excluídas. Sujeito às
+  permissões de **Visualizar/Alterar** do módulo "Tarefas Periódicas" em
+  Perfis de Acesso.
 - **App instalável (PWA) e notificações push**: o sistema pode ser
   "instalado" pelo navegador — Chrome/Edge no computador, Chrome no
   Android, Safari no iPhone (menu Compartilhar → "Adicionar à Tela de
@@ -815,7 +846,7 @@ web-scati/
   - Qualquer outro perfil pode ser **criado do zero**, com nome livre e
     uma permissão própria por módulo do sistema (Dashboard, Chamados,
     Equipamentos, Impressoras, Estoque, Redes, Licenças, Relatórios,
-    Bloco de Notas, Senhas, Usuários, Configurações): **Visualizar** (a
+    Bloco de Notas, Tarefas Periódicas, Senhas, Usuários, Configurações): **Visualizar** (a
     aba aparece no menu, só leitura) e **Alterar** (também cria, edita e
     exclui ali). O menu lateral e o acesso direto por URL respeitam
     exatamente essa combinação — um perfil sem nenhuma permissão

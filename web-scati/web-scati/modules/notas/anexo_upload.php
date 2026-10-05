@@ -9,9 +9,14 @@ $pdo = db();
 $usuarioId = usuarioLogado()['id'];
 $notaId = (int) ($_POST['nota_id'] ?? 0);
 
-// Notas são pessoais — só o dono pode anexar arquivo na própria nota.
-$stmt = $pdo->prepare('SELECT id FROM notas WHERE id = :id AND usuario_id = :usuario_id');
-$stmt->execute(['id' => $notaId, 'usuario_id' => $usuarioId]);
+// Só o dono, ou quem a nota foi compartilhada com "pode editar", pode
+// anexar arquivo nela.
+$stmt = $pdo->prepare(
+    'SELECT n.id FROM notas n
+     LEFT JOIN nota_compartilhamentos nc ON nc.nota_id = n.id AND nc.usuario_id = :usuario_id2 AND nc.pode_editar = 1
+     WHERE n.id = :id AND (n.usuario_id = :usuario_id OR nc.usuario_id IS NOT NULL)'
+);
+$stmt->execute(['id' => $notaId, 'usuario_id' => $usuarioId, 'usuario_id2' => $usuarioId]);
 if (!$stmt->fetch()) {
     flash('danger', 'Nota não encontrada.');
     redirect('/modules/notas/index.php');

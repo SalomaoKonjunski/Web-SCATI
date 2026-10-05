@@ -9,12 +9,15 @@ $pdo = db();
 $usuarioId = usuarioLogado()['id'];
 $id = (int) ($_GET['id'] ?? 0);
 
+// Só o dono, ou quem a nota foi compartilhada com "pode editar", pode
+// excluir um anexo dela.
 $stmt = $pdo->prepare(
     'SELECT a.* FROM anexos_notas a
      JOIN notas n ON n.id = a.nota_id
-     WHERE a.id = :id AND n.usuario_id = :usuario_id'
+     LEFT JOIN nota_compartilhamentos nc ON nc.nota_id = n.id AND nc.usuario_id = :usuario_id2 AND nc.pode_editar = 1
+     WHERE a.id = :id AND (n.usuario_id = :usuario_id OR nc.usuario_id IS NOT NULL)'
 );
-$stmt->execute(['id' => $id, 'usuario_id' => $usuarioId]);
+$stmt->execute(['id' => $id, 'usuario_id' => $usuarioId, 'usuario_id2' => $usuarioId]);
 $anexo = $stmt->fetch();
 
 if (!$anexo) {

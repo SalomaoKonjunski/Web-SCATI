@@ -58,7 +58,7 @@ FROM (
     SELECT 'dashboard' AS modulo UNION ALL SELECT 'chamados' UNION ALL SELECT 'equipamentos' UNION ALL
     SELECT 'impressoras' UNION ALL SELECT 'estoque' UNION ALL SELECT 'redes' UNION ALL
     SELECT 'licencas' UNION ALL SELECT 'relatorios' UNION ALL SELECT 'notas' UNION ALL
-    SELECT 'configuracoes'
+    SELECT 'tarefas' UNION ALL SELECT 'configuracoes'
 ) AS modulos;
 
 -- Usuário (antigo "solicitante"): só enxerga e participa dos próprios
@@ -521,8 +521,9 @@ CREATE TABLE relatorios_personalizados (
 
 -- ---------------------------------------------------------------------
 -- Tabela: notas
--- Bloco de notas pessoal — cada nota pertence a um usuário e só aparece
--- para ele mesmo (toda consulta em modules/notas/ filtra por usuario_id).
+-- Bloco de notas pessoal — cada nota pertence a um usuário (dono) e só
+-- aparece pra ele, exceto quando o dono compartilha ela com outras
+-- pessoas (tabela nota_compartilhamentos).
 -- ---------------------------------------------------------------------
 CREATE TABLE notas (
     id              INT AUTO_INCREMENT PRIMARY KEY,
@@ -552,6 +553,75 @@ CREATE TABLE anexos_notas (
 
     CONSTRAINT fk_anexo_nota
         FOREIGN KEY (nota_id) REFERENCES notas(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- ---------------------------------------------------------------------
+-- Tabela: nota_compartilhamentos
+-- O dono de uma nota (Bloco de Notas) escolhe quais outras pessoas do
+-- sistema podem vê-la. pode_editar = 0 (padrão): a pessoa só visualiza
+-- o conteúdo e os anexos. pode_editar = 1: a pessoa também pode editar
+-- o conteúdo e gerenciar os anexos, como se fosse dela — mas nunca pode
+-- excluir a nota em si nem reconfigurar o compartilhamento (isso é
+-- exclusivo do dono).
+-- ---------------------------------------------------------------------
+CREATE TABLE nota_compartilhamentos (
+    id          INT AUTO_INCREMENT PRIMARY KEY,
+    nota_id     INT NOT NULL,
+    usuario_id  INT NOT NULL,
+    pode_editar TINYINT(1) NOT NULL DEFAULT 0,
+    criado_em   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_compartilhamento_nota
+        FOREIGN KEY (nota_id) REFERENCES notas(id) ON DELETE CASCADE,
+    CONSTRAINT fk_compartilhamento_usuario
+        FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE UNIQUE INDEX uq_nota_usuario ON nota_compartilhamentos(nota_id, usuario_id);
+
+-- ---------------------------------------------------------------------
+-- Tabela: tarefas_periodicas
+-- Avisos periódicos configuráveis (Tarefas Periódicas) — ex.: troca de
+-- toner, limpeza do cortador de papel, reinicialização de servidor.
+-- proxima_execucao é a data em que a tarefa "vence" de novo; ao marcar
+-- como concluída, ultima_execucao vira hoje e proxima_execucao é
+-- recalculada a partir de hoje + frequência. dias_aviso_antecedencia
+-- controla com quantos dias de antecedência ela aparece na Central de
+-- Alertas do Dashboard (mesma ideia de dias_alerta_licenca/toner).
+-- ---------------------------------------------------------------------
+CREATE TABLE tarefas_periodicas (
+    id                      INT AUTO_INCREMENT PRIMARY KEY,
+    titulo                  VARCHAR(150) NOT NULL,
+    descricao               TEXT NULL,
+    frequencia_tipo         ENUM('dias','semanas','meses') NOT NULL DEFAULT 'dias',
+    frequencia_valor        INT NOT NULL DEFAULT 1,
+    dias_aviso_antecedencia INT NOT NULL DEFAULT 3,
+    ultima_execucao         DATE NULL,
+    proxima_execucao        DATE NOT NULL,
+    responsavel_id          INT NULL,
+    ativo                   TINYINT(1) NOT NULL DEFAULT 1,
+    criado_em               DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    atualizado_em           DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_tarefa_responsavel
+        FOREIGN KEY (responsavel_id) REFERENCES usuarios(id) ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+-- ---------------------------------------------------------------------
+-- Tabela: historico_tarefas_periodicas
+-- Registro de quando cada Tarefa Periódica foi marcada como concluída
+-- (e por quem) — mesmo padrão de historico_equipamentos/historico_chamados.
+-- ---------------------------------------------------------------------
+CREATE TABLE historico_tarefas_periodicas (
+    id              INT AUTO_INCREMENT PRIMARY KEY,
+    tarefa_id       INT NOT NULL,
+    data_hora       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    evento          VARCHAR(60) NOT NULL,
+    descricao       VARCHAR(255) NOT NULL,
+    usuario_nome    VARCHAR(50) NULL,
+
+    CONSTRAINT fk_historico_tarefa
+        FOREIGN KEY (tarefa_id) REFERENCES tarefas_periodicas(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
 -- ---------------------------------------------------------------------

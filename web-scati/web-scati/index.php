@@ -100,7 +100,18 @@ $chamadosUrgentes = $pdo->query(
      ORDER BY prioridade DESC, criado_em ASC"
 )->fetchAll();
 
-$totalAlertas = count($licencasVencendo) + count($itensEstoqueBaixo) + count($impressorasSemToner) + count($impressorasTonerVencendo) + count($chamadosUrgentes);
+// Tarefas Periódicas vencidas ou se aproximando do prazo (dentro da antecedência
+// configurada em cada tarefa). Só entra aqui quem tem acesso ao módulo.
+$tarefasVencendo = temPermissao('tarefas', 'ver')
+    ? $pdo->query(
+        "SELECT t.id, t.titulo, t.proxima_execucao
+         FROM tarefas_periodicas t
+         WHERE t.ativo = 1 AND t.proxima_execucao <= DATE_ADD(CURDATE(), INTERVAL t.dias_aviso_antecedencia DAY)
+         ORDER BY t.proxima_execucao ASC"
+    )->fetchAll()
+    : [];
+
+$totalAlertas = count($licencasVencendo) + count($itensEstoqueBaixo) + count($impressorasSemToner) + count($impressorasTonerVencendo) + count($chamadosUrgentes) + count($tarefasVencendo);
 
 // --- Itens de estoque por categoria (gráfico) -----------------------------
 $itensPorCategoriaRaw = $pdo->query(
@@ -229,6 +240,20 @@ include __DIR__ . '/includes/header.php';
                     <a href="<?= BASE_URL ?>/modules/chamados/form.php?id=<?= (int) $ch['id'] ?>" class="list-group-item list-group-item-action">
                         <span class="badge <?= prioridadeChamadoBadgeClass($ch['prioridade']) ?> me-2">Chamado</span>
                         <?= e($ch['titulo']) ?> — prioridade <?= e($ch['prioridade']) ?>
+                    </a>
+                <?php endforeach; ?>
+
+                <?php foreach ($tarefasVencendo as $tf): ?>
+                    <?php
+                        $diasParaTarefa = (int) floor((strtotime($tf['proxima_execucao']) - strtotime('today')) / 86400);
+                        $tarefaVencida = $diasParaTarefa < 0;
+                    ?>
+                    <a href="<?= BASE_URL ?>/modules/tarefas/index.php" class="list-group-item list-group-item-action">
+                        <span class="badge <?= $tarefaVencida ? 'bg-danger' : 'bg-warning text-dark' ?> me-2">Tarefa</span>
+                        <?= e($tf['titulo']) ?>
+                        <?= $tarefaVencida
+                            ? 'atrasada desde ' . formatDate($tf['proxima_execucao'])
+                            : 'prevista para ' . formatDate($tf['proxima_execucao']) . ' (' . $diasParaTarefa . ' dia(s))' ?>
                     </a>
                 <?php endforeach; ?>
             </div>

@@ -9,17 +9,26 @@ $pdo = db();
 $usuarioId = usuarioLogado()['id'];
 $id = isset($_GET['id']) ? (int) $_GET['id'] : null;
 $edicao = $id !== null;
+$souDono = true;
 
 $nota = ['titulo' => '', 'conteudo' => ''];
 
 if ($edicao) {
-    $stmt = $pdo->prepare('SELECT * FROM notas WHERE id = :id AND usuario_id = :usuario_id');
-    $stmt->execute(['id' => $id, 'usuario_id' => $usuarioId]);
+    // Dono sempre pode editar. Quem não é dono só pode editar se a nota
+    // foi compartilhada com ele e com "pode_editar" habilitado.
+    $stmt = $pdo->prepare(
+        'SELECT n.*, (n.usuario_id = :usuario_id) AS sou_dono, COALESCE(nc.pode_editar, 0) AS pode_editar
+         FROM notas n
+         LEFT JOIN nota_compartilhamentos nc ON nc.nota_id = n.id AND nc.usuario_id = :usuario_id2
+         WHERE n.id = :id AND (n.usuario_id = :usuario_id3 OR (nc.usuario_id IS NOT NULL AND nc.pode_editar = 1))'
+    );
+    $stmt->execute(['id' => $id, 'usuario_id' => $usuarioId, 'usuario_id2' => $usuarioId, 'usuario_id3' => $usuarioId]);
     $registro = $stmt->fetch();
     if (!$registro) {
         flash('danger', 'Nota não encontrada.');
         redirect('/modules/notas/index.php');
     }
+    $souDono = (bool) $registro['sou_dono'];
     $nota = array_merge($nota, $registro);
 }
 
@@ -35,12 +44,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (empty($erros)) {
         if ($edicao) {
-            $pdo->prepare('UPDATE notas SET titulo = :titulo, conteudo = :conteudo WHERE id = :id AND usuario_id = :usuario_id')
+            $pdo->prepare('UPDATE notas SET titulo = :titulo, conteudo = :conteudo WHERE id = :id')
                 ->execute([
                     'titulo' => $nota['titulo'],
                     'conteudo' => $nota['conteudo'] ?: null,
                     'id' => $id,
-                    'usuario_id' => $usuarioId,
                 ]);
             flash('success', 'Nota atualizada com sucesso.');
         } else {
@@ -73,6 +81,10 @@ include __DIR__ . '/../../includes/header.php';
     <h1 class="h3 mb-0"><i class="bi bi-journal-text me-2"></i><?= $edicao ? 'Editar Nota' : 'Nova Nota' ?></h1>
     <a href="index.php" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Voltar</a>
 </div>
+
+<?php if ($edicao && !$souDono): ?>
+    <p class="text-muted small"><i class="bi bi-share me-1"></i> Nota compartilhada com você — você pode editar o conteúdo e os anexos, mas só o dono pode excluí-la ou reconfigurar o compartilhamento.</p>
+<?php endif; ?>
 
 <?php if (!empty($erros)): ?>
     <div class="alert alert-danger">
