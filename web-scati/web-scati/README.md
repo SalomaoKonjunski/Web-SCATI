@@ -331,6 +331,15 @@ Funcional (v1.0).
    mysql --default-character-set=utf8mb4 -u root -p scati < database/migration_anexos_chamados.sql
    ```
 
+   Se o banco já existia antes dos **Perfis de Acesso configuráveis**
+   (ainda não tem a tabela `perfis_acesso`), rode também esta migração
+   incremental **uma única vez** — ela também troca `usuarios.perfil` de
+   uma lista fixa (`ENUM`) para um texto ligado aos perfis cadastrados,
+   preservando os usuários e perfis já existentes:
+   ```bash
+   mysql --default-character-set=utf8mb4 -u root -p scati < database/migration_perfis_acesso.sql
+   ```
+
    > Importante: ao importar qualquer um dos arquivos `.sql` deste projeto,
    > garanta que o cliente MySQL use UTF-8 (ex.: `mysql --default-character-set=utf8mb4 -u root -p < arquivo.sql`),
    > caso contrário os valores acentuados dos campos `ENUM` (como "Disponível")
@@ -785,21 +794,36 @@ web-scati/
     uma impressora com a troca de toner se aproximando (com base na
     duração estimada configurada em cada impressora) aparece na Central de
     Alertas do Dashboard (padrão: 7 dias).
-- **Login e usuários**: todas as páginas do sistema exigem autenticação
-  (usuário e senha, com a senha armazenada com hash bcrypt via
-  `password_hash()`). Cada usuário tem um **perfil de acesso**, definido
-  na tela **Usuários** (menu lateral, restrita a administradores):
-  - **Administrador**: acesso completo, inclusive à tela Usuários (criar,
-    editar, redefinir senha e excluir outras contas).
-  - **Padrão**: acesso completo ao sistema (cadastros, edições e
-    exclusões em qualquer módulo), exceto gerenciar usuários.
-  - **Usuário**: só acessa a aba **Chamados** — pode registrar
-    chamados e acompanhar os que ele mesmo abriu, mas não enxerga o
-    restante do sistema (Equipamentos, Estoque, Dashboard etc.) nem pode
-    editar/excluir chamados, alterar prioridade/andamento ou se atribuir
-    a um chamado. Pensado para quem só precisa abrir solicitações para a
-    TI (ex.: recepção, outros setores), sem acesso operacional ao
-    sistema.
+- **Login, usuários e Perfis de Acesso**: todas as páginas do sistema
+  exigem autenticação (usuário e senha, com a senha armazenada com hash
+  bcrypt via `password_hash()`). Cada usuário tem um **perfil de
+  acesso**, definido na tela **Usuários** (menu lateral) e gerenciado em
+  **Configurações > Perfis de Acesso** (restrita ao Administrador):
+  - **Administrador**: perfil fixo do sistema — sempre acesso completo a
+    tudo, não pode ser renomeado, editado nem excluído. Garante que o
+    sistema nunca fique sem ninguém capaz de gerenciar os demais perfis
+    e usuários. Só ele pode criar/editar outra conta Administrador,
+    editar uma conta que já seja Administrador, ou acessar a tela de
+    Perfis de Acesso — mesmo que outro perfil receba permissão total em
+    Configurações, essas três coisas continuam exclusivas dele.
+  - **Padrão** e **Usuário**: vêm pré-cadastrados com o comportamento de
+    sempre do sistema (Padrão com acesso completo exceto Senhas/
+    Usuários/Perfis de Acesso; Usuário só acessa **Chamados**, podendo
+    registrar e acompanhar os que ele mesmo abriu, sem editar/excluir,
+    alterar prioridade/andamento ou se atribuir a um chamado) — mas,
+    diferente do Administrador, são totalmente editáveis a partir daqui.
+  - Qualquer outro perfil pode ser **criado do zero**, com nome livre e
+    uma permissão própria por módulo do sistema (Dashboard, Chamados,
+    Equipamentos, Impressoras, Estoque, Redes, Licenças, Relatórios,
+    Bloco de Notas, Senhas, Usuários, Configurações): **Visualizar** (a
+    aba aparece no menu, só leitura) e **Alterar** (também cria, edita e
+    exclui ali). O menu lateral e o acesso direto por URL respeitam
+    exatamente essa combinação — um perfil sem nenhuma permissão
+    marcada não vê nada; um perfil só com "Visualizar" em Equipamentos,
+    por exemplo, abre as fichas mas não consegue editar, excluir nem
+    registrar manutenção. Renomear um perfil atualiza automaticamente
+    todos os usuários que já usavam o nome antigo; excluir um perfil só
+    é permitido se nenhum usuário estiver usando ele no momento.
 
   Cada usuário pode ter também **ramal**, **telefone** e **email
   corporativo** cadastrados (todos opcionais), exibidos na coluna

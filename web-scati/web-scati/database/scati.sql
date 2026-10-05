@@ -7,13 +7,80 @@ CREATE DATABASE IF NOT EXISTS scati CHARACTER SET utf8mb4 COLLATE utf8mb4_unicod
 USE scati;
 
 -- ---------------------------------------------------------------------
+-- Tabela: perfis_acesso
+-- Perfis de acesso configuráveis em Configurações > Perfis de Acesso.
+-- "Administrador" é protegido (protegido = 1): sempre acesso completo a
+-- tudo, não pode ser renomeado, editado nem excluído — garante que o
+-- sistema nunca fique sem ninguém capaz de gerenciar os demais perfis.
+-- Os outros perfis (incluindo "Padrão" e "Usuário", que já vêm prontos)
+-- são livres pra criar, renomear, configurar e excluir.
+-- ---------------------------------------------------------------------
+CREATE TABLE perfis_acesso (
+    id          INT AUTO_INCREMENT PRIMARY KEY,
+    nome        VARCHAR(50) NOT NULL UNIQUE,
+    protegido   TINYINT(1) NOT NULL DEFAULT 0,
+    criado_em   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+INSERT INTO perfis_acesso (nome, protegido) VALUES
+('Administrador', 1),
+('Padrão', 0),
+('Usuário', 0);
+
+-- ---------------------------------------------------------------------
+-- Tabela: perfil_permissoes
+-- Uma linha por módulo que o perfil pode "Visualizar" (a aba aparece no
+-- menu, acesso só leitura) e/ou "Alterar" (além de ver, pode criar,
+-- editar e excluir registros ali). Só precisa de linha pros módulos
+-- realmente liberados — a ausência de linha equivale a sem acesso
+-- nenhum (ver corCategoriaPadrao()... ver temPermissao() em functions.php).
+-- "Administrador" não tem linhas aqui: tem acesso completo a tudo
+-- sempre, verificado direto pelo nome do perfil (protegido = 1).
+-- ---------------------------------------------------------------------
+CREATE TABLE perfil_permissoes (
+    id          INT AUTO_INCREMENT PRIMARY KEY,
+    perfil_id   INT NOT NULL,
+    modulo      VARCHAR(30) NOT NULL,
+    visualizar  TINYINT(1) NOT NULL DEFAULT 0,
+    alterar     TINYINT(1) NOT NULL DEFAULT 0,
+
+    CONSTRAINT fk_permissao_perfil
+        FOREIGN KEY (perfil_id) REFERENCES perfis_acesso(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE UNIQUE INDEX uq_perfil_modulo ON perfil_permissoes(perfil_id, modulo);
+
+-- Padrão: acesso completo a tudo, exceto Senhas e Usuários (hoje
+-- restritos a Administrador).
+INSERT INTO perfil_permissoes (perfil_id, modulo, visualizar, alterar)
+SELECT (SELECT id FROM perfis_acesso WHERE nome = 'Padrão'), modulos.modulo, 1, 1
+FROM (
+    SELECT 'dashboard' AS modulo UNION ALL SELECT 'chamados' UNION ALL SELECT 'equipamentos' UNION ALL
+    SELECT 'impressoras' UNION ALL SELECT 'estoque' UNION ALL SELECT 'redes' UNION ALL
+    SELECT 'licencas' UNION ALL SELECT 'relatorios' UNION ALL SELECT 'notas' UNION ALL
+    SELECT 'configuracoes'
+) AS modulos;
+
+-- Usuário (antigo "solicitante"): só enxerga e participa dos próprios
+-- chamados — "Alterar" fica de fora porque, dentro de Chamados, ele não
+-- pode mudar prioridade/andamento/responsável nem excluir, só criar e
+-- responder (ver exigirPermissao()/temPermissao() e o módulo Chamados).
+INSERT INTO perfil_permissoes (perfil_id, modulo, visualizar, alterar)
+VALUES ((SELECT id FROM perfis_acesso WHERE nome = 'Usuário'), 'chamados', 1, 0);
+
+-- ---------------------------------------------------------------------
 -- Tabela: usuarios
 -- ---------------------------------------------------------------------
 CREATE TABLE usuarios (
     id                    INT AUTO_INCREMENT PRIMARY KEY,
     usuario               VARCHAR(50)  NOT NULL UNIQUE,
     senha_hash            VARCHAR(255) NOT NULL,
-    perfil                ENUM('Administrador','Padrão','Usuário') NOT NULL DEFAULT 'Padrão',
+    -- Nome do perfil em perfis_acesso, guardado como texto "ao vivo"
+    -- (sem FK formal pro id, só uma referência pelo nome com integridade
+    -- garantida pela FK abaixo) — renomear o perfil atualiza sozinho
+    -- (ON UPDATE CASCADE) todo usuário que já usava o nome antigo, e não
+    -- deixa excluir um perfil ainda em uso (ON DELETE RESTRICT).
+    perfil                VARCHAR(50)  NOT NULL DEFAULT 'Padrão',
     ramal                 VARCHAR(20)  NULL,
     telefone              VARCHAR(20)  NULL,
     email_corporativo     VARCHAR(150) NULL,
@@ -22,15 +89,17 @@ CREATE TABLE usuarios (
     -- diferente de senha_hash, pode ser lida de volta para o administrador
     -- consultar no cadastro.
     senha_email_cifrada   TEXT         NULL,
-    criado_em             DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP
+    criado_em             DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_usuario_perfil
+        FOREIGN KEY (perfil) REFERENCES perfis_acesso(nome) ON UPDATE CASCADE ON DELETE RESTRICT
 ) ENGINE=InnoDB;
 
--- Perfis de acesso:
---   Administrador: acesso completo, inclusive gerenciar outros usuários.
---   Padrão:        acesso completo ao sistema, exceto gerenciar usuários.
---   Usuário:       só acessa a aba de Chamados; pode registrar chamados e
---                  acompanhar os que ele mesmo abriu, mas não edita/exclui
---                  chamados nem enxerga o restante do sistema.
+-- Perfis de acesso: configuráveis em Configurações > Perfis de Acesso
+-- (tabelas perfis_acesso / perfil_permissoes). "Administrador" é fixo,
+-- sempre com acesso completo. "Padrão" e "Usuário" já vêm prontos com o
+-- comportamento de sempre do sistema (ver seed acima), mas totalmente
+-- editáveis dali em diante.
 --
 -- Usuário administrador padrão (usuario: Salomao / senha: scati2026).
 -- Recomenda-se trocar a senha após o primeiro acesso.

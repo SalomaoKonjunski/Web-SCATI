@@ -3,7 +3,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../includes/functions.php';
 require_once __DIR__ . '/../../includes/auth.php';
-exigirAdmin();
+exigirPermissao('usuarios', 'alterar');
 
 $pdo = db();
 $id = isset($_GET['id']) ? (int) $_GET['id'] : null;
@@ -19,6 +19,14 @@ if ($edicao) {
     $registro = $stmt->fetch();
     if (!$registro) {
         flash('danger', 'Usuário não encontrado.');
+        redirect('/modules/usuarios/index.php');
+    }
+    // Um perfil com acesso a Usuários mas que não seja o Administrador
+    // protegido não pode mexer em contas de Administrador — evita que
+    // esse perfil se promova (editando a própria conta de outra pessoa
+    // que seja admin) ou rebaixe o único administrador do sistema.
+    if ($registro['perfil'] === 'Administrador' && !usuarioLogado()['admin']) {
+        flash('danger', 'Apenas o administrador pode editar outra conta de Administrador.');
         redirect('/modules/usuarios/index.php');
     }
     $registroUsuario = array_merge($registroUsuario, $registro);
@@ -43,6 +51,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     if (!in_array($perfilSubmetido, perfisUsuario(), true)) {
         $erros[] = 'Perfil de acesso inválido.';
+    }
+    // Mesma proteção contra promoção indevida: só o administrador pode
+    // definir outra conta como Administrador.
+    if ($perfilSubmetido === 'Administrador' && !usuarioLogado()['admin']) {
+        $erros[] = 'Apenas o administrador pode definir outro usuário como Administrador.';
     }
     if (!$edicao && $senha === '') {
         $erros[] = 'A senha é obrigatória para um novo usuário.';
@@ -166,9 +179,9 @@ include __DIR__ . '/../../includes/header.php';
                     <?php endforeach; ?>
                 </select>
                 <div class="form-text">
-                    <strong>Administrador</strong>: acesso completo, inclusive gerenciar usuários.<br>
-                    <strong>Padrão</strong>: acesso completo ao sistema, exceto gerenciar usuários.<br>
-                    <strong>Usuário</strong>: só acessa a aba de Chamados, para registrar e acompanhar os próprios chamados.
+                    <strong>Administrador</strong> tem acesso completo sempre. O que os demais perfis podem
+                    visualizar e alterar é definido em
+                    <a href="../perfis_acesso/index.php">Configurações &gt; Perfis de Acesso</a>.
                 </div>
             </div>
             <div class="col-md-6">

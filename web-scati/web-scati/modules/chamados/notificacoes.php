@@ -3,7 +3,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../includes/functions.php';
 require_once __DIR__ . '/../../includes/auth.php';
-exigirLogin();
+exigirPermissao('chamados', 'ver');
 
 $usuarioAtual = usuarioLogado();
 // Administrador e Padrão enxergam a listagem de chamados inteira, então

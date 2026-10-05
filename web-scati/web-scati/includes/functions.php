@@ -778,9 +778,99 @@ function statusChamadoBadgeClass(string $status): string
     };
 }
 
+/**
+ * Perfis cadastrados em Configurações > Perfis de Acesso (tabela
+ * perfis_acesso), usados no campo "Perfil de Acesso" do cadastro de
+ * Usuários — o protegido (Administrador) sempre primeiro.
+ */
 function perfisUsuario(): array
 {
-    return ['Administrador', 'Padrão', 'Usuário'];
+    return db()->query('SELECT nome FROM perfis_acesso ORDER BY protegido DESC, nome ASC')->fetchAll(PDO::FETCH_COLUMN);
+}
+
+/**
+ * Catálogo dos módulos do sistema que aparecem no painel de permissões
+ * de um Perfil de Acesso (Configurações > Perfis de Acesso) — chave
+ * salva em perfil_permissoes.modulo, label e ícone pra tela. "Dashboard"
+ * é o único que só tem "Visualizar" (não existe nada pra "alterar" nele).
+ */
+function modulosSistema(): array
+{
+    return [
+        'dashboard'     => ['label' => 'Dashboard', 'icone' => 'bi-speedometer2', 'somenteVisualizar' => true],
+        'chamados'      => ['label' => 'Chamados', 'icone' => 'bi-life-preserver'],
+        'equipamentos'  => ['label' => 'Equipamentos', 'icone' => 'bi-pc-display'],
+        'impressoras'   => ['label' => 'Impressoras', 'icone' => 'bi-printer'],
+        'estoque'       => ['label' => 'Estoque', 'icone' => 'bi-box-seam'],
+        'redes'         => ['label' => 'Redes', 'icone' => 'bi-diagram-3'],
+        'licencas'      => ['label' => 'Licenças', 'icone' => 'bi-key'],
+        'relatorios'    => ['label' => 'Relatórios', 'icone' => 'bi-bar-chart-line'],
+        'notas'         => ['label' => 'Bloco de Notas', 'icone' => 'bi-journal-text'],
+        'senhas'        => ['label' => 'Senhas', 'icone' => 'bi-shield-lock'],
+        'usuarios'      => ['label' => 'Usuários', 'icone' => 'bi-people'],
+        'configuracoes' => ['label' => 'Configurações', 'icone' => 'bi-gear'],
+    ];
+}
+
+/** true se o perfil informado for protegido (hoje só o Administrador). */
+function perfilEhProtegido(string $perfil): bool
+{
+    static $cache = null;
+    if ($cache === null) {
+        $cache = array_column(db()->query('SELECT nome, protegido FROM perfis_acesso')->fetchAll(), 'protegido', 'nome');
+    }
+    return (bool) ($cache[$perfil] ?? false);
+}
+
+/**
+ * Mapa modulo => ['ver' => bool, 'alterar' => bool] com as permissões do
+ * perfil informado, lido de perfil_permissoes (módulo sem linha ali
+ * equivale a nenhuma permissão nele). Cacheado em memória por perfil,
+ * por requisição.
+ */
+function permissoesPerfil(string $perfil): array
+{
+    static $cache = [];
+    if (isset($cache[$perfil])) {
+        return $cache[$perfil];
+    }
+
+    $stmt = db()->prepare(
+        'SELECT pp.modulo, pp.visualizar, pp.alterar
+         FROM perfil_permissoes pp
+         JOIN perfis_acesso pa ON pa.id = pp.perfil_id
+         WHERE pa.nome = :perfil'
+    );
+    $stmt->execute(['perfil' => $perfil]);
+
+    $mapa = [];
+    foreach ($stmt->fetchAll() as $linha) {
+        $mapa[$linha['modulo']] = [
+            'ver'     => (bool) $linha['visualizar'],
+            'alterar' => (bool) $linha['alterar'],
+        ];
+    }
+    $cache[$perfil] = $mapa;
+    return $mapa;
+}
+
+/**
+ * Se o perfil informado (ou o do usuário logado, quando omitido) pode
+ * "ver" ou "alterar" o módulo informado (chaves de modulosSistema()).
+ * Um perfil protegido (hoje só o Administrador) sempre tem acesso total,
+ * mesmo sem nenhuma linha em perfil_permissoes.
+ */
+function temPermissao(string $modulo, string $acao = 'ver', ?string $perfil = null): bool
+{
+    $perfil ??= usuarioLogado()['perfil'] ?? null;
+    if ($perfil === null) {
+        return false;
+    }
+    if (perfilEhProtegido($perfil)) {
+        return true;
+    }
+    $permissoes = permissoesPerfil($perfil);
+    return $permissoes[$modulo][$acao] ?? false;
 }
 
 /**

@@ -771,4 +771,44 @@ document.addEventListener('DOMContentLoaded', function () {
             renderizarPendentes();
         });
     }
+
+    // Formulário de Perfil de Acesso: marcar "Alterar" marca "Visualizar"
+    // junto (não faz sentido um sem o outro); desmarcar "Visualizar"
+    // desmarca "Alterar" junto. Os links "Marcar tudo"/"Desmarcar tudo"
+    // aplicam a mesma regra em massa.
+    document.querySelectorAll('.js-perfil-ver').forEach(function (checkboxVer) {
+        checkboxVer.addEventListener('change', function () {
+            if (!checkboxVer.checked) {
+                const checkboxAlterar = document.querySelector('.js-perfil-alterar[data-modulo="' + checkboxVer.dataset.modulo + '"]');
+                if (checkboxAlterar) {
+                    checkboxAlterar.checked = false;
+                }
+            }
+        });
+    });
+    document.querySelectorAll('.js-perfil-alterar').forEach(function (checkboxAlterar) {
+        checkboxAlterar.addEventListener('change', function () {
+            if (checkboxAlterar.checked) {
+                const checkboxVer = document.querySelector('.js-perfil-ver[data-modulo="' + checkboxAlterar.dataset.modulo + '"]');
+                if (checkboxVer) {
+                    checkboxVer.checked = true;
+                }
+            }
+        });
+    });
+
+    const marcarTudoPerfil = document.querySelector('.js-perfil-marcar-tudo');
+    if (marcarTudoPerfil) {
+        marcarTudoPerfil.addEventListener('click', function (e) {
+            e.preventDefault();
+            document.querySelectorAll('.js-perfil-ver, .js-perfil-alterar').forEach(function (campo) { campo.checked = true; });
+        });
+    }
+    const desmarcarTudoPerfil = document.querySelector('.js-perfil-desmarcar-tudo');
+    if (desmarcarTudoPerfil) {
+        desmarcarTudoPerfil.addEventListener('click', function (e) {
+            e.preventDefault();
+            document.querySelectorAll('.js-perfil-ver, .js-perfil-alterar').forEach(function (campo) { campo.checked = false; });
+        });
+    }
 });

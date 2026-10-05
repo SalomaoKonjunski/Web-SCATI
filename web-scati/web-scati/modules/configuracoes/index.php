@@ -3,7 +3,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../includes/functions.php';
 require_once __DIR__ . '/../../includes/auth.php';
-exigirNaoSolicitante();
+exigirPermissao('configuracoes', 'ver');
 
 $pdo = db();
 $pageTitle = 'Configurações';
@@ -11,6 +11,7 @@ $pageTitle = 'Configurações';
 $erros = [];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['salvar_dias_alerta'])) {
+    exigirPermissao('configuracoes', 'alterar');
     $diasAlerta = $_POST['dias_alerta_licenca'] ?? '';
 
     if (!is_numeric($diasAlerta) || (int) $diasAlerta < 0) {
@@ -23,6 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['salvar_dias_alerta'])
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['salvar_dias_alerta_toner'])) {
+    exigirPermissao('configuracoes', 'alterar');
     $diasAlertaToner = $_POST['dias_alerta_toner'] ?? '';
 
     if (!is_numeric($diasAlertaToner) || (int) $diasAlertaToner < 0) {
@@ -35,6 +37,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['salvar_dias_alerta_to
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['salvar_fuso_horario'])) {
+    exigirPermissao('configuracoes', 'alterar');
     $fusoEscolhido = $_POST['fuso_horario'] ?? '';
 
     if (!array_key_exists($fusoEscolhido, fusosHorariosDisponiveis())) {
@@ -53,7 +56,8 @@ $totalCategorias = (int) $pdo->query('SELECT COUNT(*) FROM categorias_estoque')-
 $totalCategoriasEquipamento = (int) $pdo->query('SELECT COUNT(*) FROM categorias_equipamento')->fetchColumn();
 $totalTiposManutencao = (int) $pdo->query('SELECT COUNT(*) FROM tipos_manutencao')->fetchColumn();
 $usuarioAtual = usuarioLogado();
-$totalCategoriasSenha = $usuarioAtual['admin'] ? (int) $pdo->query('SELECT COUNT(*) FROM categorias_senha')->fetchColumn() : 0;
+$totalCategoriasSenha = (int) $pdo->query('SELECT COUNT(*) FROM categorias_senha')->fetchColumn();
+$totalPerfisAcesso = $usuarioAtual['admin'] ? (int) $pdo->query('SELECT COUNT(*) FROM perfis_acesso')->fetchColumn() : 0;
 
 include __DIR__ . '/../../includes/header.php';
 ?>
@@ -69,6 +73,7 @@ include __DIR__ . '/../../includes/header.php';
 <?php endif; ?>
 
 <div class="row g-3">
+    <?php if (temPermissao('estoque', 'alterar')): ?>
     <div class="col-md-6">
         <div class="card h-100">
             <div class="card-body d-flex flex-column">
@@ -84,7 +89,9 @@ include __DIR__ . '/../../includes/header.php';
             </div>
         </div>
     </div>
+    <?php endif; ?>
 
+    <?php if (temPermissao('equipamentos', 'alterar')): ?>
     <div class="col-md-6">
         <div class="card h-100">
             <div class="card-body d-flex flex-column">
@@ -116,8 +123,9 @@ include __DIR__ . '/../../includes/header.php';
             </div>
         </div>
     </div>
+    <?php endif; ?>
 
-    <?php if ($usuarioAtual['admin']): ?>
+    <?php if (temPermissao('senhas', 'alterar')): ?>
     <div class="col-md-6">
         <div class="card h-100">
             <div class="card-body d-flex flex-column">
@@ -129,6 +137,24 @@ include __DIR__ . '/../../includes/header.php';
                 <p class="text-muted small mb-3"><?= $totalCategoriasSenha ?> categoria(s) cadastrada(s).</p>
                 <a href="../categorias_senha/index.php" class="btn btn-outline-primary mt-auto">
                     <i class="bi bi-arrow-right"></i> Gerenciar Categorias
+                </a>
+            </div>
+        </div>
+    </div>
+    <?php endif; ?>
+
+    <?php if ($usuarioAtual['admin']): ?>
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-body d-flex flex-column">
+                <h5 class="card-title"><i class="bi bi-person-badge me-1"></i> Perfis de Acesso</h5>
+                <p class="card-text text-muted">
+                    Crie perfis de acesso personalizados e defina o que cada um pode visualizar e alterar
+                    em cada aba do sistema.
+                </p>
+                <p class="text-muted small mb-3"><?= $totalPerfisAcesso ?> perfil(is) cadastrado(s).</p>
+                <a href="../perfis_acesso/index.php" class="btn btn-outline-primary mt-auto">
+                    <i class="bi bi-arrow-right"></i> Gerenciar Perfis
                 </a>
             </div>
         </div>

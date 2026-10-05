@@ -3,12 +3,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../includes/functions.php';
 require_once __DIR__ . '/../../includes/auth.php';
-exigirLogin();
-
-if (usuarioLogado()['solicitante']) {
-    flash('danger', 'Seu perfil não pode alterar chamados.');
-    redirect('/modules/chamados/index.php');
-}
+exigirPermissao('chamados', 'alterar');
 
 $pdo = db();
 

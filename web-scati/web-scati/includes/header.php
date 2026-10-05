@@ -36,7 +36,7 @@ $flash = getFlash();
         <i class="bi bi-list fs-3"></i>
     </button>
     <?php $usuarioAtual = usuarioLogado(); ?>
-    <a class="navbar-brand fw-bold" href="<?= BASE_URL ?>/<?= ($usuarioAtual['solicitante'] ?? false) ? 'modules/chamados/index.php' : 'index.php' ?>">
+    <a class="navbar-brand fw-bold" href="<?= BASE_URL ?>/<?= temPermissao('dashboard', 'ver') ? 'index.php' : 'modules/chamados/index.php' ?>">
         <i class="bi bi-hdd-network me-2"></i>Web SCATI
     </a>
     <span class="text-white-50 small d-none d-md-inline">Sistema de Controle de Ativos de TI</span>

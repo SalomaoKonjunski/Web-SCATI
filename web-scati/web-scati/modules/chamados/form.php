@@ -4,7 +4,7 @@ require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../includes/functions.php';
 require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/push.php';
-exigirLogin();
+exigirPermissao('chamados', 'ver');
 
 $pdo = db();
 $id = isset($_GET['id']) ? (int) $_GET['id'] : null;

@@ -3,7 +3,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../includes/functions.php';
 require_once __DIR__ . '/../../includes/auth.php';
-exigirNaoSolicitante();
+exigirPermissao('equipamentos', 'ver');
 
 $pdo = db();
 $id = (int) ($_GET['id'] ?? 0);
@@ -30,6 +30,7 @@ if (temMapeamentoPortas($eq['tipo']) && !empty($eq['qtd_portas_switch'])) {
 
 // Trata o envio do formulário de nova observação (POST nesta mesma página)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['nova_observacao'])) {
+    exigirPermissao('equipamentos', 'alterar');
     $texto = trim($_POST['nova_observacao']);
     if ($texto !== '') {
         $stmtObs = $pdo->prepare(
@@ -43,6 +44,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['nova_observacao'])) {
 
 // Trata o registro de uma manutenção no histórico (POST nesta mesma página)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['registrar_manutencao'])) {
+    exigirPermissao('equipamentos', 'alterar');
     $tipoManutencao = $_POST['tipo_manutencao'] ?? '';
     $dataManutencao = $_POST['data_manutencao'] ?? '';
     $descricaoManutencao = trim($_POST['descricao_manutencao'] ?? '');
@@ -69,6 +71,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['registrar_manutencao'
 
 // Trata a vinculação de uma unidade de um item de estoque a este equipamento (POST nesta mesma página)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['vincular_item'])) {
+    exigirPermissao('equipamentos', 'alterar');
     $itemId = (int) ($_POST['item_estoque_id'] ?? 0);
     $abaRetorno = ehImpressora($eq['tipo']) ? 'toner' : 'itens';
 
@@ -110,6 +113,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['vincular_item'])) {
 // Registra a troca física do toner: reinicia a contagem do prazo de alerta
 // a partir de hoje, independente da vinculação de itens do Estoque.
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['registrar_troca_toner'])) {
+    exigirPermissao('equipamentos', 'alterar');
     $pdo->prepare('UPDATE equipamentos SET toner_ultima_troca = CURDATE() WHERE id = :id')->execute(['id' => $id]);
     registrarHistorico($id, 'Manutenção', 'Troca de toner registrada — prazo de alerta reiniciado');
     flash('success', 'Troca de toner registrada. O prazo de alerta foi reiniciado a partir de hoje.');
@@ -120,6 +124,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['registrar_troca_toner
 // conectado e observação/VLAN (POST nesta mesma página, via o modal
 // compartilhado da aba "Mapeamento de Portas").
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['salvar_porta'])) {
+    exigirPermissao('equipamentos', 'alterar');
     $portaId = (int) ($_POST['porta_id'] ?? 0);
     $statusPorta = $_POST['status_porta'] ?? '';
     $equipamentoConectadoId = (int) ($_POST['equipamento_conectado_id'] ?? 0);
@@ -163,6 +168,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['salvar_porta'])) {
 
 // Trata a desconexão rápida de uma porta do switch (POST nesta mesma página)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['desconectar_porta'])) {
+    exigirPermissao('equipamentos', 'alterar');
     $portaId = (int) ($_POST['porta_id'] ?? 0);
     $stmtPorta = $pdo->prepare('SELECT * FROM portas_switch WHERE id = :id AND switch_id = :switch_id');
     $stmtPorta->execute(['id' => $portaId, 'switch_id' => $id]);
@@ -180,6 +186,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['desconectar_porta']))
 // Trata o cadastro (ou reaproveitamento) de um item de estoque direto nesta
 // página, já vinculando-o automaticamente a este equipamento (POST nesta mesma página)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cadastrar_item_estoque'])) {
+    exigirPermissao('equipamentos', 'alterar');
     $abaPadrao = ehImpressora($eq['tipo']) ? 'toner' : 'itens';
     $destinoAba = in_array($_POST['destino_aba'] ?? '', ['itens', 'toner'], true) ? $_POST['destino_aba'] : $abaPadrao;
 
