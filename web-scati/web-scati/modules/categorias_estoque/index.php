@@ -47,7 +47,7 @@ include __DIR__ . '/../../includes/header.php';
                 <?php foreach ($categorias as $cat): ?>
                     <tr class="js-categoria-linha" draggable="true" data-id="<?= (int) $cat['id'] ?>">
                         <td class="text-muted" style="cursor: grab;"><i class="bi bi-grip-vertical" title="Arraste para reordenar"></i></td>
-                        <td><strong><?= e($cat['nome']) ?></strong></td>
+                        <td><?= badgeCor($cat['nome'], $cat['cor']) ?></td>
                         <td class="text-center"><span class="badge bg-secondary"><?= (int) $cat['total_itens'] ?></span></td>
                         <td class="text-end">
                             <a href="form.php?id=<?= (int) $cat['id'] ?>" class="btn btn-sm btn-outline-primary"><i class="bi bi-pencil"></i></a>

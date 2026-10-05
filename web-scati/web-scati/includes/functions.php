@@ -827,6 +827,42 @@ function perfilUsuarioBadgeClass(string $perfil): string
 }
 
 /**
+ * Paleta fixa de cores disponíveis para as categorias de Estoque,
+ * Equipamentos, Senhas e os Tipos de Manutenção — todas escuras o
+ * suficiente para o texto branco do badge continuar legível em cima.
+ * Chave = código hex salvo no banco, valor = nome exibido no formulário.
+ */
+function paletaCoresCategoria(): array
+{
+    return [
+        '#0d6efd' => 'Azul',
+        '#6610f2' => 'Índigo',
+        '#6f42c1' => 'Roxo',
+        '#d63384' => 'Rosa',
+        '#dc3545' => 'Vermelho',
+        '#c2410c' => 'Laranja',
+        '#b45309' => 'Âmbar',
+        '#198754' => 'Verde',
+        '#0f766e' => 'Esmeralda',
+        '#0891b2' => 'Ciano',
+        '#495057' => 'Grafite',
+        '#78350f' => 'Marrom',
+    ];
+}
+
+/** Cor usada por categorias que ainda não tiveram uma cor escolhida. */
+function corCategoriaPadrao(): string
+{
+    return '#6c757d';
+}
+
+/** Monta o HTML de um badge colorido (categoria/tipo + sua cor). */
+function badgeCor(string $texto, string $cor): string
+{
+    return '<span class="badge" style="background-color: ' . e($cor) . ';">' . e($texto) . '</span>';
+}
+
+/**
  * Categorias cadastradas em Configurações > Categorias de Senhas (tabela
  * categorias_senha), usadas no campo "Categoria" do cadastro de Senhas.
  */
@@ -835,16 +871,45 @@ function categoriasSenha(): array
     return db()->query('SELECT nome FROM categorias_senha ORDER BY ordem ASC, nome ASC')->fetchAll(PDO::FETCH_COLUMN);
 }
 
-function categoriaSenhaBadgeClass(string $categoria): string
+/**
+ * Cor cadastrada para uma categoria de Senha, pelo nome (senhas.categoria
+ * guarda o nome como texto "ao vivo", sem FK — ver categorias_senha/form.php).
+ * Resultado cacheado em memória por requisição pra não repetir a consulta
+ * numa listagem com várias senhas.
+ */
+function corCategoriaSenha(string $nome): string
 {
-    return match ($categoria) {
-        'Rede'      => 'bg-primary',
-        'Servidor'  => 'bg-dark',
-        'Sistema'   => 'bg-success',
-        'Wi-Fi'     => 'bg-info text-dark',
-        'Licença'   => 'bg-warning text-dark',
-        default     => 'bg-secondary',
-    };
+    static $mapa = null;
+    if ($mapa === null) {
+        $mapa = array_column(db()->query('SELECT nome, cor FROM categorias_senha')->fetchAll(), 'cor', 'nome');
+    }
+    return $mapa[$nome] ?? corCategoriaPadrao();
+}
+
+/**
+ * Cor cadastrada para um tipo de equipamento, pelo nome (equipamentos.tipo
+ * guarda o nome como texto "ao vivo", sem FK — ver categorias_equipamento/form.php).
+ */
+function corCategoriaEquipamento(string $nome): string
+{
+    static $mapa = null;
+    if ($mapa === null) {
+        $mapa = array_column(db()->query('SELECT nome, cor FROM categorias_equipamento')->fetchAll(), 'cor', 'nome');
+    }
+    return $mapa[$nome] ?? corCategoriaPadrao();
+}
+
+/**
+ * Cor cadastrada para um tipo de manutenção, pelo nome (historico_equipamentos.evento
+ * guarda o nome como texto "ao vivo", sem FK — ver tipos_manutencao/form.php).
+ */
+function corTipoManutencao(string $nome): string
+{
+    static $mapa = null;
+    if ($mapa === null) {
+        $mapa = array_column(db()->query('SELECT nome, cor FROM tipos_manutencao')->fetchAll(), 'cor', 'nome');
+    }
+    return $mapa[$nome] ?? corCategoriaPadrao();
 }
 
 /**

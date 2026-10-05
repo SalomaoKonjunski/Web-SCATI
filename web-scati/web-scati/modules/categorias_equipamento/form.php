@@ -11,7 +11,7 @@ $edicao = $id !== null;
 
 $grupos = gruposCamposEquipamento();
 
-$categoria = ['nome' => ''];
+$categoria = ['nome' => '', 'cor' => corCategoriaPadrao()];
 foreach ($grupos as $grupo) {
     $categoria[$grupo['coluna']] = 0;
 }
@@ -33,6 +33,7 @@ $erros = [];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $categoria['nome'] = trim($_POST['nome'] ?? '');
+    $categoria['cor'] = (string) ($_POST['cor'] ?? '');
 
     // Categorias protegidas mantêm os grupos de campos fixos de sempre —
     // não aceita alteração nem via POST adulterado.
@@ -44,6 +45,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($categoria['nome'] === '') {
         $erros[] = 'O campo Nome é obrigatório.';
+    }
+    if (!array_key_exists($categoria['cor'], paletaCoresCategoria())) {
+        $erros[] = 'Selecione uma cor válida.';
     }
 
     // Nomes usados por literal em várias partes do sistema (campos
@@ -67,7 +71,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if (empty($erros)) {
-        $params = ['nome' => $categoria['nome']];
+        $params = ['nome' => $categoria['nome'], 'cor' => $categoria['cor']];
         foreach ($grupos as $grupo) {
             $params[$grupo['coluna']] = $categoria[$grupo['coluna']];
         }
@@ -75,7 +79,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($edicao) {
             $params['id'] = $id;
             $pdo->prepare(
-                'UPDATE categorias_equipamento SET nome = :nome,
+                'UPDATE categorias_equipamento SET nome = :nome, cor = :cor,
                     campo_hardware = :campo_hardware, campo_impressora = :campo_impressora,
                     campo_rede_computador = :campo_rede_computador, campo_servidor = :campo_servidor,
                     campo_switch = :campo_switch
@@ -93,8 +97,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             flash('success', 'Categoria atualizada com sucesso.');
         } else {
             $pdo->prepare(
-                'INSERT INTO categorias_equipamento (nome, campo_hardware, campo_impressora, campo_rede_computador, campo_servidor, campo_switch)
-                 VALUES (:nome, :campo_hardware, :campo_impressora, :campo_rede_computador, :campo_servidor, :campo_switch)'
+                'INSERT INTO categorias_equipamento (nome, cor, campo_hardware, campo_impressora, campo_rede_computador, campo_servidor, campo_switch)
+                 VALUES (:nome, :cor, :campo_hardware, :campo_impressora, :campo_rede_computador, :campo_servidor, :campo_switch)'
             )->execute($params);
             flash('success', 'Categoria cadastrada com sucesso.');
         }
@@ -130,6 +134,27 @@ include __DIR__ . '/../../includes/header.php';
             <div class="col-md-6">
                 <label class="form-label">Nome *</label>
                 <input type="text" name="nome" class="form-control" required <?= $protegida ? 'readonly' : '' ?> value="<?= e($categoria['nome']) ?>">
+            </div>
+            <div class="col-12">
+                <label class="form-label d-block">Cor da Categoria</label>
+                <p class="text-muted small mb-2">Usada para destacar esta categoria em listas e menus do sistema.</p>
+                <div class="d-flex flex-wrap gap-2">
+                    <?php foreach (paletaCoresCategoria() as $corOpcao => $nomeCor): ?>
+                        <label class="scati-cor-opcao" title="<?= e($nomeCor) ?>">
+                            <input type="radio" name="cor" value="<?= e($corOpcao) ?>" class="visually-hidden js-cor-categoria-input"
+                                   <?= $categoria['cor'] === $corOpcao ? 'checked' : '' ?>>
+                            <span class="scati-cor-bolha" style="background-color: <?= e($corOpcao) ?>;">
+                                <i class="bi bi-check-lg scati-cor-check"></i>
+                            </span>
+                        </label>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+            <div class="col-12">
+                <label class="form-label d-block">Pré-visualização</label>
+                <span class="badge js-cor-categoria-preview" id="previewCorCategoria" style="background-color: <?= e($categoria['cor']) ?>;">
+                    <?= e($categoria['nome'] !== '' ? $categoria['nome'] : 'Nome da categoria') ?>
+                </span>
             </div>
         </div>
     </div>

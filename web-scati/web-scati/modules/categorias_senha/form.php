@@ -9,7 +9,7 @@ $pdo = db();
 $id = isset($_GET['id']) ? (int) $_GET['id'] : null;
 $edicao = $id !== null;
 
-$categoria = ['nome' => ''];
+$categoria = ['nome' => '', 'cor' => corCategoriaPadrao()];
 
 if ($edicao) {
     $stmt = $pdo->prepare('SELECT * FROM categorias_senha WHERE id = :id');
@@ -26,9 +26,13 @@ $erros = [];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $categoria['nome'] = trim($_POST['nome'] ?? '');
+    $categoria['cor'] = (string) ($_POST['cor'] ?? '');
 
     if ($categoria['nome'] === '') {
         $erros[] = 'O campo Nome é obrigatório.';
+    }
+    if (!array_key_exists($categoria['cor'], paletaCoresCategoria())) {
+        $erros[] = 'Selecione uma cor válida.';
     }
 
     if (empty($erros)) {
@@ -46,8 +50,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (empty($erros)) {
         if ($edicao) {
-            $pdo->prepare('UPDATE categorias_senha SET nome = :nome WHERE id = :id')
-                ->execute(['nome' => $categoria['nome'], 'id' => $id]);
+            $pdo->prepare('UPDATE categorias_senha SET nome = :nome, cor = :cor WHERE id = :id')
+                ->execute(['nome' => $categoria['nome'], 'cor' => $categoria['cor'], 'id' => $id]);
 
             // categoria em "senhas" guarda o nome como texto "ao vivo" (sem
             // FK), igual equipamentos.tipo — renomear aqui precisa atualizar
@@ -59,8 +63,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             flash('success', 'Categoria atualizada com sucesso.');
         } else {
-            $pdo->prepare('INSERT INTO categorias_senha (nome) VALUES (:nome)')
-                ->execute(['nome' => $categoria['nome']]);
+            $pdo->prepare('INSERT INTO categorias_senha (nome, cor) VALUES (:nome, :cor)')
+                ->execute(['nome' => $categoria['nome'], 'cor' => $categoria['cor']]);
             flash('success', 'Categoria cadastrada com sucesso.');
         }
         redirect('/modules/categorias_senha/index.php');
@@ -96,6 +100,27 @@ include __DIR__ . '/../../includes/header.php';
             <div class="col-md-6">
                 <label class="form-label">Nome *</label>
                 <input type="text" name="nome" class="form-control" required autofocus value="<?= e($categoria['nome']) ?>">
+            </div>
+            <div class="col-12">
+                <label class="form-label d-block">Cor da Categoria</label>
+                <p class="text-muted small mb-2">Usada para destacar esta categoria em listas e menus do sistema.</p>
+                <div class="d-flex flex-wrap gap-2">
+                    <?php foreach (paletaCoresCategoria() as $corOpcao => $nomeCor): ?>
+                        <label class="scati-cor-opcao" title="<?= e($nomeCor) ?>">
+                            <input type="radio" name="cor" value="<?= e($corOpcao) ?>" class="visually-hidden js-cor-categoria-input"
+                                   <?= $categoria['cor'] === $corOpcao ? 'checked' : '' ?>>
+                            <span class="scati-cor-bolha" style="background-color: <?= e($corOpcao) ?>;">
+                                <i class="bi bi-check-lg scati-cor-check"></i>
+                            </span>
+                        </label>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+            <div class="col-12">
+                <label class="form-label d-block">Pré-visualização</label>
+                <span class="badge js-cor-categoria-preview" id="previewCorCategoria" style="background-color: <?= e($categoria['cor']) ?>;">
+                    <?= e($categoria['nome'] !== '' ? $categoria['nome'] : 'Nome da categoria') ?>
+                </span>
             </div>
         </div>
     </div>

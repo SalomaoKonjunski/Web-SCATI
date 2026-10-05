@@ -60,6 +60,10 @@ CREATE TABLE categorias_estoque (
     -- o mesmo valor (ex.: todas em 0, caso ainda ninguém tenha reordenado)
     -- caem no critério de desempate alfabético.
     ordem                   INT NOT NULL DEFAULT 0,
+    -- Cor (hex) usada para destacar esta categoria em listas e menus do
+    -- sistema — uma das opções fixas de paletaCoresCategoria() em
+    -- includes/functions.php.
+    cor                     VARCHAR(7) NOT NULL DEFAULT '#6c757d',
 
     -- Quais grupos de campos (os mesmos do cadastro de Equipamentos) também
     -- aparecem ao criar/editar um item de estoque desta categoria. Com tudo
@@ -90,6 +94,10 @@ CREATE TABLE categorias_equipamento (
     -- Posição de exibição nos menus/listas (menor primeiro); categorias com
     -- o mesmo valor caem no critério de desempate alfabético.
     ordem                   INT NOT NULL DEFAULT 0,
+    -- Cor (hex) usada para destacar esta categoria em listas e menus do
+    -- sistema — uma das opções fixas de paletaCoresCategoria() em
+    -- includes/functions.php.
+    cor                     VARCHAR(7) NOT NULL DEFAULT '#6c757d',
 
     -- Quais cards de campos (os mesmos do cadastro de Equipamentos) aparecem
     -- ao criar/editar um equipamento desta categoria. Para as 4 categorias
@@ -417,7 +425,10 @@ CREATE TABLE tipos_manutencao (
     nome    VARCHAR(80) NOT NULL UNIQUE,
     -- Posição de exibição nos menus/listas (menor primeiro); tipos com o
     -- mesmo valor caem no critério de desempate alfabético.
-    ordem   INT NOT NULL DEFAULT 0
+    ordem   INT NOT NULL DEFAULT 0,
+    -- Cor (hex) usada para destacar este tipo em listas e menus do sistema
+    -- — uma das opções fixas de paletaCoresCategoria() em includes/functions.php.
+    cor     VARCHAR(7) NOT NULL DEFAULT '#6c757d'
 ) ENGINE=InnoDB;
 
 INSERT INTO tipos_manutencao (nome) VALUES
@@ -554,6 +565,25 @@ CREATE TABLE chamado_respostas (
 CREATE INDEX idx_resposta_chamado ON chamado_respostas(chamado_id);
 
 -- ---------------------------------------------------------------------
+-- Tabela: chamado_resposta_anexos (fotos/arquivos anexados numa resposta
+-- da conversa de um chamado)
+-- ---------------------------------------------------------------------
+CREATE TABLE chamado_resposta_anexos (
+    id              INT AUTO_INCREMENT PRIMARY KEY,
+    resposta_id     INT NOT NULL,
+    nome_original   VARCHAR(255) NOT NULL,
+    nome_arquivo    VARCHAR(255) NOT NULL,
+    tipo_mime       VARCHAR(100) NULL,
+    tamanho         INT NOT NULL,
+    criado_em       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_anexo_resposta
+        FOREIGN KEY (resposta_id) REFERENCES chamado_respostas(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE INDEX idx_anexo_resposta ON chamado_resposta_anexos(resposta_id);
+
+-- ---------------------------------------------------------------------
 -- Tabela: historico_chamados (registro automático de eventos do chamado:
 -- aberto, mudança de andamento/prioridade/responsável)
 -- ---------------------------------------------------------------------
@@ -620,7 +650,11 @@ CREATE TABLE categorias_senha (
     nome    VARCHAR(30) NOT NULL UNIQUE,
     -- Posição de exibição nos menus/listas (menor primeiro); categorias com
     -- o mesmo valor caem no critério de desempate alfabético.
-    ordem   INT NOT NULL DEFAULT 0
+    ordem   INT NOT NULL DEFAULT 0,
+    -- Cor (hex) usada para destacar esta categoria em listas e menus do
+    -- sistema — uma das opções fixas de paletaCoresCategoria() em
+    -- includes/functions.php.
+    cor     VARCHAR(7) NOT NULL DEFAULT '#6c757d'
 ) ENGINE=InnoDB;
 
 INSERT INTO categorias_senha (nome) VALUES

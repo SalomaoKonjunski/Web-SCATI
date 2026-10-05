@@ -644,4 +644,97 @@ document.addEventListener('DOMContentLoaded', function () {
     iniciarArrastarParaReordenar(document.getElementById('categoriasEquipamentoTabela'), '.js-categoria-linha', 'categoria-arrastando', '/modules/categorias_equipamento/reordenar.php');
     iniciarArrastarParaReordenar(document.getElementById('categoriasSenhaTabela'), '.js-categoria-linha', 'categoria-arrastando', '/modules/categorias_senha/reordenar.php');
     iniciarArrastarParaReordenar(document.getElementById('categoriasTiposManutencaoTabela'), '.js-categoria-linha', 'categoria-arrastando', '/modules/tipos_manutencao/reordenar.php');
+
+    // Formulário de categoria (Estoque/Equipamentos/Senhas/Tipos de
+    // Manutenção): atualiza a cor de fundo da pré-visualização assim que
+    // outra bolinha de cor é escolhida.
+    document.querySelectorAll('.js-cor-categoria-input').forEach(function (input) {
+        input.addEventListener('change', function () {
+            const preview = document.getElementById('previewCorCategoria');
+            if (preview) {
+                preview.style.backgroundColor = input.value;
+            }
+        });
+    });
+
+    // Respostas de um Chamado: botão de anexar (clipe) abre o seletor de
+    // arquivo escondido, e cada arquivo escolhido vira um "chip" removível
+    // acima do campo de mensagem antes de enviar. Usa um DataTransfer para
+    // reconstruir o FileList do input quando um arquivo é removido do
+    // preview, já que o FileList nativo não pode ser editado diretamente.
+    const botaoAnexarResposta = document.querySelector('.js-anexar-resposta');
+    const inputAnexosResposta = document.getElementById('inputAnexosResposta');
+    const areaAnexosPendentes = document.getElementById('anexosPendentes');
+
+    if (botaoAnexarResposta && inputAnexosResposta && areaAnexosPendentes) {
+        const iconePorExtensao = function (extensao) {
+            const mapa = {
+                pdf: 'bi-file-earmark-pdf',
+                doc: 'bi-file-earmark-word', docx: 'bi-file-earmark-word',
+                xls: 'bi-file-earmark-excel', xlsx: 'bi-file-earmark-excel', csv: 'bi-file-earmark-excel',
+                ppt: 'bi-file-earmark-ppt', pptx: 'bi-file-earmark-ppt',
+                zip: 'bi-file-earmark-zip',
+            };
+            return mapa[extensao.toLowerCase()] || 'bi-file-earmark';
+        };
+
+        // Lista própria dos arquivos pendentes (não dá pra só ler
+        // inputAnexosResposta.files a cada clique no clipe: o navegador
+        // substitui a seleção inteira a cada vez que o seletor de arquivo
+        // abre, então sem guardar à parte o segundo lote apagaria o primeiro).
+        let arquivosPendentes = [];
+
+        const sincronizarInput = function () {
+            const dt = new DataTransfer();
+            arquivosPendentes.forEach(function (arquivo) { dt.items.add(arquivo); });
+            inputAnexosResposta.files = dt.files;
+        };
+
+        const renderizarPendentes = function () {
+            areaAnexosPendentes.innerHTML = '';
+            arquivosPendentes.forEach(function (arquivo, indice) {
+                const chip = document.createElement('div');
+                chip.className = 'scati-anexo-pendente';
+
+                if (arquivo.type.startsWith('image/')) {
+                    const img = document.createElement('img');
+                    img.src = URL.createObjectURL(arquivo);
+                    chip.appendChild(img);
+                } else {
+                    const extensao = arquivo.name.includes('.') ? arquivo.name.split('.').pop() : '';
+                    const icone = document.createElement('i');
+                    icone.className = 'bi ' + iconePorExtensao(extensao) + ' fs-5 text-secondary';
+                    chip.appendChild(icone);
+                }
+
+                const nome = document.createElement('span');
+                nome.textContent = arquivo.name;
+                chip.appendChild(nome);
+
+                const remover = document.createElement('i');
+                remover.className = 'bi bi-x-circle scati-anexo-pendente-remover';
+                remover.title = 'Remover';
+                remover.addEventListener('click', function () {
+                    arquivosPendentes.splice(indice, 1);
+                    sincronizarInput();
+                    renderizarPendentes();
+                });
+                chip.appendChild(remover);
+
+                areaAnexosPendentes.appendChild(chip);
+            });
+        };
+
+        botaoAnexarResposta.addEventListener('click', function () {
+            inputAnexosResposta.click();
+        });
+
+        inputAnexosResposta.addEventListener('change', function () {
+            // Acrescenta os arquivos recém-escolhidos aos que já estavam
+            // pendentes, em vez de substituir.
+            arquivosPendentes = arquivosPendentes.concat(Array.from(inputAnexosResposta.files));
+            sincronizarInput();
+            renderizarPendentes();
+        });
+    }
 });

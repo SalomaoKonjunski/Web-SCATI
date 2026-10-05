@@ -46,7 +46,7 @@ include __DIR__ . '/../../includes/header.php';
                 <?php foreach ($tipos as $tipo): ?>
                     <tr class="js-categoria-linha" draggable="true" data-id="<?= (int) $tipo['id'] ?>">
                         <td class="text-muted" style="cursor: grab;"><i class="bi bi-grip-vertical" title="Arraste para reordenar"></i></td>
-                        <td><strong><?= e($tipo['nome']) ?></strong></td>
+                        <td><?= badgeCor($tipo['nome'], $tipo['cor']) ?></td>
                         <td class="text-center"><span class="badge bg-secondary"><?= (int) $tipo['total_usos'] ?></span></td>
                         <td class="text-end">
                             <a href="form.php?id=<?= (int) $tipo['id'] ?>" class="btn btn-sm btn-outline-primary"><i class="bi bi-pencil"></i></a>

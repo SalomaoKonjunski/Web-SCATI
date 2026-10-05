@@ -83,7 +83,7 @@ include __DIR__ . '/../../includes/header.php';
                     <?php $senhaTexto = descriptografar($senha['senha_cifrada']) ?? ''; ?>
                     <tr data-href="form.php?id=<?= (int) $senha['id'] ?>" title="Abrir cadastro da senha">
                         <td><strong><?= e($senha['nome']) ?></strong></td>
-                        <td><span class="badge <?= categoriaSenhaBadgeClass($senha['categoria']) ?>"><?= e($senha['categoria']) ?></span></td>
+                        <td><?= badgeCor($senha['categoria'], corCategoriaSenha($senha['categoria'])) ?></td>
                         <td><?= e($senha['usuario']) ?: '-' ?></td>
                         <td>
                             <div class="d-flex align-items-center gap-2 senha-campo">

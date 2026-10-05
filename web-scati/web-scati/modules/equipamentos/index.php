@@ -184,7 +184,7 @@ include __DIR__ . '/../../includes/header.php';
                                 <span class="text-muted fst-italic">Indefinido</span>
                             <?php endif; ?>
                         </td>
-                        <td><?= e($eq['tipo']) ?></td>
+                        <td><?= badgeCor($eq['tipo'], corCategoriaEquipamento($eq['tipo'])) ?></td>
                         <td><?= e(trim(($eq['marca'] ?? '') . ' ' . ($eq['modelo'] ?? ''))) ?: '-' ?></td>
                         <td><?= e($eq['hostname']) ?: '-' ?></td>
                         <td><?= e($eq['usuario_responsavel']) ?: '-' ?></td>

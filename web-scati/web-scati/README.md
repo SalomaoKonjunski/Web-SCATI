@@ -316,6 +316,21 @@ Funcional (v1.0).
    mysql --default-character-set=utf8mb4 -u root -p scati < database/migration_ordem_tipos_manutencao.sql
    ```
 
+   Se o banco já existia antes da **cor configurável das categorias**
+   (ainda não tem a coluna `cor` em `categorias_estoque`,
+   `categorias_equipamento`, `categorias_senha` e `tipos_manutencao`),
+   rode também esta migração incremental **uma única vez**:
+   ```bash
+   mysql --default-character-set=utf8mb4 -u root -p scati < database/migration_cor_categorias.sql
+   ```
+
+   Se o banco já existia antes dos **anexos nas respostas de Chamados**
+   (ainda não tem a tabela `chamado_resposta_anexos`), rode também esta
+   migração incremental **uma única vez**:
+   ```bash
+   mysql --default-character-set=utf8mb4 -u root -p scati < database/migration_anexos_chamados.sql
+   ```
+
    > Importante: ao importar qualquer um dos arquivos `.sql` deste projeto,
    > garanta que o cliente MySQL use UTF-8 (ex.: `mysql --default-character-set=utf8mb4 -u root -p < arquivo.sql`),
    > caso contrário os valores acentuados dos campos `ENUM` (como "Disponível")
@@ -709,7 +724,9 @@ web-scati/
     (é usada por nome em outras partes do sistema), e uma categoria com
     itens de estoque vinculados não pode ser excluída. Dá pra arrastar
     uma categoria pelo ícone de "alça" para escolher a ordem em que ela
-    aparece nessa lista e em todo dropdown "Categoria" do sistema.
+    aparece nessa lista e em todo dropdown "Categoria" do sistema, e
+    escolher a **cor** dela (12 opções fixas) para destacá-la em listas e
+    menus.
   - **Categorias de Equipamentos**: CRUD completo dos tipos disponíveis
     no campo "Tipo" do cadastro de Equipamentos — antes era uma lista
     fixa no código (Computador, Notebook, Impressora, Monitor, Switch,
@@ -737,13 +754,15 @@ web-scati/
     antes de salvar — ignora valores de campos escondidos, mesmo se
     forçados via inspecionar elemento. Dá pra arrastar uma categoria pelo
     ícone de "alça" para escolher a ordem em que ela aparece nessa lista
-    e no dropdown "Tipo" do cadastro de Equipamentos.
+    e no dropdown "Tipo" do cadastro de Equipamentos, e escolher a **cor**
+    dela (12 opções fixas) para destacá-la em listas e menus.
   - **Tipos de Manutenção**: CRUD completo dos tipos disponíveis ao
     registrar uma manutenção no histórico de um equipamento — antes era
     uma lista fixa no código. Excluir um tipo não afeta os registros já
     existentes no histórico. Dá pra arrastar um tipo pelo ícone de
     "alça" para escolher a ordem em que ele aparece nessa lista e no
-    dropdown "Tipo de manutenção" da ficha de Equipamentos.
+    dropdown "Tipo de manutenção" da ficha de Equipamentos, e escolher a
+    **cor** dele (12 opções fixas) para destacá-lo em listas e menus.
   - **Categorias de Senhas** *(visível só para Administrador)*: CRUD
     completo das categorias usadas no campo "Categoria" do cadastro de
     Senhas — antes era uma lista fixa no código (Rede, Servidor, Sistema,
@@ -753,7 +772,8 @@ web-scati/
     categoria de todas as senhas que já usavam o nome antigo. Dá pra
     arrastar uma categoria pelo ícone de "alça" para escolher a ordem em
     que ela aparece nessa lista e no dropdown "Categoria" do cadastro de
-    Senhas.
+    Senhas, e escolher a **cor** dela (12 opções fixas) para destacá-la em
+    listas e menus.
   - **Alerta de Licenças**: define com quantos dias de antecedência uma
     licença a vencer aparece na Central de Alertas do Dashboard (antes
     fixo em 30 dias).
@@ -856,6 +876,17 @@ web-scati/
   e data/hora. O perfil **Usuário** também ganha acesso à ficha dos
   próprios chamados para acompanhar e responder — só não pode alterar
   título, descrição, prioridade, andamento ou responsável.
+
+  Cada resposta pode vir com **fotos e arquivos anexados** (clipe ao
+  lado do campo de mensagem, aceita vários de uma vez) — dá pra enviar
+  só um anexo, sem precisar escrever nada. Fotos (JPG, PNG, GIF, WEBP)
+  aparecem como miniatura clicável direto na conversa; os demais
+  arquivos (PDF, Word, Excel, PowerPoint, TXT, CSV, ZIP) aparecem como
+  um cartão com ícone, nome e tamanho, com botão de baixar — limite de
+  10 MB por arquivo. O download (e a própria miniatura da foto) só é
+  liberado pra quem pode ver aquele chamado: o perfil Usuário só acessa
+  os anexos dos próprios chamados, mesmo sabendo o link direto do
+  arquivo.
 
   O sistema de notificação é unificado: tanto a **contagem em
   vermelho ao lado de "Chamados" no menu lateral** quanto o **sininho**

@@ -537,7 +537,7 @@ include __DIR__ . '/../../includes/header.php';
                 <table class="table table-sm">
                     <tr><th style="width:40%">Nome</th><td><?= e(nomeEquipamento($eq['nome'], $eq['patrimonio'])) ?></td></tr>
                     <tr><th>Patrimônio</th><td><?= e(patrimonioOuIndefinido($eq['patrimonio'])) ?></td></tr>
-                    <tr><th>Tipo</th><td><?= e($eq['tipo']) ?></td></tr>
+                    <tr><th>Tipo</th><td><?= badgeCor($eq['tipo'], corCategoriaEquipamento($eq['tipo'])) ?></td></tr>
                     <tr><th>Marca</th><td><?= e($eq['marca']) ?: '-' ?></td></tr>
                     <tr><th>Modelo</th><td><?= e($eq['modelo']) ?: '-' ?></td></tr>
                     <tr><th>Número de Série</th><td><?= e($eq['numero_serie']) ?: '-' ?></td></tr>
@@ -1142,7 +1142,7 @@ include __DIR__ . '/../../includes/header.php';
                 <?php foreach ($historico as $h): ?>
                     <tr>
                         <td><?= formatDateTime($h['data_hora']) ?></td>
-                        <td><span class="badge bg-light text-dark border"><?= e($h['evento']) ?></span></td>
+                        <td><?= badgeCor($h['evento'], corTipoManutencao($h['evento'])) ?></td>
                         <td><?= e($h['descricao']) ?></td>
                         <td><?= e($h['usuario_nome']) ?: '<span class="text-muted">-</span>' ?></td>
                     </tr>

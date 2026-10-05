@@ -12,7 +12,7 @@ $busca = trim($_GET['busca'] ?? '');
 $filtroCategoria = $_GET['categoria_id'] ?? '';
 $somenteAbaixoMinimo = isset($_GET['abaixo_minimo']);
 
-$sql = "SELECT es.*, c.nome AS categoria_nome,
+$sql = "SELECT es.*, c.nome AS categoria_nome, c.cor AS categoria_cor,
                COUNT(iv.id) AS qtd_vinculada,
                GROUP_CONCAT(DISTINCT COALESCE(eq.patrimonio, 'Indefinido') ORDER BY eq.patrimonio SEPARATOR ', ') AS equipamentos_vinculados
         FROM estoque es
@@ -127,7 +127,7 @@ include __DIR__ . '/../../includes/header.php';
                             <?php $abaixoMinimo = $item['quantidade'] < $item['quantidade_minima']; ?>
                             <tr class="<?= $abaixoMinimo ? 'estoque-baixo' : '' ?>" data-href="form.php?id=<?= (int) $item['id'] ?>" title="Abrir cadastro do item">
                                 <td><?= e($item['nome']) ?></td>
-                                <td><?= e($item['categoria_nome']) ?></td>
+                                <td><?= badgeCor($item['categoria_nome'], $item['categoria_cor']) ?></td>
                                 <td><?= e(trim(($item['marca'] ?? '') . ' ' . ($item['modelo'] ?? ''))) ?: '-' ?></td>
                                 <td class="text-center">
                                     <form method="post" action="ajustar_quantidade.php" class="d-inline-flex align-items-center gap-1">
@@ -194,7 +194,7 @@ include __DIR__ . '/../../includes/header.php';
                         <?php foreach ($itensVinculados as $item): ?>
                             <tr data-href="form.php?id=<?= (int) $item['id'] ?>" title="Abrir cadastro do item">
                                 <td><?= e($item['nome']) ?></td>
-                                <td><?= e($item['categoria_nome']) ?></td>
+                                <td><?= badgeCor($item['categoria_nome'], $item['categoria_cor']) ?></td>
                                 <td><?= e(trim(($item['marca'] ?? '') . ' ' . ($item['modelo'] ?? ''))) ?: '-' ?></td>
                                 <td class="text-center fw-semibold"><?= (int) $item['qtd_vinculada'] ?></td>
                                 <td><?= e($item['localizacao']) ?: '-' ?></td>

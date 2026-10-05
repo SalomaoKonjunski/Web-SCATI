@@ -9,7 +9,7 @@ $pdo = db();
 $id = isset($_GET['id']) ? (int) $_GET['id'] : null;
 $edicao = $id !== null;
 
-$tipo = ['nome' => ''];
+$tipo = ['nome' => '', 'cor' => corCategoriaPadrao()];
 
 if ($edicao) {
     $stmt = $pdo->prepare('SELECT * FROM tipos_manutencao WHERE id = :id');
@@ -26,9 +26,13 @@ $erros = [];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $tipo['nome'] = trim($_POST['nome'] ?? '');
+    $tipo['cor'] = (string) ($_POST['cor'] ?? '');
 
     if ($tipo['nome'] === '') {
         $erros[] = 'O campo Nome é obrigatório.';
+    }
+    if (!array_key_exists($tipo['cor'], paletaCoresCategoria())) {
+        $erros[] = 'Selecione uma cor válida.';
     }
 
     if (empty($erros)) {
@@ -46,12 +50,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (empty($erros)) {
         if ($edicao) {
-            $pdo->prepare('UPDATE tipos_manutencao SET nome = :nome WHERE id = :id')
-                ->execute(['nome' => $tipo['nome'], 'id' => $id]);
+            $pdo->prepare('UPDATE tipos_manutencao SET nome = :nome, cor = :cor WHERE id = :id')
+                ->execute(['nome' => $tipo['nome'], 'cor' => $tipo['cor'], 'id' => $id]);
             flash('success', 'Tipo de manutenção atualizado com sucesso.');
         } else {
-            $pdo->prepare('INSERT INTO tipos_manutencao (nome) VALUES (:nome)')
-                ->execute(['nome' => $tipo['nome']]);
+            $pdo->prepare('INSERT INTO tipos_manutencao (nome, cor) VALUES (:nome, :cor)')
+                ->execute(['nome' => $tipo['nome'], 'cor' => $tipo['cor']]);
             flash('success', 'Tipo de manutenção cadastrado com sucesso.');
         }
         redirect('/modules/tipos_manutencao/index.php');
@@ -80,6 +84,27 @@ include __DIR__ . '/../../includes/header.php';
             <div class="col-md-6">
                 <label class="form-label">Nome *</label>
                 <input type="text" name="nome" class="form-control" required value="<?= e($tipo['nome']) ?>">
+            </div>
+            <div class="col-12">
+                <label class="form-label d-block">Cor do Tipo</label>
+                <p class="text-muted small mb-2">Usada para destacar este tipo em listas e menus do sistema.</p>
+                <div class="d-flex flex-wrap gap-2">
+                    <?php foreach (paletaCoresCategoria() as $corOpcao => $nomeCor): ?>
+                        <label class="scati-cor-opcao" title="<?= e($nomeCor) ?>">
+                            <input type="radio" name="cor" value="<?= e($corOpcao) ?>" class="visually-hidden js-cor-categoria-input"
+                                   <?= $tipo['cor'] === $corOpcao ? 'checked' : '' ?>>
+                            <span class="scati-cor-bolha" style="background-color: <?= e($corOpcao) ?>;">
+                                <i class="bi bi-check-lg scati-cor-check"></i>
+                            </span>
+                        </label>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+            <div class="col-12">
+                <label class="form-label d-block">Pré-visualização</label>
+                <span class="badge js-cor-categoria-preview" id="previewCorCategoria" style="background-color: <?= e($tipo['cor']) ?>;">
+                    <?= e($tipo['nome'] !== '' ? $tipo['nome'] : 'Nome do tipo') ?>
+                </span>
             </div>
         </div>
     </div>

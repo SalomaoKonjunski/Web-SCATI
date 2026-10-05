@@ -1,5 +1,12 @@
-# Arquivos enviados pelos usuários (anexos da ficha de equipamentos).
-# A pasta e a proteção .htaccess ficam versionadas; o conteúdo, não.
+# Arquivos enviados pelos usuários (anexos da ficha de equipamentos, do
+# Bloco de Notas e das respostas de Chamados). A pasta e a proteção
+# .htaccess ficam versionadas; o conteúdo, não.
 uploads/anexos/*
 !uploads/anexos/.htaccess
 !uploads/anexos/.gitkeep
+uploads/anexos_notas/*
+!uploads/anexos_notas/.htaccess
+!uploads/anexos_notas/.gitkeep
+uploads/anexos_chamados/*
+!uploads/anexos_chamados/.htaccess
+!uploads/anexos_chamados/.gitkeep

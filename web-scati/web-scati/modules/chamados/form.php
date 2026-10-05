@@ -188,11 +188,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$somenteLeitura) {
 }
 
 $respostas = [];
+$anexosPorResposta = [];
 $observacoes = [];
 if ($edicao) {
     $stmtRespostas = $pdo->prepare('SELECT * FROM chamado_respostas WHERE chamado_id = :id ORDER BY criado_em ASC');
     $stmtRespostas->execute(['id' => $id]);
     $respostas = $stmtRespostas->fetchAll();
+
+    $stmtAnexos = $pdo->prepare(
+        'SELECT a.* FROM chamado_resposta_anexos a
+         JOIN chamado_respostas r ON r.id = a.resposta_id
+         WHERE r.chamado_id = :id
+         ORDER BY a.id ASC'
+    );
+    $stmtAnexos->execute(['id' => $id]);
+    foreach ($stmtAnexos->fetchAll() as $anexo) {
+        $anexosPorResposta[(int) $anexo['resposta_id']][] = $anexo;
+    }
 
     // Observações: anotação interna, visível só para administradores
     // (qualquer um deles vê as observações de todos, não só as próprias).
@@ -400,22 +412,54 @@ include __DIR__ . '/../../includes/header.php';
             <?php else: ?>
                 <div class="mb-3">
                     <?php foreach ($respostas as $resposta): ?>
-                        <?php $minhaMensagem = $resposta['usuario_id'] !== null && (int) $resposta['usuario_id'] === (int) $usuarioAtual['id']; ?>
+                        <?php
+                            $minhaMensagem = $resposta['usuario_id'] !== null && (int) $resposta['usuario_id'] === (int) $usuarioAtual['id'];
+                            $anexosResposta = $anexosPorResposta[(int) $resposta['id']] ?? [];
+                        ?>
                         <div class="d-flex <?= $minhaMensagem ? 'justify-content-end' : 'justify-content-start' ?> mb-2">
                             <div class="p-2 px-3 rounded-3 <?= $minhaMensagem ? 'bg-primary text-white' : 'bg-light border' ?>" style="max-width: 75%;">
                                 <div class="small fw-semibold <?= $minhaMensagem ? '' : 'text-muted' ?>"><?= e($resposta['usuario_nome']) ?></div>
-                                <div style="white-space: pre-wrap;"><?= e($resposta['mensagem']) ?></div>
+                                <?php foreach ($anexosResposta as $anexo): ?>
+                                    <?php if (str_starts_with($anexo['tipo_mime'] ?? '', 'image/')): ?>
+                                        <a href="anexo_download.php?id=<?= (int) $anexo['id'] ?>" target="_blank" rel="noopener">
+                                            <img src="anexo_download.php?id=<?= (int) $anexo['id'] ?>" alt="<?= e($anexo['nome_original']) ?>"
+                                                 class="scati-anexo-foto mt-1 mb-2">
+                                        </a>
+                                    <?php else: ?>
+                                        <a href="anexo_download.php?id=<?= (int) $anexo['id'] ?>" class="scati-anexo-arquivo mt-1 mb-2 text-decoration-none <?= $minhaMensagem ? 'text-white' : 'text-body' ?>">
+                                            <i class="bi <?= e(iconeAnexo(pathinfo($anexo['nome_original'], PATHINFO_EXTENSION))) ?> fs-4"></i>
+                                            <span class="flex-grow-1 overflow-hidden">
+                                                <span class="d-block text-truncate" style="max-width: 180px;"><?= e($anexo['nome_original']) ?></span>
+                                                <span class="small opacity-75"><?= formatBytes((int) $anexo['tamanho']) ?></span>
+                                            </span>
+                                            <i class="bi bi-download"></i>
+                                        </a>
+                                    <?php endif; ?>
+                                <?php endforeach; ?>
+                                <?php if (trim($resposta['mensagem']) !== ''): ?>
+                                    <div style="white-space: pre-wrap;"><?= e($resposta['mensagem']) ?></div>
+                                <?php endif; ?>
                                 <div class="small <?= $minhaMensagem ? 'text-white-50' : 'text-muted' ?>"><?= formatDateTime($resposta['criado_em']) ?></div>
                             </div>
                         </div>
                     <?php endforeach; ?>
                 </div>
             <?php endif; ?>
-            <form method="post" action="responder.php" class="d-flex gap-2">
+
+            <div class="d-flex flex-wrap gap-2 mb-2 js-anexos-pendentes" id="anexosPendentes"></div>
+            <form method="post" action="responder.php" enctype="multipart/form-data" class="d-flex gap-2 align-items-end">
                 <input type="hidden" name="chamado_id" value="<?= (int) $id ?>">
-                <textarea name="mensagem" class="form-control" rows="2" placeholder="Escreva uma resposta..." required></textarea>
+                <input type="file" name="anexos[]" id="inputAnexosResposta" class="d-none" multiple
+                       accept=".<?= implode(',.', extensoesAnexoPermitidas()) ?>">
+                <button type="button" class="btn btn-outline-secondary js-anexar-resposta" title="Anexar foto ou arquivo">
+                    <i class="bi bi-paperclip"></i>
+                </button>
+                <textarea name="mensagem" class="form-control" rows="2" placeholder="Escreva uma resposta..."></textarea>
                 <button type="submit" class="btn btn-primary text-nowrap"><i class="bi bi-send"></i> Enviar</button>
             </form>
+            <div class="form-text">
+                <i class="bi bi-info-circle"></i> Fotos (JPG, PNG, GIF, WEBP) e arquivos (PDF, Word, Excel, PowerPoint, TXT, CSV, ZIP) até 10 MB cada.
+            </div>
         </div>
     </div>
 <?php endif; ?>

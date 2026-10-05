@@ -55,7 +55,7 @@ include __DIR__ . '/../../includes/header.php';
                     <tr class="js-categoria-linha" draggable="true" data-id="<?= (int) $cat['id'] ?>">
                         <td class="text-muted" style="cursor: grab;"><i class="bi bi-grip-vertical" title="Arraste para reordenar"></i></td>
                         <td>
-                            <strong><?= e($cat['nome']) ?></strong>
+                            <?= badgeCor($cat['nome'], $cat['cor']) ?>
                             <?php if ($protegida): ?>
                                 <i class="bi bi-lock-fill text-muted ms-1" title="Usada por funcionalidades do sistema — não pode ser renomeada nem excluída."></i>
                             <?php endif; ?>

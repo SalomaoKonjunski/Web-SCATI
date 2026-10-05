@@ -351,6 +351,94 @@ a.scati-kpi-card-link .scati-kpi-card.kpi-ativo {
     opacity: 0.4;
 }
 
+/* Seletor de cor (Categorias de Estoque/Equipamentos/Senhas e Tipos de
+   Manutenção) - bolinhas clicáveis, a selecionada ganha um anel e um
+   check via o estado :checked do rádio escondido ao lado. */
+.scati-cor-opcao {
+    cursor: pointer;
+}
+
+.scati-cor-bolha {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.1rem;
+    height: 2.1rem;
+    border-radius: 50%;
+    color: #fff;
+    font-size: .95rem;
+    border: 2px solid transparent;
+    transition: transform .1s ease;
+}
+
+.scati-cor-opcao:hover .scati-cor-bolha {
+    transform: scale(1.08);
+}
+
+.scati-cor-check {
+    opacity: 0;
+}
+
+.js-cor-categoria-input:checked + .scati-cor-bolha {
+    border-color: #212529;
+    box-shadow: 0 0 0 2px #fff, 0 0 0 4px #212529;
+}
+
+.js-cor-categoria-input:checked + .scati-cor-bolha .scati-cor-check {
+    opacity: 1;
+}
+
+/* Anexos (fotos e arquivos) nas respostas de um Chamado. */
+.scati-anexo-foto {
+    max-width: 260px;
+    max-height: 190px;
+    border-radius: .5rem;
+    display: block;
+    cursor: pointer;
+    border: 1px solid rgba(0, 0, 0, .08);
+}
+
+.scati-anexo-arquivo {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    background: rgba(255, 255, 255, .65);
+    border-radius: .5rem;
+    padding: .5rem .75rem;
+    max-width: 260px;
+}
+
+.bg-primary .scati-anexo-arquivo {
+    background: rgba(255, 255, 255, .15);
+}
+
+.scati-anexo-pendente {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    background: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: .5rem;
+    padding: .35rem .5rem;
+    font-size: .82rem;
+}
+
+.scati-anexo-pendente img {
+    width: 36px;
+    height: 36px;
+    object-fit: cover;
+    border-radius: .35rem;
+}
+
+.scati-anexo-pendente .scati-anexo-pendente-remover {
+    cursor: pointer;
+    color: #adb5bd;
+}
+
+.scati-anexo-pendente .scati-anexo-pendente-remover:hover {
+    color: #dc3545;
+}
+
 /* =====================================================
    Impressão / exportação em PDF: exibe apenas o conteúdo
    principal da página, sem navbar, menu lateral ou ações.
