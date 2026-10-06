@@ -6,9 +6,10 @@ require_once __DIR__ . '/../../includes/auth.php';
 exigirPermissao('chamados', 'alterar');
 
 $pdo = db();
+$usuarioAtual = usuarioLogado();
 $id = (int) ($_GET['id'] ?? 0);
 
-$stmt = $pdo->prepare('SELECT titulo, status FROM chamados WHERE id = :id');
+$stmt = $pdo->prepare('SELECT titulo, status, responsavel_id FROM chamados WHERE id = :id');
 $stmt->execute(['id' => $id]);
 $chamado = $stmt->fetch();
 
@@ -19,6 +20,11 @@ if (!$chamado) {
 
 if (!in_array($chamado['status'], ['Concluído', 'Cancelado'], true)) {
     flash('danger', 'Não é possível excluir um chamado em aberto. Marque-o como Concluído ou Cancelado primeiro.');
+    redirect('/modules/chamados/index.php');
+}
+
+if (!podeGerenciarChamado($chamado, $usuarioAtual)) {
+    flash('danger', 'Só o responsável por este chamado (ou um Administrador) pode excluí-lo.');
     redirect('/modules/chamados/index.php');
 }
 

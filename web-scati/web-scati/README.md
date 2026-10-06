@@ -896,23 +896,39 @@ web-scati/
   um usuário administrador padrão (usuário `Salomao`) — recomenda-se
   trocar a senha após o primeiro acesso, ou cadastrar um novo
   administrador e excluir o padrão.
-- **Chamados**: aba própria no menu lateral funcionando como uma tabela
-  de pendências de TI, dividida em duas sub-abas:
-  - **Chamados**: lista só os chamados em aberto (Aberto/Em
-    andamento/Aguardando) — a pendência ativa do dia a dia. Chamados
-    novos (que o usuário logado nunca abriu) sempre aparecem primeiro
-    na lista, ordenados por prioridade entre eles; os demais mantêm a
-    ordem de sempre. Mostra cartões de resumo no topo (Abertos, Em
-    Andamento, Aguardando, Urgentes em Aberto), clicáveis para filtrar
-    a lista pelo status correspondente (o cartão ativo fica destacado,
-    com um atalho para limpar o filtro), e um filtro **"Parado há mais
-    de (dias)"** para achar solicitações esquecidas.
-  - **Resolvidos**: lista os chamados Concluídos/Cancelados, com as
-    colunas **Solicitado em** e **Concluído em** (para os cancelados,
-    mostra a data da última alteração com a marcação "cancelado", já
-    que não têm data de conclusão). É também onde dá para efetivamente
-    excluir um chamado antigo, já que a exclusão só é permitida depois
-    de encerrado.
+- **Chamados**: aba própria no menu lateral com **gerenciamento completo
+  do ciclo de vida** do chamado, dividido em três sub-abas que
+  representam os estágios:
+  - **Novos**: fila de triagem — chamados recém-abertos que ainda não
+    têm um responsável. Qualquer pessoa da equipe pode ajustar a
+    prioridade aqui (ainda não dá pra mexer em andamento) e **assumir**
+    um chamado com o botão "Atribuir para mim". Enquanto está nesta
+    aba, **ninguém pode enviar mensagem** no chamado — nem quem abriu —
+    porque ainda não tem quem leia.
+  - **Em Atendimento**: chamados já atribuídos a alguém (Em
+    andamento/Aguardando). A partir daqui, **só o responsável por
+    aquele chamado (ou um Administrador, que sempre pode intervir em
+    qualquer chamado) pode mudar prioridade/andamento, enviar mensagem,
+    concluir, cancelar ou reatribuir** — o resto da equipe continua
+    enxergando o chamado na listagem (pra acompanhar), mas os campos
+    ficam travados e aparecem como texto fixo, sem seletor. Mostra
+    cartões de resumo (Em Andamento, Aguardando, Urgentes em
+    Atendimento), clicáveis para filtrar, e o filtro **"Parado há mais
+    de (dias)"**.
+  - **Resolvidos**: chamados Concluídos/Cancelados, com as colunas
+    **Solicitado em** e **Concluído em** (para os cancelados, mostra a
+    data da última alteração com a marcação "cancelado"). É também
+    onde dá pra excluir um chamado antigo — exclusão só é permitida
+    depois de encerrado, e só pelo responsável ou um Administrador.
+
+  **Só o Administrador pode atribuir um chamado a outra pessoa** —
+  tanto um chamado novo (botão "Atribuir a outra pessoa" na ficha)
+  quanto repassar um já atribuído (botão "Repassar"). Assumir um
+  chamado pra si mesmo continua liberado pra qualquer um da equipe.
+  Virar responsável por um chamado que estava em "Novos" já avança o
+  andamento automaticamente para "Em andamento". Um Administrador
+  também pode criar um chamado já nascendo atribuído a alguém,
+  escolhendo o responsável direto no cadastro.
 
   Cada chamado tem título, **descrição** (a solicitação em si — campo
   obrigatório), o campo **Usuário** (quem pediu) e **prioridade**
@@ -921,38 +937,32 @@ web-scati/
   leitura); apenas o perfil **Administrador** pode digitar livremente
   quem é o usuário (por exemplo, ao registrar um chamado em nome de
   alguém que ligou ou pediu pessoalmente) — os demais perfis sempre
-  abrem o chamado em seu próprio nome. O sistema também registra
-  automaticamente qual usuário abriu cada chamado (usado para o perfil
-  Usuário enxergar só os próprios).
+  abrem o chamado em seu próprio nome.
 
-  **Depois de criado, título, descrição e usuário não podem mais ser
-  alterados por ninguém** — nem pelo Administrador — para preservar o
-  pedido original; qualquer atualização a partir daí é feita pelas
-  respostas. Prioridade e andamento podem
-  ser alterados direto na listagem, através de um seletor colorido em
-  cada linha, sem precisar abrir o cadastro — a mudança é salva assim
-  que a opção é escolhida. Um botão **"Atribuir para mim"** (na
-  listagem e no formulário), disponível apenas para o perfil
-  Administrador, atribui o chamado a ele com um clique; o atalho "Meus
-  Chamados" filtra só os chamados já atribuídos ao usuário logado. Ao
-  marcar um chamado como "Concluído", a data de conclusão é registrada
-  automaticamente; reabrir o chamado (mudar para qualquer outro
-  andamento) limpa essa data. Por segurança, **nenhum chamado em
-  aberto pode ser excluído** (nem por administrador) — só depois de
-  marcado como Concluído ou Cancelado; o botão de excluir aparece
-  desabilitado enquanto o chamado estiver aberto. E chamados de
-  prioridade Alta ou Urgente ainda em aberto aparecem na Central de
-  Alertas do Dashboard. A listagem também mostra um trecho da
-  descrição e o usuário em cada linha, o tempo em aberto (ex.: "há 3
-  dias"), e destaca com um fundo suave as linhas de chamados urgentes
-  ou de alta prioridade ainda em aberto.
+  **Depois de criado, título, descrição e quem abriu o chamado nunca
+  podem ser alterados por ninguém** — nem pelo Administrador, nem por
+  uma tentativa de requisição direta — para preservar o pedido
+  original e manter rastreável quem pediu o quê; qualquer atualização
+  a partir daí é feita pelas respostas. Ao marcar um chamado como
+  "Concluído", a data de conclusão é registrada automaticamente;
+  reabrir o chamado (mudar para qualquer outro andamento) limpa essa
+  data. Por segurança, **nenhum chamado em aberto pode ser excluído**
+  (nem por administrador) — só depois de marcado como Concluído ou
+  Cancelado. E chamados de prioridade Alta ou Urgente ainda em aberto
+  aparecem na Central de Alertas do Dashboard. A listagem também
+  mostra um trecho da descrição e o usuário em cada linha, o tempo em
+  aberto (ex.: "há 3 dias"), e destaca com um fundo suave as linhas de
+  chamados urgentes ou de alta prioridade ainda em aberto.
 
   Ao abrir a ficha de um chamado existente, aparece uma seção
-  **Respostas** em formato de conversa: quem estiver envolvido no
-  chamado (quem abriu, o responsável, ou qualquer Administrador/
-  Padrão) pode escrever uma atualização, que fica registrada com nome
-  e data/hora. O perfil **Usuário** também ganha acesso à ficha dos
-  próprios chamados para acompanhar e responder — só não pode alterar
+  **Respostas** em formato de conversa — mas o campo de escrever só
+  aparece depois que o chamado tem um responsável, e mesmo assim só
+  pra quem está diretamente envolvido: quem abriu, o responsável por
+  ele, ou um Administrador. Enquanto o chamado está sem responsável, ou
+  pra quem não está envolvido nele, aparece um aviso no lugar do campo
+  explicando por que a conversa está bloqueada ali. O perfil
+  **Usuário** também ganha acesso à ficha dos próprios chamados para
+  acompanhar e responder (depois de atribuídos) — só não pode alterar
   título, descrição, prioridade, andamento ou responsável.
 
   Cada resposta pode vir com **fotos e arquivos anexados** (clipe ao

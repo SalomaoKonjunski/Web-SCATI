@@ -6,6 +6,7 @@ require_once __DIR__ . '/../../includes/auth.php';
 exigirPermissao('chamados', 'alterar');
 
 $pdo = db();
+$usuarioAtual = usuarioLogado();
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     redirect('/modules/chamados/index.php');
@@ -25,12 +26,22 @@ if ($id <= 0 || !array_key_exists($campo, $camposPermitidos) || !$camposPermitid
     redirect('/modules/chamados/index.php');
 }
 
-$stmt = $pdo->prepare('SELECT titulo, status, prioridade, concluido_em FROM chamados WHERE id = :id');
+$stmt = $pdo->prepare('SELECT titulo, status, prioridade, concluido_em, responsavel_id FROM chamados WHERE id = :id');
 $stmt->execute(['id' => $id]);
 $chamado = $stmt->fetch();
 
 if (!$chamado) {
     flash('danger', 'Chamado não encontrado.');
+    redirect('/modules/chamados/index.php');
+}
+
+// Prioridade: enquanto o chamado está sem responsável (fila de triagem),
+// qualquer um da equipe pode ajustar. Depois de atribuído, só o
+// responsável (ou um Administrador) mexe em prioridade ou andamento —
+// é o que evita que gente de fora fique interferindo em chamado alheio.
+$podeTriagem = $campo === 'prioridade' && $chamado['responsavel_id'] === null;
+if (!$podeTriagem && !podeGerenciarChamado($chamado, $usuarioAtual)) {
+    flash('danger', 'Só o responsável por este chamado (ou um Administrador) pode alterá-lo.');
     redirect('/modules/chamados/index.php');
 }
 

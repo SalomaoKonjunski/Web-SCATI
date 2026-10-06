@@ -32,6 +32,20 @@ if ($usuarioAtual['solicitante'] && (int) $chamado['criado_por_id'] !== (int) $u
     redirect('/modules/chamados/index.php');
 }
 
+// Mensagem só é liberada depois que o chamado tem um responsável — antes
+// disso não tem quem leia, e isso vale pra todo mundo, inclusive quem
+// abriu o chamado. Depois de atribuído, só quem abriu, o responsável ou
+// um Administrador participam da conversa.
+if ($chamado['responsavel_id'] === null) {
+    flash('danger', 'Este chamado ainda não tem um responsável — atribua alguém antes de enviar mensagens.');
+    redirect('/modules/chamados/form.php?id=' . $chamadoId);
+}
+$souEnvolvido = (int) $chamado['criado_por_id'] === (int) $usuarioAtual['id'] || podeGerenciarChamado($chamado, $usuarioAtual);
+if (!$souEnvolvido) {
+    flash('danger', 'Só quem abriu o chamado, o responsável por ele ou um Administrador podem enviar mensagens aqui.');
+    redirect('/modules/chamados/form.php?id=' . $chamadoId);
+}
+
 // Monta a lista de arquivos enviados (ignora os campos "vazios" do input
 // múltiplo quando nenhum arquivo foi escolhido naquele slot).
 $tamanhoMaximo = 10 * 1024 * 1024; // 10 MB

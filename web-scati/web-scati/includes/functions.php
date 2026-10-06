@@ -1131,6 +1131,20 @@ function marcarChamadoVisto(int $chamadoId, int $usuarioId): void
 }
 
 /**
+ * Ciclo de vida dos Chamados: um chamado sem responsável é de triagem
+ * (qualquer um da equipe pode ver/priorizar, ninguém ainda "dono" dele);
+ * uma vez atribuído, só o responsável — ou um Administrador, que sempre
+ * pode intervir em qualquer chamado — pode mudar prioridade/andamento,
+ * enviar mensagem, concluir, cancelar ou reatribuir. $chamado precisa
+ * ter pelo menos a chave 'responsavel_id'.
+ */
+function podeGerenciarChamado(array $chamado, array $usuarioAtual): bool
+{
+    return $usuarioAtual['admin']
+        || ($chamado['responsavel_id'] !== null && (int) $chamado['responsavel_id'] === (int) $usuarioAtual['id']);
+}
+
+/**
  * Registra um evento no histórico automático do chamado (aberto, mudança
  * de andamento/prioridade/responsável), com o usuário logado no momento.
  */
