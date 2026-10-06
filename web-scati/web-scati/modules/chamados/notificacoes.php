@@ -6,9 +6,11 @@ require_once __DIR__ . '/../../includes/auth.php';
 exigirPermissao('chamados', 'ver');
 
 $usuarioAtual = usuarioLogado();
-// Administrador e Padrão enxergam a listagem de chamados inteira, então
-// são notificados sobre qualquer chamado; o perfil Usuário só é
-// notificado sobre os próprios (solicitante ou responsável).
+// Administrador e Padrão também são notificados sobre chamados ainda sem
+// responsável (pra alguém poder assumi-los), mas, uma vez atribuído um
+// responsável, só ele (e quem abriu) é notificado das mensagens — não o
+// restante da equipe. O perfil Usuário só é notificado sobre os próprios
+// chamados (solicitante ou responsável), nunca dos de outra pessoa.
 $verTodos = !$usuarioAtual['solicitante'];
 
 $itens = listarChamadosNaoLidos($usuarioAtual['id'], $verTodos);

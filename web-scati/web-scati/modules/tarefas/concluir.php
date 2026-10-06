@@ -17,7 +17,7 @@ $stmt->execute(['id' => $id]);
 $tarefa = $stmt->fetch();
 
 if (!$tarefa) {
-    flash('danger', 'Tarefa não encontrada.');
+    flash('danger', 'Alerta não encontrado.');
     redirect('/modules/tarefas/index.php');
 }
 
@@ -28,7 +28,7 @@ $pdo->prepare(
     'UPDATE tarefas_periodicas SET ultima_execucao = :hoje, proxima_execucao = :proxima WHERE id = :id'
 )->execute(['hoje' => $hoje, 'proxima' => $proximaExecucao, 'id' => $id]);
 
-registrarHistoricoTarefa($id, 'Concluída', 'Tarefa "' . $tarefa['titulo'] . '" marcada como concluída. Próxima execução: ' . formatDate($proximaExecucao) . '.');
+registrarHistoricoTarefa($id, 'Concluída', 'Alerta "' . $tarefa['titulo'] . '" marcado como concluído. Próxima execução: ' . formatDate($proximaExecucao) . '.');
 
-flash('success', 'Tarefa "' . $tarefa['titulo'] . '" marcada como concluída. Próxima execução: ' . formatDate($proximaExecucao) . '.');
+flash('success', 'Alerta "' . $tarefa['titulo'] . '" marcado como concluído. Próxima execução: ' . formatDate($proximaExecucao) . '.');
 redirect('/modules/tarefas/index.php');

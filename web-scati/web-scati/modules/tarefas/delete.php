@@ -13,11 +13,11 @@ $stmt->execute(['id' => $id]);
 $tarefa = $stmt->fetch();
 
 if (!$tarefa) {
-    flash('danger', 'Tarefa não encontrada.');
+    flash('danger', 'Alerta não encontrado.');
     redirect('/modules/tarefas/index.php');
 }
 
 $pdo->prepare('DELETE FROM tarefas_periodicas WHERE id = :id')->execute(['id' => $id]);
 
-flash('success', 'Tarefa "' . $tarefa['titulo'] . '" excluída com sucesso.');
+flash('success', 'Alerta "' . $tarefa['titulo'] . '" excluído com sucesso.');
 redirect('/modules/tarefas/index.php');

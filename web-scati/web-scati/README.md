@@ -340,11 +340,18 @@ Funcional (v1.0).
    mysql --default-character-set=utf8mb4 -u root -p scati < database/migration_perfis_acesso.sql
    ```
 
-   Se o banco já existia antes do **compartilhamento de notas e das
-   Tarefas Periódicas** (ainda não tem a tabela `tarefas_periodicas`),
+   Se o banco já existia antes do **compartilhamento de notas e da
+   Central de Alertas** (ainda não tem a tabela `tarefas_periodicas`),
    rode também esta migração incremental **uma única vez**:
    ```bash
    mysql --default-character-set=utf8mb4 -u root -p scati < database/migration_notas_tarefas.sql
+   ```
+
+   Se o banco já existia antes do **compartilhamento de senhas
+   específicas** (ainda não tem a tabela `senha_compartilhamentos`),
+   rode também esta migração incremental **uma única vez**:
+   ```bash
+   mysql --default-character-set=utf8mb4 -u root -p scati < database/migration_senhas_compartilhadas.sql
    ```
 
    > Importante: ao importar qualquer um dos arquivos `.sql` deste projeto,
@@ -498,8 +505,9 @@ web-scati/
   no topo da página reunindo licenças vencidas ou vencendo nos próximos 30
   dias, itens de estoque abaixo do mínimo, impressoras sem toner vinculado,
   impressoras com a troca de toner por tempo de uso próxima ou vencida e
-  Tarefas Periódicas (ver abaixo) vencidas ou se aproximando do prazo —
-  cada alerta linka direto para a tela correspondente. Logo
+  os alertas recorrentes cadastrados na tela **Central de Alertas** do
+  menu lateral (ver abaixo) vencidos ou se aproximando do prazo — cada
+  alerta linka direto para a tela correspondente. Logo
   abaixo, o card **"Itens de Estoque por Categoria"** mostra em um gráfico
   de pizza (donut) como a quantidade em estoque está distribuída entre as
   categorias cadastradas, com legenda (quantidade e percentual), tooltip
@@ -710,18 +718,18 @@ web-scati/
     pessoa numa seção própria, "Compartilhadas comigo", com o nome de
     quem compartilhou — excluir a nota ou reconfigurar quem tem acesso
     a ela continua sendo exclusivo do dono, mesmo para quem pode editar.
-- **Tarefas Periódicas**: menu lateral, cadastro de avisos recorrentes de
+- **Central de Alertas** (menu lateral): cadastro de avisos recorrentes de
   manutenção que não pertencem a nenhum equipamento específico — ex.:
   troca de toner, limpeza do cortador de papel, reinicialização de
-  servidor. Cada tarefa tem título, descrição opcional, responsável
+  servidor. Cada alerta tem título, descrição opcional, responsável
   opcional (ou "Qualquer um da equipe"), frequência (a cada N dia(s),
-  semana(s) ou mês(es)) e quantos dias de antecedência ela deve aparecer
-  na **Central de Alertas** do Dashboard. O botão de concluir marca a
-  execução de hoje e recalcula a próxima data automaticamente a partir de
-  hoje + frequência (ex.: mensal a partir de 31/01 cai em 28 ou 29/02,
-  não em "+30 dias" fixos); tarefas pausadas (campo "ativa" desmarcado)
-  saem da Central de Alertas sem precisar ser excluídas. Sujeito às
-  permissões de **Visualizar/Alterar** do módulo "Tarefas Periódicas" em
+  semana(s) ou mês(es)) e quantos dias de antecedência ele deve aparecer
+  no card **Central de Alertas** do Dashboard. O botão de concluir marca
+  a execução de hoje e recalcula a próxima data automaticamente a partir
+  de hoje + frequência (ex.: mensal a partir de 31/01 cai em 28 ou 29/02,
+  não em "+30 dias" fixos); alertas pausados (campo "ativo" desmarcado)
+  saem do card do Dashboard sem precisar ser excluídos. Sujeito às
+  permissões de **Visualizar/Alterar** do módulo "Central de Alertas" em
   Perfis de Acesso.
 - **App instalável (PWA) e notificações push**: o sistema pode ser
   "instalado" pelo navegador — Chrome/Edge no computador, Chrome no
@@ -752,8 +760,19 @@ web-scati/
   senha e observações. A senha fica sempre cifrada no banco (AES-256-CBC,
   mesma chave `ENCRYPTION_KEY` já usada para a senha de email corporativo
   em Usuários — nunca em texto puro) e aparece mascarada por padrão na
-  tela, com botões para mostrar ou copiar. Acesso restrito a
-  só o perfil Administrador; Padrão e Usuário não veem essa aba.
+  tela, com botões para mostrar ou copiar. Acesso ao cofre inteiro é
+  controlado pela permissão "Senhas" em Perfis de Acesso (por padrão só
+  o Administrador tem).
+  - **Compartilhar senha**: quem tem "Senhas: Alterar" pode liberar uma
+    senha específica (botão de compartilhar, ícone de "share", na
+    listagem) para qualquer pessoa do sistema, mesmo que ela não tenha a
+    permissão "Senhas" de forma alguma — com a mesma marcação
+    **Compartilhar**/**Pode editar** do compartilhamento de notas (por
+    padrão só visualização; marcando "Pode editar" ela também edita os
+    dados daquela senha). Quem recebe uma senha compartilhada passa a
+    ver a aba Senhas no menu, mas só com essa(s) senha(s) específica(s) —
+    nunca o cofre inteiro — e nunca pode excluir nem reconfigurar quem
+    mais tem acesso a ela.
 - **Interface responsiva** com Bootstrap 5, menu lateral recolhível em
   telas pequenas.
 - **Configurações**: tela central (menu lateral) com vários ajustes do
@@ -846,7 +865,7 @@ web-scati/
   - Qualquer outro perfil pode ser **criado do zero**, com nome livre e
     uma permissão própria por módulo do sistema (Dashboard, Chamados,
     Equipamentos, Impressoras, Estoque, Redes, Licenças, Relatórios,
-    Bloco de Notas, Tarefas Periódicas, Senhas, Usuários, Configurações): **Visualizar** (a
+    Bloco de Notas, Central de Alertas, Senhas, Usuários, Configurações): **Visualizar** (a
     aba aparece no menu, só leitura) e **Alterar** (também cria, edita e
     exclui ali). O menu lateral e o acesso direto por URL respeitam
     exatamente essa combinação — um perfil sem nenhuma permissão
@@ -965,11 +984,14 @@ web-scati/
   escreveu e uma prévia da última mensagem. Abrir a ficha do chamado
   marca tudo como lido — some a cor, o contador, a contagem do menu
   lateral e do sininho. Administrador e Padrão são avisados sobre
-  qualquer chamado do sistema (já que
-  enxergam a listagem inteira); o perfil Usuário só é avisado sobre os
-  próprios chamados (como solicitante ou responsável) — e nunca sobre
-  a própria solicitação que acabou de abrir, já que ele sabe que ela
-  existe.
+  chamados ainda **sem responsável definido** (pra alguém poder
+  assumi-los), mas, assim que um chamado tem um responsável atribuído,
+  só esse responsável (além de quem abriu) é avisado das mensagens nele
+  — o restante da equipe deixa de ver esse chamado no sininho e na
+  contagem do menu lateral, mesmo vendo-o normalmente na listagem geral
+  de Chamados. O perfil Usuário só é avisado sobre os próprios chamados
+  (como solicitante ou responsável) — e nunca sobre a própria
+  solicitação que acabou de abrir, já que ele sabe que ela existe.
 
   > Nota técnica: a notificação sonora funciona enquanto o navegador
   > estiver aberto com alguma página do sistema carregada (mesmo em

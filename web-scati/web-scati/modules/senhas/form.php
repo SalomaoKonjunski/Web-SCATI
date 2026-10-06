@@ -3,20 +3,33 @@ declare(strict_types=1);
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../includes/functions.php';
 require_once __DIR__ . '/../../includes/auth.php';
-exigirPermissao('senhas', 'alterar');
+exigirLogin();
 
 $pdo = db();
 $id = isset($_GET['id']) ? (int) $_GET['id'] : null;
 $edicao = $id !== null;
 $usuarioAtual = usuarioLogado();
+$podeAlterarTudo = temPermissao('senhas', 'alterar');
+
+// Criar uma senha nova sempre exige a permissão "Senhas: Alterar" geral —
+// compartilhamento só libera editar uma senha já existente, nunca criar.
+if (!$edicao) {
+    exigirPermissao('senhas', 'alterar');
+}
 
 $item = [
     'nome' => '', 'categoria' => categoriasSenha()[0] ?? '', 'usuario' => '', 'senha' => '', 'observacoes' => '',
 ];
 
 if ($edicao) {
-    $stmt = $pdo->prepare('SELECT * FROM senhas WHERE id = :id');
-    $stmt->execute(['id' => $id]);
+    // Além de quem tem "Senhas: Alterar" geral, libera quem recebeu essa
+    // senha específica compartilhada com "pode editar".
+    $stmt = $pdo->prepare(
+        'SELECT s.* FROM senhas s
+         LEFT JOIN senha_compartilhamentos sc ON sc.senha_id = s.id AND sc.usuario_id = :usuario_id AND sc.pode_editar = 1
+         WHERE s.id = :id AND (:acesso_total = 1 OR sc.usuario_id IS NOT NULL)'
+    );
+    $stmt->execute(['id' => $id, 'usuario_id' => $usuarioAtual['id'], 'acesso_total' => $podeAlterarTudo ? 1 : 0]);
     $registro = $stmt->fetch();
     if (!$registro) {
         flash('danger', 'Senha não encontrada.');
@@ -82,6 +95,10 @@ include __DIR__ . '/../../includes/header.php';
     <h1 class="h3 mb-0"><i class="bi bi-shield-lock me-2"></i><?= $edicao ? 'Editar Senha' : 'Nova Senha' ?></h1>
     <a href="index.php" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Voltar</a>
 </div>
+
+<?php if ($edicao && !$podeAlterarTudo): ?>
+    <p class="text-muted small"><i class="bi bi-share me-1"></i> Esta senha foi compartilhada com você para edição — você não vê as demais senhas do cofre.</p>
+<?php endif; ?>
 
 <?php if (!empty($erros)): ?>
     <div class="alert alert-danger">

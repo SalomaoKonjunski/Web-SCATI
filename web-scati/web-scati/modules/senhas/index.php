@@ -3,41 +3,74 @@ declare(strict_types=1);
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../includes/functions.php';
 require_once __DIR__ . '/../../includes/auth.php';
-exigirPermissao('senhas', 'ver');
+exigirLogin();
 
 $pdo = db();
 $pageTitle = 'Senhas';
+$usuarioAtual = usuarioLogado();
+$usuarioId = (int) $usuarioAtual['id'];
 
-$busca = trim($_GET['busca'] ?? '');
-$filtroCategoria = $_GET['categoria'] ?? '';
+// Acesso total ao cofre: quem tem "Senhas: Visualizar/Alterar" em Perfis
+// de Acesso. Sem isso, só entra aqui quem tiver pelo menos uma senha
+// compartilhada individualmente com ele (ver compartilhar.php) — nesse
+// caso só vê as que foram compartilhadas, nunca o cofre inteiro.
+$temAcessoTotal = temPermissao('senhas', 'ver');
+$podeAlterar = temPermissao('senhas', 'alterar');
 
-$sql = 'SELECT * FROM senhas WHERE 1=1';
-$params = [];
-
-if ($busca !== '') {
-    $sql .= ' AND (nome LIKE :busca_nome OR usuario LIKE :busca_usuario OR observacoes LIKE :busca_obs)';
-    $params['busca_nome'] = '%' . $busca . '%';
-    $params['busca_usuario'] = '%' . $busca . '%';
-    $params['busca_obs'] = '%' . $busca . '%';
-}
-if ($filtroCategoria !== '') {
-    $sql .= ' AND categoria = :categoria';
-    $params['categoria'] = $filtroCategoria;
+if (!$temAcessoTotal && !temAlgumaSenhaCompartilhada($usuarioId)) {
+    exigirPermissao('senhas', 'ver'); // sem acesso nenhum: cai no mesmo bloqueio/fallback de sempre
 }
 
-$sql .= ' ORDER BY nome ASC';
-$stmt = $pdo->prepare($sql);
-$stmt->execute($params);
-$senhas = $stmt->fetchAll();
+if ($temAcessoTotal) {
+    $busca = trim($_GET['busca'] ?? '');
+    $filtroCategoria = $_GET['categoria'] ?? '';
+
+    $sql = 'SELECT * FROM senhas WHERE 1=1';
+    $params = [];
+
+    if ($busca !== '') {
+        $sql .= ' AND (nome LIKE :busca_nome OR usuario LIKE :busca_usuario OR observacoes LIKE :busca_obs)';
+        $params['busca_nome'] = '%' . $busca . '%';
+        $params['busca_usuario'] = '%' . $busca . '%';
+        $params['busca_obs'] = '%' . $busca . '%';
+    }
+    if ($filtroCategoria !== '') {
+        $sql .= ' AND categoria = :categoria';
+        $params['categoria'] = $filtroCategoria;
+    }
+
+    $sql .= ' ORDER BY nome ASC';
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
+    $senhas = $stmt->fetchAll();
+} else {
+    // Visão restrita: só as senhas compartilhadas com este usuário, sem
+    // pesquisa/filtro (lista tende a ser pequena) e sem botão "Nova Senha".
+    $stmt = $pdo->prepare(
+        'SELECT s.*, sc.pode_editar
+         FROM senhas s
+         JOIN senha_compartilhamentos sc ON sc.senha_id = s.id AND sc.usuario_id = :usuario_id
+         ORDER BY s.nome ASC'
+    );
+    $stmt->execute(['usuario_id' => $usuarioId]);
+    $senhas = $stmt->fetchAll();
+}
 
 include __DIR__ . '/../../includes/header.php';
 ?>
 
 <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
     <h1 class="h3 mb-0"><i class="bi bi-shield-lock me-2"></i>Senhas</h1>
-    <a href="form.php" class="btn btn-primary"><i class="bi bi-plus-lg"></i> Nova Senha</a>
+    <?php if ($podeAlterar): ?>
+        <a href="form.php" class="btn btn-primary"><i class="bi bi-plus-lg"></i> Nova Senha</a>
+    <?php endif; ?>
 </div>
 
+<?php if (!$temAcessoTotal): ?>
+    <p class="text-muted small"><i class="bi bi-share me-1"></i> Você está vendo só as senhas que foram compartilhadas com você.</p>
+<?php endif; ?>
+
+<?php if ($temAcessoTotal): ?>
 <div class="card mb-3">
     <div class="card-body">
         <form method="get" class="row g-2 align-items-end">
@@ -61,6 +94,7 @@ include __DIR__ . '/../../includes/header.php';
         </form>
     </div>
 </div>
+<?php endif; ?>
 
 <div class="card">
     <div class="table-responsive">
@@ -80,8 +114,11 @@ include __DIR__ . '/../../includes/header.php';
                     <tr><td colspan="6" class="text-center text-muted py-4">Nenhuma senha encontrada.</td></tr>
                 <?php endif; ?>
                 <?php foreach ($senhas as $senha): ?>
-                    <?php $senhaTexto = descriptografar($senha['senha_cifrada']) ?? ''; ?>
-                    <tr data-href="form.php?id=<?= (int) $senha['id'] ?>" title="Abrir cadastro da senha">
+                    <?php
+                        $senhaTexto = descriptografar($senha['senha_cifrada']) ?? '';
+                        $podeEditarEsta = $temAcessoTotal ? $podeAlterar : (bool) $senha['pode_editar'];
+                    ?>
+                    <tr <?= $podeEditarEsta ? 'data-href="form.php?id=' . (int) $senha['id'] . '" title="Abrir cadastro da senha"' : '' ?>>
                         <td><strong><?= e($senha['nome']) ?></strong></td>
                         <td><?= badgeCor($senha['categoria'], corCategoriaSenha($senha['categoria'])) ?></td>
                         <td><?= e($senha['usuario']) ?: '-' ?></td>
@@ -100,11 +137,16 @@ include __DIR__ . '/../../includes/header.php';
                             <?php endif; ?>
                         </td>
                         <td class="text-end">
-                            <a href="form.php?id=<?= (int) $senha['id'] ?>" class="btn btn-sm btn-outline-primary"><i class="bi bi-pencil"></i></a>
-                            <a href="delete.php?id=<?= (int) $senha['id'] ?>" class="btn btn-sm btn-outline-danger js-confirm-delete"
-                               data-confirm-msg="Excluir a senha &quot;<?= e($senha['nome']) ?>&quot;? Esta ação não pode ser desfeita." title="Excluir">
-                                <i class="bi bi-trash"></i>
-                            </a>
+                            <?php if ($podeEditarEsta): ?>
+                                <a href="form.php?id=<?= (int) $senha['id'] ?>" class="btn btn-sm btn-outline-primary" title="Editar"><i class="bi bi-pencil"></i></a>
+                            <?php endif; ?>
+                            <?php if ($temAcessoTotal && $podeAlterar): ?>
+                                <a href="compartilhar.php?id=<?= (int) $senha['id'] ?>" class="btn btn-sm btn-outline-secondary" title="Compartilhar"><i class="bi bi-share"></i></a>
+                                <a href="delete.php?id=<?= (int) $senha['id'] ?>" class="btn btn-sm btn-outline-danger js-confirm-delete"
+                                   data-confirm-msg="Excluir a senha &quot;<?= e($senha['nome']) ?>&quot;? Esta ação não pode ser desfeita." title="Excluir">
+                                    <i class="bi bi-trash"></i>
+                                </a>
+                            <?php endif; ?>
                         </td>
                     </tr>
                 <?php endforeach; ?>
@@ -112,6 +154,8 @@ include __DIR__ . '/../../includes/header.php';
         </table>
     </div>
 </div>
-<p class="text-muted small mt-2"><i class="bi bi-info-circle"></i> Só o perfil Administrador tem acesso a esta tela.</p>
+<?php if ($temAcessoTotal): ?>
+    <p class="text-muted small mt-2"><i class="bi bi-info-circle"></i> Além de quem tem a permissão "Senhas" em Perfis de Acesso, uma senha específica pode ser compartilhada individualmente com outra pessoa pelo botão <i class="bi bi-share"></i>.</p>
+<?php endif; ?>
 
 <?php include __DIR__ . '/../../includes/footer.php'; ?>

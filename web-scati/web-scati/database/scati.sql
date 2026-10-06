@@ -802,7 +802,10 @@ INSERT INTO categorias_senha (nome) VALUES
 -- ---------------------------------------------------------------------
 -- Tabela: senhas
 -- Cofre simples de credenciais de TI (roteadores, servidores, sistemas,
--- Wi-Fi, licenças, etc.), acessível só ao perfil Administrador.
+-- Wi-Fi, licenças, etc.), por padrão acessível só a quem tem a permissão
+-- "Senhas" em Perfis de Acesso — mas uma senha específica também pode
+-- ser liberada por fora disso para quem não tem essa permissão, via
+-- compartilhamento individual (tabela senha_compartilhamentos).
 -- A senha é sempre guardada cifrada (AES-256-CBC, ver criptografar() /
 -- descriptografar() em includes/functions.php), nunca em texto puro.
 -- ---------------------------------------------------------------------
@@ -818,6 +821,31 @@ CREATE TABLE senhas (
     criado_em       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     atualizado_em   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
+
+-- ---------------------------------------------------------------------
+-- Tabela: senha_compartilhamentos
+-- Quem tem a permissão "Senhas: Alterar" pode liberar uma senha
+-- específica para outra pessoa do sistema, mesmo que ela não tenha essa
+-- permissão de forma alguma. pode_editar = 0 (padrão): a pessoa só
+-- visualiza aquela senha. pode_editar = 1: ela também pode editar os
+-- dados daquela senha — excluir continua exclusivo de quem tem "Senhas:
+-- Alterar" de verdade, e só quem tem essa permissão pode configurar o
+-- compartilhamento (não existe "dono" de uma senha, é um cofre coletivo).
+-- ---------------------------------------------------------------------
+CREATE TABLE senha_compartilhamentos (
+    id          INT AUTO_INCREMENT PRIMARY KEY,
+    senha_id    INT NOT NULL,
+    usuario_id  INT NOT NULL,
+    pode_editar TINYINT(1) NOT NULL DEFAULT 0,
+    criado_em   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_senha_compartilhamento_senha
+        FOREIGN KEY (senha_id) REFERENCES senhas(id) ON DELETE CASCADE,
+    CONSTRAINT fk_senha_compartilhamento_usuario
+        FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE UNIQUE INDEX uq_senha_usuario ON senha_compartilhamentos(senha_id, usuario_id);
 
 -- ---------------------------------------------------------------------
 -- Índices auxiliares para pesquisa (seção 13 da documentação)

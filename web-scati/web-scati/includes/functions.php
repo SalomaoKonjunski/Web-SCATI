@@ -806,7 +806,7 @@ function modulosSistema(): array
         'licencas'      => ['label' => 'Licenças', 'icone' => 'bi-key'],
         'relatorios'    => ['label' => 'Relatórios', 'icone' => 'bi-bar-chart-line'],
         'notas'         => ['label' => 'Bloco de Notas', 'icone' => 'bi-journal-text'],
-        'tarefas'       => ['label' => 'Tarefas Periódicas', 'icone' => 'bi-arrow-repeat'],
+        'tarefas'       => ['label' => 'Central de Alertas', 'icone' => 'bi-bell'],
         'senhas'        => ['label' => 'Senhas', 'icone' => 'bi-shield-lock'],
         'usuarios'      => ['label' => 'Usuários', 'icone' => 'bi-people'],
         'configuracoes' => ['label' => 'Configurações', 'icone' => 'bi-gear'],
@@ -872,6 +872,19 @@ function temPermissao(string $modulo, string $acao = 'ver', ?string $perfil = nu
     }
     $permissoes = permissoesPerfil($perfil);
     return $permissoes[$modulo][$acao] ?? false;
+}
+
+/**
+ * true se o usuário informado tem pelo menos uma senha (Configurações >
+ * Senhas) compartilhada individualmente com ele — usado para liberar o
+ * menu e a tela de Senhas pra quem não tem a permissão "Senhas" de forma
+ * geral em Perfis de Acesso, mas recebeu acesso a uma senha específica.
+ */
+function temAlgumaSenhaCompartilhada(int $usuarioId): bool
+{
+    $stmt = db()->prepare('SELECT 1 FROM senha_compartilhamentos WHERE usuario_id = :usuario_id LIMIT 1');
+    $stmt->execute(['usuario_id' => $usuarioId]);
+    return (bool) $stmt->fetchColumn();
 }
 
 /**
@@ -1021,14 +1034,20 @@ function corTipoManutencao(string $nome): string
  * (uma solicitação nova que ele nunca abriu). Usado para o sininho de
  * notificação e para o aviso em vermelho do menu lateral.
  *
- * $verTodos = true considera todos os chamados do sistema (usado para
- * Administrador/Padrão, que enxergam a listagem inteira); false restringe
+ * $verTodos = true considera, além dos próprios, os chamados ainda sem
+ * responsável definido (usado para Administrador/Padrão, que precisam
+ * ver chamados novos pra poder assumi-los); false restringe estritamente
  * aos chamados em que o usuário é o solicitante ou o responsável (usado
- * para o perfil Usuário, que só vê os próprios chamados).
+ * para o perfil Usuário, que só vê os próprios chamados). Em ambos os
+ * casos, uma vez que o chamado já tem um responsável definido, só esse
+ * responsável (e quem abriu) é notificado das mensagens nele — não o
+ * restante da equipe.
  */
 function contarChamadosNaoLidos(int $usuarioId, bool $verTodos = false): int
 {
-    $condicaoVisibilidade = $verTodos ? '1=1' : '(c.criado_por_id = :uid2 OR c.responsavel_id = :uid3)';
+    $condicaoVisibilidade = $verTodos
+        ? '(c.criado_por_id = :uid2 OR c.responsavel_id = :uid3 OR c.responsavel_id IS NULL)'
+        : '(c.criado_por_id = :uid2 OR c.responsavel_id = :uid3)';
     $stmt = db()->prepare(
         "SELECT COUNT(DISTINCT c.id)
          FROM chamados c
@@ -1044,12 +1063,9 @@ function contarChamadosNaoLidos(int $usuarioId, bool $verTodos = false): int
                )
            )"
     );
-    $params = ['uid1' => $usuarioId, 'uid4' => $usuarioId, 'uid5' => $usuarioId];
-    if (!$verTodos) {
-        $params['uid2'] = $usuarioId;
-        $params['uid3'] = $usuarioId;
-    }
-    $stmt->execute($params);
+    $stmt->execute([
+        'uid1' => $usuarioId, 'uid2' => $usuarioId, 'uid3' => $usuarioId, 'uid4' => $usuarioId, 'uid5' => $usuarioId,
+    ]);
 
     return (int) $stmt->fetchColumn();
 }
@@ -1064,7 +1080,9 @@ function contarChamadosNaoLidos(int $usuarioId, bool $verTodos = false): int
  */
 function listarChamadosNaoLidos(int $usuarioId, bool $verTodos = false): array
 {
-    $condicaoVisibilidade = $verTodos ? '1=1' : '(c.criado_por_id = :uid2 OR c.responsavel_id = :uid3)';
+    $condicaoVisibilidade = $verTodos
+        ? '(c.criado_por_id = :uid2 OR c.responsavel_id = :uid3 OR c.responsavel_id IS NULL)'
+        : '(c.criado_por_id = :uid2 OR c.responsavel_id = :uid3)';
     $stmt = db()->prepare(
         "SELECT c.id AS chamado_id, c.titulo, c.descricao, c.solicitante, c.criado_em,
                 CASE WHEN v.visto_em IS NULL THEN 'solicitacao' ELSE 'mensagem' END AS tipo,
@@ -1092,12 +1110,10 @@ function listarChamadosNaoLidos(int $usuarioId, bool $verTodos = false): array
          ORDER BY COALESCE(ultima.criado_em, c.criado_em) DESC
          LIMIT 10"
     );
-    $params = ['uid1' => $usuarioId, 'uid4' => $usuarioId, 'uid5' => $usuarioId, 'uid6' => $usuarioId];
-    if (!$verTodos) {
-        $params['uid2'] = $usuarioId;
-        $params['uid3'] = $usuarioId;
-    }
-    $stmt->execute($params);
+    $stmt->execute([
+        'uid1' => $usuarioId, 'uid2' => $usuarioId, 'uid3' => $usuarioId,
+        'uid4' => $usuarioId, 'uid5' => $usuarioId, 'uid6' => $usuarioId,
+    ]);
 
     return $stmt->fetchAll();
 }

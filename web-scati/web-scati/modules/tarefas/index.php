@@ -6,7 +6,7 @@ require_once __DIR__ . '/../../includes/auth.php';
 exigirPermissao('tarefas', 'ver');
 
 $pdo = db();
-$pageTitle = 'Tarefas Periódicas';
+$pageTitle = 'Central de Alertas';
 $podeAlterar = temPermissao('tarefas', 'alterar');
 
 $tarefas = $pdo->query(
@@ -21,11 +21,11 @@ include __DIR__ . '/../../includes/header.php';
 
 <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
     <div>
-        <h1 class="h3 mb-0"><i class="bi bi-arrow-repeat me-2"></i>Tarefas Periódicas</h1>
-        <span class="small text-muted">Avisos recorrentes (ex.: troca de toner, limpeza do cortador de papel) que aparecem na Central de Alertas do Dashboard quando vencem.</span>
+        <h1 class="h3 mb-0"><i class="bi bi-bell me-2"></i>Central de Alertas</h1>
+        <span class="small text-muted">Avisos recorrentes (ex.: troca de toner, limpeza do cortador de papel) que aparecem no card "Central de Alertas" do Dashboard quando vencem.</span>
     </div>
     <?php if ($podeAlterar): ?>
-        <a href="form.php" class="btn btn-primary"><i class="bi bi-plus-lg"></i> Nova Tarefa</a>
+        <a href="form.php" class="btn btn-primary"><i class="bi bi-plus-lg"></i> Novo Alerta</a>
     <?php endif; ?>
 </div>
 
@@ -34,7 +34,7 @@ include __DIR__ . '/../../includes/header.php';
         <table class="table table-hover align-middle mb-0">
             <thead class="table-light">
                 <tr>
-                    <th>Tarefa</th>
+                    <th>Alerta</th>
                     <th>Frequência</th>
                     <th>Responsável</th>
                     <th>Próxima Execução</th>
@@ -44,7 +44,7 @@ include __DIR__ . '/../../includes/header.php';
             </thead>
             <tbody>
                 <?php if (empty($tarefas)): ?>
-                    <tr><td colspan="6" class="text-center text-muted py-4">Nenhuma tarefa periódica cadastrada.</td></tr>
+                    <tr><td colspan="6" class="text-center text-muted py-4">Nenhum alerta cadastrado.</td></tr>
                 <?php endif; ?>
                 <?php foreach ($tarefas as $tarefa): ?>
                     <?php
@@ -84,7 +84,7 @@ include __DIR__ . '/../../includes/header.php';
                                 </form>
                                 <a href="form.php?id=<?= (int) $tarefa['id'] ?>" class="btn btn-sm btn-outline-primary" title="Editar"><i class="bi bi-pencil"></i></a>
                                 <a href="delete.php?id=<?= (int) $tarefa['id'] ?>" class="btn btn-sm btn-outline-danger js-confirm-delete"
-                                   data-confirm-msg="Excluir a tarefa &quot;<?= e($tarefa['titulo']) ?>&quot;?"><i class="bi bi-trash"></i></a>
+                                   data-confirm-msg="Excluir o alerta &quot;<?= e($tarefa['titulo']) ?>&quot;?"><i class="bi bi-trash"></i></a>
                             <?php endif; ?>
                         </td>
                     </tr>

@@ -87,7 +87,7 @@ $divisorConfigAplicado = false;
         <?php if (temPermissao('tarefas', 'ver')): ?>
         <li class="nav-item">
             <a class="nav-link <?= isActive('/modules/tarefas/', $currentPath) ?>" href="<?= BASE_URL ?>/modules/tarefas/index.php">
-                <i class="bi bi-arrow-repeat"></i> Tarefas Periódicas
+                <i class="bi bi-bell"></i> Central de Alertas
             </a>
         </li>
         <?php endif; ?>
@@ -98,7 +98,7 @@ $divisorConfigAplicado = false;
             </a>
         </li>
         <?php endif; ?>
-        <?php if (temPermissao('senhas', 'ver')): ?>
+        <?php if (temPermissao('senhas', 'ver') || temAlgumaSenhaCompartilhada((int) $usuarioAtualSidebar['id'])): ?>
         <li class="nav-item <?= !$divisorConfigAplicado ? 'mt-3 border-top border-secondary-subtle pt-3' : '' ?>">
             <?php $divisorConfigAplicado = true; ?>
             <a class="nav-link <?= isActive('/modules/senhas/', $currentPath) ?>" href="<?= BASE_URL ?>/modules/senhas/index.php">

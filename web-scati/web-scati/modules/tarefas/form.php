@@ -19,7 +19,7 @@ if ($edicao) {
     $stmt->execute(['id' => $id]);
     $registro = $stmt->fetch();
     if (!$registro) {
-        flash('danger', 'Tarefa não encontrada.');
+        flash('danger', 'Alerta não encontrado.');
         redirect('/modules/tarefas/index.php');
     }
     $tarefa = array_merge($tarefa, $registro);
@@ -73,7 +73,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                  dias_aviso_antecedencia = :dias_aviso_antecedencia, proxima_execucao = :proxima_execucao,
                  responsavel_id = :responsavel_id, ativo = :ativo WHERE id = :id'
             )->execute($dados);
-            flash('success', 'Tarefa atualizada com sucesso.');
+            flash('success', 'Alerta atualizado com sucesso.');
         } else {
             $pdo->prepare(
                 'INSERT INTO tarefas_periodicas (titulo, descricao, frequencia_tipo, frequencia_valor,
@@ -81,7 +81,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                  VALUES (:titulo, :descricao, :frequencia_tipo, :frequencia_valor,
                  :dias_aviso_antecedencia, :proxima_execucao, :responsavel_id, :ativo)'
             )->execute($dados);
-            flash('success', 'Tarefa criada com sucesso.');
+            flash('success', 'Alerta criado com sucesso.');
         }
         redirect('/modules/tarefas/index.php');
     }
@@ -89,13 +89,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $usuarios = $pdo->query('SELECT id, usuario FROM usuarios ORDER BY usuario ASC')->fetchAll();
 
-$pageTitle = $edicao ? 'Editar Tarefa' : 'Nova Tarefa';
+$pageTitle = $edicao ? 'Editar Alerta' : 'Novo Alerta';
 
 include __DIR__ . '/../../includes/header.php';
 ?>
 
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h1 class="h3 mb-0"><i class="bi bi-arrow-repeat me-2"></i><?= $edicao ? 'Editar Tarefa' : 'Nova Tarefa' ?></h1>
+    <h1 class="h3 mb-0"><i class="bi bi-bell me-2"></i><?= $edicao ? 'Editar Alerta' : 'Novo Alerta' ?></h1>
     <a href="index.php" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Voltar</a>
 </div>
 
@@ -157,7 +157,7 @@ include __DIR__ . '/../../includes/header.php';
             <div class="col-12">
                 <div class="form-check form-switch">
                     <input class="form-check-input" type="checkbox" name="ativo" id="ativo" <?= $tarefa['ativo'] ? 'checked' : '' ?>>
-                    <label class="form-check-label" for="ativo">Tarefa ativa (pausada não aparece na Central de Alertas)</label>
+                    <label class="form-check-label" for="ativo">Alerta ativo (pausado não aparece no card "Central de Alertas" do Dashboard)</label>
                 </div>
             </div>
         </div>

@@ -100,8 +100,9 @@ $chamadosUrgentes = $pdo->query(
      ORDER BY prioridade DESC, criado_em ASC"
 )->fetchAll();
 
-// Tarefas Periódicas vencidas ou se aproximando do prazo (dentro da antecedência
-// configurada em cada tarefa). Só entra aqui quem tem acesso ao módulo.
+// Alertas (Central de Alertas, menu lateral) vencidos ou se aproximando do
+// prazo (dentro da antecedência configurada em cada um). Só entra aqui quem
+// tem acesso ao módulo.
 $tarefasVencendo = temPermissao('tarefas', 'ver')
     ? $pdo->query(
         "SELECT t.id, t.titulo, t.proxima_execucao
@@ -249,7 +250,7 @@ include __DIR__ . '/includes/header.php';
                         $tarefaVencida = $diasParaTarefa < 0;
                     ?>
                     <a href="<?= BASE_URL ?>/modules/tarefas/index.php" class="list-group-item list-group-item-action">
-                        <span class="badge <?= $tarefaVencida ? 'bg-danger' : 'bg-warning text-dark' ?> me-2">Tarefa</span>
+                        <span class="badge <?= $tarefaVencida ? 'bg-danger' : 'bg-warning text-dark' ?> me-2">Alerta</span>
                         <?= e($tf['titulo']) ?>
                         <?= $tarefaVencida
                             ? 'atrasada desde ' . formatDate($tf['proxima_execucao'])
