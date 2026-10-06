@@ -581,13 +581,17 @@ CREATE UNIQUE INDEX uq_nota_usuario ON nota_compartilhamentos(nota_id, usuario_i
 
 -- ---------------------------------------------------------------------
 -- Tabela: tarefas_periodicas
--- Avisos periódicos configuráveis (Tarefas Periódicas) — ex.: troca de
+-- Avisos periódicos configuráveis (Central de Alertas) — ex.: troca de
 -- toner, limpeza do cortador de papel, reinicialização de servidor.
--- proxima_execucao é a data em que a tarefa "vence" de novo; ao marcar
--- como concluída, ultima_execucao vira hoje e proxima_execucao é
--- recalculada a partir de hoje + frequência. dias_aviso_antecedencia
--- controla com quantos dias de antecedência ela aparece na Central de
--- Alertas do Dashboard (mesma ideia de dias_alerta_licenca/toner).
+-- proxima_execucao é a data E HORA em que a tarefa "vence" de novo; ao
+-- marcar como concluída, ultima_execucao vira hoje e proxima_execucao é
+-- recalculada a partir de hoje + frequência, preservando o horário
+-- configurado. horas_aviso_antecedencia controla com quantas horas de
+-- antecedência ela aparece na Central de Alertas do Dashboard (mesma
+-- ideia de dias_alerta_licenca/toner, só que em horas pra dar precisão
+-- de horário, não só de dia). Quando responsavel_id é NULL ("Qualquer
+-- um da equipe"), o alerta aparece pra todo mundo com acesso ao módulo;
+-- quando definido, aparece só pra essa pessoa.
 -- ---------------------------------------------------------------------
 CREATE TABLE tarefas_periodicas (
     id                      INT AUTO_INCREMENT PRIMARY KEY,
@@ -595,9 +599,9 @@ CREATE TABLE tarefas_periodicas (
     descricao               TEXT NULL,
     frequencia_tipo         ENUM('dias','semanas','meses') NOT NULL DEFAULT 'dias',
     frequencia_valor        INT NOT NULL DEFAULT 1,
-    dias_aviso_antecedencia INT NOT NULL DEFAULT 3,
+    horas_aviso_antecedencia INT NOT NULL DEFAULT 72,
     ultima_execucao         DATE NULL,
-    proxima_execucao        DATE NOT NULL,
+    proxima_execucao        DATETIME NOT NULL,
     responsavel_id          INT NULL,
     ativo                   TINYINT(1) NOT NULL DEFAULT 1,
     criado_em               DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,

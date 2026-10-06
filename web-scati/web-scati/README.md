@@ -354,6 +354,15 @@ Funcional (v1.0).
    mysql --default-character-set=utf8mb4 -u root -p scati < database/migration_senhas_compartilhadas.sql
    ```
 
+   Se o banco já existia antes do **horário nos alertas da Central de
+   Alertas** (a coluna `proxima_execucao` de `tarefas_periodicas` ainda
+   é só data, sem hora), rode também esta migração incremental **uma
+   única vez** — ela também converte a antecedência de dias para horas,
+   preservando o mesmo comportamento de antes:
+   ```bash
+   mysql --default-character-set=utf8mb4 -u root -p scati < database/migration_alertas_horario.sql
+   ```
+
    > Importante: ao importar qualquer um dos arquivos `.sql` deste projeto,
    > garanta que o cliente MySQL use UTF-8 (ex.: `mysql --default-character-set=utf8mb4 -u root -p < arquivo.sql`),
    > caso contrário os valores acentuados dos campos `ENUM` (como "Disponível")
@@ -721,16 +730,24 @@ web-scati/
 - **Central de Alertas** (menu lateral): cadastro de avisos recorrentes de
   manutenção que não pertencem a nenhum equipamento específico — ex.:
   troca de toner, limpeza do cortador de papel, reinicialização de
-  servidor. Cada alerta tem título, descrição opcional, responsável
+  servidor. Cada alerta tem título, descrição opcional, **responsável**
   opcional (ou "Qualquer um da equipe"), frequência (a cada N dia(s),
-  semana(s) ou mês(es)) e quantos dias de antecedência ele deve aparecer
-  no card **Central de Alertas** do Dashboard. O botão de concluir marca
-  a execução de hoje e recalcula a próxima data automaticamente a partir
-  de hoje + frequência (ex.: mensal a partir de 31/01 cai em 28 ou 29/02,
-  não em "+30 dias" fixos); alertas pausados (campo "ativo" desmarcado)
-  saem do card do Dashboard sem precisar ser excluídos. Sujeito às
-  permissões de **Visualizar/Alterar** do módulo "Central de Alertas" em
-  Perfis de Acesso.
+  semana(s) ou mês(es)), **data e horário** em que vence de novo
+  ("Próxima Execução") e com quanto tempo de antecedência ele deve
+  aparecer no card **Central de Alertas** do Dashboard — a antecedência
+  é configurada em horas ou dias (o formulário converte sozinho:
+  escolher "2 dias" grava e reabre mostrando "2 dias", não "48 horas").
+  Quando o alerta tem um **responsável específico**, só ele (e qualquer
+  Administrador) o vê no card do Dashboard; em "Qualquer um da equipe",
+  aparece pra todo mundo com acesso ao módulo, como sempre foi. O botão
+  de concluir marca a execução de hoje e recalcula a próxima data
+  automaticamente a partir de hoje + frequência, preservando o mesmo
+  horário configurado (ex.: um alerta mensal às 14:00 continua vencendo
+  às 14:00, não no horário em que alguém clicou em "Concluir"; mensal a
+  partir de 31/01 cai em 28 ou 29/02, não em "+30 dias" fixos); alertas
+  pausados (campo "ativo" desmarcado) saem do card do Dashboard sem
+  precisar ser excluídos. Sujeito às permissões de **Visualizar/Alterar**
+  do módulo "Central de Alertas" em Perfis de Acesso.
 - **App instalável (PWA) e notificações push**: o sistema pode ser
   "instalado" pelo navegador — Chrome/Edge no computador, Chrome no
   Android, Safari no iPhone (menu Compartilhar → "Adicionar à Tela de

@@ -1182,17 +1182,45 @@ function registrarHistoricoTarefa(int $tarefaId, string $evento, string $descric
 
 /**
  * Soma a frequência de uma Tarefa Periódica (tipo + valor) a uma data
- * base, devolvendo a próxima data de vencimento no formato Y-m-d. Usa
- * DateTime (não dá pra parametrizar a unidade de um INTERVAL direto no
- * SQL), pra "meses" e "semanas" respeitarem o calendário (ex.: mensal a
- * partir de 31/01 cai em 28 ou 29/02, não em "+30 dias").
+ * base, devolvendo a próxima data/hora de vencimento no formato
+ * Y-m-d H:i:s — preservando o horário informado em $horaAlvo (ex.: uma
+ * tarefa configurada pra vencer às 14:00 continua vencendo às 14:00 nas
+ * próximas vezes, não no horário em que alguém clicou em "Concluir").
+ * Usa DateTime (não dá pra parametrizar a unidade de um INTERVAL direto
+ * no SQL), pra "meses" e "semanas" respeitarem o calendário (ex.: mensal
+ * a partir de 31/01 cai em 28 ou 29/02, não em "+30 dias").
  */
-function proximaExecucaoTarefa(string $frequenciaTipo, int $frequenciaValor, string $apartirDe): string
+function proximaExecucaoTarefa(string $frequenciaTipo, int $frequenciaValor, string $apartirDe, string $horaAlvo): string
 {
     $unidade = ['dias' => 'day', 'semanas' => 'week', 'meses' => 'month'][$frequenciaTipo] ?? 'day';
     $dt = DateTime::createFromFormat('Y-m-d', $apartirDe) ?: new DateTime($apartirDe);
     $dt->modify('+' . max(1, $frequenciaValor) . ' ' . $unidade);
-    return $dt->format('Y-m-d');
+    [$hora, $minuto] = array_pad(explode(':', $horaAlvo), 2, '0');
+    $dt->setTime((int) $hora, (int) $minuto);
+    return $dt->format('Y-m-d H:i:s');
+}
+
+/**
+ * Texto curto do prazo de um alerta (Central de Alertas) a partir de
+ * agora — em horas quando falta/passou menos de 1 dia, em dias quando
+ * for mais que isso. Usado na listagem, na ficha e no Dashboard.
+ */
+function prazoTarefa(string $proximaExecucao): array
+{
+    $alvo = new DateTime($proximaExecucao);
+    $agora = new DateTime();
+    $diffSegundos = $alvo->getTimestamp() - $agora->getTimestamp();
+    $vencida = $diffSegundos < 0;
+    $horas = (int) floor(abs($diffSegundos) / 3600);
+    if ($horas < 1) {
+        $texto = 'menos de 1h';
+    } elseif ($horas < 24) {
+        $texto = $horas . 'h';
+    } else {
+        $dias = (int) floor($horas / 24);
+        $texto = $dias . ' dia' . ($dias > 1 ? 's' : '');
+    }
+    return ['vencida' => $vencida, 'texto' => $texto];
 }
 
 /** Texto curto pra exibir a frequência de uma Tarefa Periódica (ex.: "a cada 2 semanas"). */

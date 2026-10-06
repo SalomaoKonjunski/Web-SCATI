@@ -48,9 +48,9 @@ include __DIR__ . '/../../includes/header.php';
                 <?php endif; ?>
                 <?php foreach ($tarefas as $tarefa): ?>
                     <?php
-                        $diasParaVencer = (int) floor((strtotime($tarefa['proxima_execucao']) - strtotime('today')) / 86400);
-                        $vencida = $diasParaVencer < 0;
-                        $proximaDoAviso = $diasParaVencer <= (int) $tarefa['dias_aviso_antecedencia'];
+                        $prazo = prazoTarefa($tarefa['proxima_execucao']);
+                        $horasParaVencer = (int) floor((strtotime($tarefa['proxima_execucao']) - time()) / 3600);
+                        $proximaDoAviso = $horasParaVencer <= (int) $tarefa['horas_aviso_antecedencia'];
                     ?>
                     <tr class="<?= !$tarefa['ativo'] ? 'text-muted' : '' ?>">
                         <td>
@@ -60,13 +60,13 @@ include __DIR__ . '/../../includes/header.php';
                             <?php endif; ?>
                         </td>
                         <td><?= e(descricaoFrequenciaTarefa($tarefa['frequencia_tipo'], (int) $tarefa['frequencia_valor'])) ?></td>
-                        <td><?= $tarefa['responsavel_nome'] ? e($tarefa['responsavel_nome']) : '<span class="text-muted">-</span>' ?></td>
+                        <td><?= $tarefa['responsavel_nome'] ? e($tarefa['responsavel_nome']) : '<span class="text-muted">Qualquer um da equipe</span>' ?></td>
                         <td>
-                            <?= formatDate($tarefa['proxima_execucao']) ?>
-                            <?php if ($tarefa['ativo'] && $vencida): ?>
-                                <span class="badge bg-danger ms-1">Atrasada</span>
+                            <?= formatDateTime($tarefa['proxima_execucao']) ?>
+                            <?php if ($tarefa['ativo'] && $prazo['vencida']): ?>
+                                <span class="badge bg-danger ms-1">Atrasada há <?= e($prazo['texto']) ?></span>
                             <?php elseif ($tarefa['ativo'] && $proximaDoAviso): ?>
-                                <span class="badge bg-warning text-dark ms-1">Vence em <?= $diasParaVencer ?> dia(s)</span>
+                                <span class="badge bg-warning text-dark ms-1">Vence em <?= e($prazo['texto']) ?></span>
                             <?php endif; ?>
                         </td>
                         <td>

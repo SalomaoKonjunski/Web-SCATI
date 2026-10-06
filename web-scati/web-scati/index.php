@@ -7,6 +7,7 @@ exigirPermissao('dashboard', 'ver');
 
 $pageTitle = 'Dashboard';
 $pdo = db();
+$usuarioAtual = usuarioLogado();
 
 // --- Totais por tipo de equipamento ---------------------------------
 $totaisPorTipo = $pdo->query(
@@ -101,16 +102,27 @@ $chamadosUrgentes = $pdo->query(
 )->fetchAll();
 
 // Alertas (Central de Alertas, menu lateral) vencidos ou se aproximando do
-// prazo (dentro da antecedência configurada em cada um). Só entra aqui quem
-// tem acesso ao módulo.
-$tarefasVencendo = temPermissao('tarefas', 'ver')
-    ? $pdo->query(
+// prazo (dentro da antecedência em horas configurada em cada um). Só entra
+// aqui quem tem acesso ao módulo; e, quando o alerta tem um responsável
+// específico definido, só aparece pra essa pessoa (ou pra quem é
+// Administrador) — sem responsável ("Qualquer um da equipe"), aparece pra
+// todo mundo que tem acesso ao módulo, como sempre foi.
+$tarefasVencendo = [];
+if (temPermissao('tarefas', 'ver')) {
+    $stmtTarefas = $pdo->prepare(
         "SELECT t.id, t.titulo, t.proxima_execucao
          FROM tarefas_periodicas t
-         WHERE t.ativo = 1 AND t.proxima_execucao <= DATE_ADD(CURDATE(), INTERVAL t.dias_aviso_antecedencia DAY)
+         WHERE t.ativo = 1
+           AND t.proxima_execucao <= DATE_ADD(NOW(), INTERVAL t.horas_aviso_antecedencia HOUR)
+           AND (t.responsavel_id IS NULL OR t.responsavel_id = :uid_tarefa OR :sou_admin = 1)
          ORDER BY t.proxima_execucao ASC"
-    )->fetchAll()
-    : [];
+    );
+    $stmtTarefas->execute([
+        'uid_tarefa' => $usuarioAtual['id'],
+        'sou_admin' => $usuarioAtual['admin'] ? 1 : 0,
+    ]);
+    $tarefasVencendo = $stmtTarefas->fetchAll();
+}
 
 $totalAlertas = count($licencasVencendo) + count($itensEstoqueBaixo) + count($impressorasSemToner) + count($impressorasTonerVencendo) + count($chamadosUrgentes) + count($tarefasVencendo);
 
@@ -245,16 +257,13 @@ include __DIR__ . '/includes/header.php';
                 <?php endforeach; ?>
 
                 <?php foreach ($tarefasVencendo as $tf): ?>
-                    <?php
-                        $diasParaTarefa = (int) floor((strtotime($tf['proxima_execucao']) - strtotime('today')) / 86400);
-                        $tarefaVencida = $diasParaTarefa < 0;
-                    ?>
+                    <?php $prazoTf = prazoTarefa($tf['proxima_execucao']); ?>
                     <a href="<?= BASE_URL ?>/modules/tarefas/index.php" class="list-group-item list-group-item-action">
-                        <span class="badge <?= $tarefaVencida ? 'bg-danger' : 'bg-warning text-dark' ?> me-2">Alerta</span>
+                        <span class="badge <?= $prazoTf['vencida'] ? 'bg-danger' : 'bg-warning text-dark' ?> me-2">Alerta</span>
                         <?= e($tf['titulo']) ?>
-                        <?= $tarefaVencida
-                            ? 'atrasada desde ' . formatDate($tf['proxima_execucao'])
-                            : 'prevista para ' . formatDate($tf['proxima_execucao']) . ' (' . $diasParaTarefa . ' dia(s))' ?>
+                        <?= $prazoTf['vencida']
+                            ? 'atrasada há ' . e($prazoTf['texto']) . ' (desde ' . formatDateTime($tf['proxima_execucao']) . ')'
+                            : 'prevista para ' . formatDateTime($tf['proxima_execucao']) . ' (' . e($prazoTf['texto']) . ')' ?>
                     </a>
                 <?php endforeach; ?>
             </div>

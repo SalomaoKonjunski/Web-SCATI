@@ -22,13 +22,17 @@ if (!$tarefa) {
 }
 
 $hoje = date('Y-m-d');
-$proximaExecucao = proximaExecucaoTarefa($tarefa['frequencia_tipo'], (int) $tarefa['frequencia_valor'], $hoje);
+// Preserva o horário já configurado no alerta (ex.: "a cada 7 dias às
+// 14:00" continua vencendo às 14:00, não no horário em que alguém clicou
+// em "Concluir").
+$horaAlvo = (new DateTime($tarefa['proxima_execucao']))->format('H:i');
+$proximaExecucao = proximaExecucaoTarefa($tarefa['frequencia_tipo'], (int) $tarefa['frequencia_valor'], $hoje, $horaAlvo);
 
 $pdo->prepare(
     'UPDATE tarefas_periodicas SET ultima_execucao = :hoje, proxima_execucao = :proxima WHERE id = :id'
 )->execute(['hoje' => $hoje, 'proxima' => $proximaExecucao, 'id' => $id]);
 
-registrarHistoricoTarefa($id, 'Concluída', 'Alerta "' . $tarefa['titulo'] . '" marcado como concluído. Próxima execução: ' . formatDate($proximaExecucao) . '.');
+registrarHistoricoTarefa($id, 'Concluída', 'Alerta "' . $tarefa['titulo'] . '" marcado como concluído. Próxima execução: ' . formatDateTime($proximaExecucao) . '.');
 
-flash('success', 'Alerta "' . $tarefa['titulo'] . '" marcado como concluído. Próxima execução: ' . formatDate($proximaExecucao) . '.');
+flash('success', 'Alerta "' . $tarefa['titulo'] . '" marcado como concluído. Próxima execução: ' . formatDateTime($proximaExecucao) . '.');
 redirect('/modules/tarefas/index.php');
