@@ -9,6 +9,7 @@ $pdo = db();
 $pageTitle = 'Chamados';
 $usuarioAtual = usuarioLogado();
 $souSolicitante = $usuarioAtual['solicitante'];
+$podeVerTodosChamados = temVerTodosChamados();
 
 // Três estágios do ciclo de vida: Novos (sem responsável, fila de
 // triagem — qualquer um da equipe pode assumir), Em Atendimento (já tem
@@ -21,6 +22,12 @@ $statusOpcoes = match ($aba) {
     'atendimento' => ['Em andamento', 'Aguardando'],
     default => ['Aberto'],
 };
+
+// Em Atendimento, por padrão cada um só vê os próprios chamados (onde é
+// o responsável); "Todos os Chamados" (visualização, sem poder alterar
+// os alheios) só existe pra quem tem a permissão "Ver Todos" em
+// Chamados, em Perfis de Acesso.
+$escopo = ($podeVerTodosChamados && ($_GET['escopo'] ?? '') === 'todos') ? 'todos' : 'meus';
 
 $busca = trim($_GET['busca'] ?? '');
 $filtroStatus = $_GET['status'] ?? '';
@@ -44,6 +51,10 @@ if ($aba === 'resolvidos') {
     $sql .= " AND c.status IN ('Concluído', 'Cancelado')";
 } elseif ($aba === 'atendimento') {
     $sql .= " AND c.status NOT IN ('Concluído', 'Cancelado') AND c.responsavel_id IS NOT NULL";
+    if (!$souSolicitante && $escopo === 'meus') {
+        $sql .= " AND c.responsavel_id = :escopo_meu_id";
+        $params['escopo_meu_id'] = $usuarioAtual['id'];
+    }
 } else {
     $sql .= " AND c.status NOT IN ('Concluído', 'Cancelado') AND c.responsavel_id IS NULL";
 }
@@ -62,7 +73,7 @@ if ($filtroPrioridade !== '') {
     $sql .= " AND c.prioridade = :prioridade";
     $params['prioridade'] = $filtroPrioridade;
 }
-if ($aba !== 'novos') {
+if ($aba !== 'novos' && !($aba === 'atendimento' && $escopo === 'meus')) {
     if ($filtroResponsavel === 'nenhum') {
         $sql .= " AND c.responsavel_id IS NULL";
     } elseif ($filtroResponsavel !== '') {
@@ -108,29 +119,42 @@ $chamados = $stmt->fetchAll();
 
 $usuarios = $pdo->query('SELECT id, usuario FROM usuarios ORDER BY usuario')->fetchAll();
 
-// Cartões de resumo e contagem do rodapé: para o perfil Solicitante,
-// consideram apenas os chamados abertos por ele mesmo; para os demais,
-// consideram o sistema todo (sem levar em conta os filtros da tela).
-$condicaoMeus = $souSolicitante ? ' AND criado_por_id = :meu_id' : '';
-$paramsMeus = $souSolicitante ? ['meu_id' => $usuarioAtual['id']] : [];
+// Cartões de resumo e contagem do rodapé. "Novos" é sempre a fila de
+// triagem inteira (não faz sentido restringir por responsável — ainda
+// não tem um); para o perfil Solicitante, considera só os chamados
+// abertos por ele mesmo. "Em Atendimento" segue o mesmo escopo
+// meus/todos da listagem acima.
+$condicaoNovos = $souSolicitante ? ' AND criado_por_id = :meu_id' : '';
+$paramsNovos = $souSolicitante ? ['meu_id' => $usuarioAtual['id']] : [];
 
-$stmtTotalNovos = $pdo->prepare("SELECT COUNT(*) FROM chamados WHERE status NOT IN ('Concluído', 'Cancelado') AND responsavel_id IS NULL" . $condicaoMeus);
-$stmtTotalNovos->execute($paramsMeus);
+if ($souSolicitante) {
+    $condicaoAtendimento = ' AND criado_por_id = :meu_id';
+    $paramsAtendimento = ['meu_id' => $usuarioAtual['id']];
+} elseif ($escopo === 'meus') {
+    $condicaoAtendimento = ' AND responsavel_id = :meu_id';
+    $paramsAtendimento = ['meu_id' => $usuarioAtual['id']];
+} else {
+    $condicaoAtendimento = '';
+    $paramsAtendimento = [];
+}
+
+$stmtTotalNovos = $pdo->prepare("SELECT COUNT(*) FROM chamados WHERE status NOT IN ('Concluído', 'Cancelado') AND responsavel_id IS NULL" . $condicaoNovos);
+$stmtTotalNovos->execute($paramsNovos);
 $totalNovos = (int) $stmtTotalNovos->fetchColumn();
 
-$stmtPorStatus = $pdo->prepare("SELECT status, COUNT(*) AS total FROM chamados WHERE status NOT IN ('Concluído', 'Cancelado') AND responsavel_id IS NOT NULL" . $condicaoMeus . ' GROUP BY status');
-$stmtPorStatus->execute($paramsMeus);
+$stmtPorStatus = $pdo->prepare("SELECT status, COUNT(*) AS total FROM chamados WHERE status NOT IN ('Concluído', 'Cancelado') AND responsavel_id IS NOT NULL" . $condicaoAtendimento . ' GROUP BY status');
+$stmtPorStatus->execute($paramsAtendimento);
 $totalPorStatus = $stmtPorStatus->fetchAll(PDO::FETCH_KEY_PAIR);
 $kpiAndamento = (int) ($totalPorStatus['Em andamento'] ?? 0);
 $kpiAguardando = (int) ($totalPorStatus['Aguardando'] ?? 0);
 $totalAtendimento = $kpiAndamento + $kpiAguardando;
 
-$stmtUrgentesNovos = $pdo->prepare("SELECT COUNT(*) FROM chamados WHERE prioridade = 'Urgente' AND status NOT IN ('Concluído', 'Cancelado') AND responsavel_id IS NULL" . $condicaoMeus);
-$stmtUrgentesNovos->execute($paramsMeus);
+$stmtUrgentesNovos = $pdo->prepare("SELECT COUNT(*) FROM chamados WHERE prioridade = 'Urgente' AND status NOT IN ('Concluído', 'Cancelado') AND responsavel_id IS NULL" . $condicaoNovos);
+$stmtUrgentesNovos->execute($paramsNovos);
 $kpiUrgentesNovos = (int) $stmtUrgentesNovos->fetchColumn();
 
-$stmtUrgentesAtendimento = $pdo->prepare("SELECT COUNT(*) FROM chamados WHERE prioridade = 'Urgente' AND status NOT IN ('Concluído', 'Cancelado') AND responsavel_id IS NOT NULL" . $condicaoMeus);
-$stmtUrgentesAtendimento->execute($paramsMeus);
+$stmtUrgentesAtendimento = $pdo->prepare("SELECT COUNT(*) FROM chamados WHERE prioridade = 'Urgente' AND status NOT IN ('Concluído', 'Cancelado') AND responsavel_id IS NOT NULL" . $condicaoAtendimento);
+$stmtUrgentesAtendimento->execute($paramsAtendimento);
 $kpiUrgentesAtendimento = (int) $stmtUrgentesAtendimento->fetchColumn();
 
 /**
@@ -153,7 +177,7 @@ include __DIR__ . '/../../includes/header.php';
     <h1 class="h3 mb-0"><i class="bi bi-life-preserver me-2"></i>Chamados</h1>
     <div class="d-flex gap-2">
         <?php if (!$souSolicitante): ?>
-        <a href="index.php?aba=atendimento&responsavel_id=<?= (int) $usuarioAtual['id'] ?>" class="btn btn-outline-secondary">
+        <a href="index.php?aba=atendimento" class="btn btn-outline-secondary">
             <i class="bi bi-person-check"></i> Meus Chamados
         </a>
         <?php endif; ?>
@@ -192,8 +216,21 @@ include __DIR__ . '/../../includes/header.php';
 <?php endif; ?>
 
 <?php if ($aba === 'atendimento'): ?>
+<?php if ($podeVerTodosChamados && !$souSolicitante): ?>
+    <div class="btn-group mb-3" role="group">
+        <a href="index.php?aba=atendimento&escopo=meus" class="btn btn-sm <?= $escopo === 'meus' ? 'btn-primary' : 'btn-outline-primary' ?>">
+            <i class="bi bi-person-check"></i> Meus Chamados
+        </a>
+        <a href="index.php?aba=atendimento&escopo=todos" class="btn btn-sm <?= $escopo === 'todos' ? 'btn-primary' : 'btn-outline-primary' ?>">
+            <i class="bi bi-people"></i> Todos os Chamados
+        </a>
+    </div>
+    <?php if ($escopo === 'todos'): ?>
+        <p class="text-muted small"><i class="bi bi-eye"></i> Vendo os chamados de toda a equipe — só é possível alterar os que são seus.</p>
+    <?php endif; ?>
+<?php endif; ?>
 <div class="row g-3 mb-3">
-    <a href="index.php?aba=atendimento&status=<?= urlencode('Em andamento') ?>" class="col-6 col-md-4 scati-kpi-card-link" title="Ver chamados Em Andamento">
+    <a href="index.php?aba=atendimento&escopo=<?= e($escopo) ?>&status=<?= urlencode('Em andamento') ?>" class="col-6 col-md-4 scati-kpi-card-link" title="Ver chamados Em Andamento">
         <div class="card scati-kpi-card border-start border-4 border-warning <?= ($filtroStatus === 'Em andamento' && !$filtroUrgentes) ? 'kpi-ativo' : '' ?>">
             <div class="card-body d-flex justify-content-between align-items-center">
                 <div>
@@ -204,7 +241,7 @@ include __DIR__ . '/../../includes/header.php';
             </div>
         </div>
     </a>
-    <a href="index.php?aba=atendimento&status=<?= urlencode('Aguardando') ?>" class="col-6 col-md-4 scati-kpi-card-link" title="Ver chamados Aguardando">
+    <a href="index.php?aba=atendimento&escopo=<?= e($escopo) ?>&status=<?= urlencode('Aguardando') ?>" class="col-6 col-md-4 scati-kpi-card-link" title="Ver chamados Aguardando">
         <div class="card scati-kpi-card border-start border-4 border-secondary <?= ($filtroStatus === 'Aguardando' && !$filtroUrgentes) ? 'kpi-ativo' : '' ?>">
             <div class="card-body d-flex justify-content-between align-items-center">
                 <div>
@@ -215,7 +252,7 @@ include __DIR__ . '/../../includes/header.php';
             </div>
         </div>
     </a>
-    <a href="index.php?aba=atendimento&urgentes=1" class="col-6 col-md-4 scati-kpi-card-link" title="Ver chamados Urgentes em Atendimento">
+    <a href="index.php?aba=atendimento&escopo=<?= e($escopo) ?>&urgentes=1" class="col-6 col-md-4 scati-kpi-card-link" title="Ver chamados Urgentes em Atendimento">
         <div class="card scati-kpi-card border-start border-4 border-danger <?= $filtroUrgentes ? 'kpi-ativo' : '' ?>">
             <div class="card-body d-flex justify-content-between align-items-center">
                 <div>
@@ -248,7 +285,7 @@ include __DIR__ . '/../../includes/header.php';
 
 <?php if (($filtroStatus !== '' || $filtroUrgentes) && $aba !== 'resolvidos'): ?>
     <div class="mb-3">
-        <a href="index.php?aba=<?= e($aba) ?>" class="btn btn-sm btn-outline-secondary"><i class="bi bi-x-lg"></i> Limpar filtro dos cartões</a>
+        <a href="index.php?aba=<?= e($aba) ?><?= $aba === 'atendimento' ? '&escopo=' . e($escopo) : '' ?>" class="btn btn-sm btn-outline-secondary"><i class="bi bi-x-lg"></i> Limpar filtro dos cartões</a>
     </div>
 <?php endif; ?>
 
@@ -256,6 +293,7 @@ include __DIR__ . '/../../includes/header.php';
     <div class="card-body">
         <form method="get" class="row g-2 align-items-end">
             <input type="hidden" name="aba" value="<?= e($aba) ?>">
+            <?php if ($aba === 'atendimento'): ?><input type="hidden" name="escopo" value="<?= e($escopo) ?>"><?php endif; ?>
             <div class="col-md-4">
                 <label class="form-label small text-muted mb-1">Pesquisar</label>
                 <input type="text" name="busca" class="form-control" placeholder="Título, descrição ou usuário..." value="<?= e($busca) ?>">
@@ -280,7 +318,7 @@ include __DIR__ . '/../../includes/header.php';
                     <?php endforeach; ?>
                 </select>
             </div>
-            <?php if (!$souSolicitante && $aba !== 'novos'): ?>
+            <?php if (!$souSolicitante && $aba !== 'novos' && !($aba === 'atendimento' && $escopo === 'meus')): ?>
             <div class="col-md-2">
                 <label class="form-label small text-muted mb-1">Responsável</label>
                 <select name="responsavel_id" class="form-select">
@@ -299,7 +337,7 @@ include __DIR__ . '/../../includes/header.php';
             <?php endif; ?>
             <div class="col-md-3 d-flex gap-2">
                 <button type="submit" class="btn btn-outline-primary w-100"><i class="bi bi-search"></i> Filtrar</button>
-                <a href="index.php?aba=<?= e($aba) ?>" class="btn btn-outline-secondary" title="Limpar filtros"><i class="bi bi-x-lg"></i></a>
+                <a href="index.php?aba=<?= e($aba) ?><?= $aba === 'atendimento' ? '&escopo=' . e($escopo) : '' ?>" class="btn btn-outline-secondary" title="Limpar filtros"><i class="bi bi-x-lg"></i></a>
             </div>
         </form>
         <?php if ($filtroDiasParado !== '' && is_numeric($filtroDiasParado)): ?>
@@ -362,9 +400,6 @@ include __DIR__ . '/../../includes/header.php';
                     <tr data-href="form.php?id=<?= (int) $chamado['id'] ?>" class="<?= $classeLinha ?>">
                         <td>
                             <strong><?= e($chamado['titulo']) ?></strong>
-                            <?php if ($qtdMensagensNovas > 0): ?>
-                                <span class="badge rounded-pill bg-primary ms-1"><?= $qtdMensagensNovas > 9 ? '9+' : $qtdMensagensNovas ?></span>
-                            <?php endif; ?>
                             <?php if ($descricaoResumo !== ''): ?>
                                 <div class="small text-muted"><?= e($descricaoResumo) ?></div>
                             <?php endif; ?>
@@ -440,7 +475,15 @@ include __DIR__ . '/../../includes/header.php';
                                     <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-person-plus"></i> Atribuir para mim</button>
                                 </form>
                             <?php endif; ?>
-                            <a href="form.php?id=<?= (int) $chamado['id'] ?>" class="btn btn-sm btn-outline-primary" title="Abrir"><i class="bi bi-chat-dots"></i></a>
+                            <?php if ($ehSolicitacaoNova): ?>
+                                <span class="badge bg-primary">Novo</span>
+                            <?php endif; ?>
+                            <a href="form.php?id=<?= (int) $chamado['id'] ?>" class="btn btn-sm btn-outline-primary position-relative" title="Abrir">
+                                <i class="bi bi-chat-dots"></i>
+                                <?php if ($qtdMensagensNovas > 0): ?>
+                                    <span class="badge rounded-pill bg-danger position-absolute top-0 start-100 translate-middle"><?= $qtdMensagensNovas > 9 ? '9+' : $qtdMensagensNovas ?></span>
+                                <?php endif; ?>
+                            </a>
                             <?php if ($aba === 'resolvidos' && $podeGerenciarEste): ?>
                                 <a href="delete.php?id=<?= (int) $chamado['id'] ?>" class="btn btn-sm btn-outline-danger js-confirm-delete"
                                    data-confirm-msg="Excluir o chamado &quot;<?= e($chamado['titulo']) ?>&quot;? Esta ação não pode ser desfeita." title="Excluir">

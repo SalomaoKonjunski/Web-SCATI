@@ -36,6 +36,10 @@ INSERT INTO perfis_acesso (nome, protegido) VALUES
 -- nenhum (ver corCategoriaPadrao()... ver temPermissao() em functions.php).
 -- "Administrador" não tem linhas aqui: tem acesso completo a tudo
 -- sempre, verificado direto pelo nome do perfil (protegido = 1).
+-- ver_todos só tem efeito no módulo "chamados": por padrão, na aba Em
+-- Atendimento cada um só enxerga os chamados em que é o responsável —
+-- marcar ver_todos libera ver (sem poder alterar) os de toda a equipe
+-- também. Pra qualquer outro módulo essa coluna fica sempre 0, sem uso.
 -- ---------------------------------------------------------------------
 CREATE TABLE perfil_permissoes (
     id          INT AUTO_INCREMENT PRIMARY KEY,
@@ -43,6 +47,7 @@ CREATE TABLE perfil_permissoes (
     modulo      VARCHAR(30) NOT NULL,
     visualizar  TINYINT(1) NOT NULL DEFAULT 0,
     alterar     TINYINT(1) NOT NULL DEFAULT 0,
+    ver_todos   TINYINT(1) NOT NULL DEFAULT 0,
 
     CONSTRAINT fk_permissao_perfil
         FOREIGN KEY (perfil_id) REFERENCES perfis_acesso(id) ON DELETE CASCADE

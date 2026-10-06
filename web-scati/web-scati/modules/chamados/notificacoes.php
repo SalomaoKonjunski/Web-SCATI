@@ -7,9 +7,11 @@ exigirPermissao('chamados', 'ver');
 
 $usuarioAtual = usuarioLogado();
 // Administrador e Padrão também são notificados sobre chamados ainda sem
-// responsável (pra alguém poder assumi-los), mas, uma vez atribuído um
-// responsável, só ele (e quem abriu) é notificado das mensagens — não o
-// restante da equipe. O perfil Usuário só é notificado sobre os próprios
+// responsável (pra alguém poder assumi-los) e sobre mensagens nos que já
+// são responsáveis — mas não sobre um chamado que só abriram (em nome de
+// outra pessoa, por exemplo) sem serem o responsável por ele: quem só
+// abriu não é mais incomodado assim que outra pessoa assume o
+// atendimento. O perfil Usuário só é notificado sobre os próprios
 // chamados (solicitante ou responsável), nunca dos de outra pessoa.
 $verTodos = !$usuarioAtual['solicitante'];
 

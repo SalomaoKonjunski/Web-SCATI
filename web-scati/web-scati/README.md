@@ -363,6 +363,13 @@ Funcional (v1.0).
    mysql --default-character-set=utf8mb4 -u root -p scati < database/migration_alertas_horario.sql
    ```
 
+   Se o banco já existia antes da permissão **Ver Todos os Chamados**
+   (a tabela `perfil_permissoes` ainda não tem a coluna `ver_todos`),
+   rode também esta migração incremental **uma única vez**:
+   ```bash
+   mysql --default-character-set=utf8mb4 -u root -p scati < database/migration_chamados_ver_todos.sql
+   ```
+
    > Importante: ao importar qualquer um dos arquivos `.sql` deste projeto,
    > garanta que o cliente MySQL use UTF-8 (ex.: `mysql --default-character-set=utf8mb4 -u root -p < arquivo.sql`),
    > caso contrário os valores acentuados dos campos `ENUM` (como "Disponível")
@@ -890,7 +897,13 @@ web-scati/
     por exemplo, abre as fichas mas não consegue editar, excluir nem
     registrar manutenção. Renomear um perfil atualiza automaticamente
     todos os usuários que já usavam o nome antigo; excluir um perfil só
-    é permitido se nenhum usuário estiver usando ele no momento.
+    é permitido se nenhum usuário estiver usando ele no momento. O
+    módulo **Chamados** tem uma terceira coluna, **Ver Todos**: sem ela,
+    cada usuário só vê (na aba Em Atendimento) os chamados atribuídos a
+    si mesmo; marcando-a, passa a poder alternar para ver os chamados de
+    toda a equipe ali — só leitura, sem poder alterá-los. Só fica
+    disponível para marcar quando "Visualizar" de Chamados também está
+    marcado.
 
   Cada usuário pode ter também **ramal**, **telefone** e **email
   corporativo** cadastrados (todos opcionais), exibidos na coluna
@@ -926,12 +939,18 @@ web-scati/
     andamento/Aguardando). A partir daqui, **só o responsável por
     aquele chamado (ou um Administrador, que sempre pode intervir em
     qualquer chamado) pode mudar prioridade/andamento, enviar mensagem,
-    concluir, cancelar ou reatribuir** — o resto da equipe continua
-    enxergando o chamado na listagem (pra acompanhar), mas os campos
-    ficam travados e aparecem como texto fixo, sem seletor. Mostra
-    cartões de resumo (Em Andamento, Aguardando, Urgentes em
-    Atendimento), clicáveis para filtrar, e o filtro **"Parado há mais
-    de (dias)"**.
+    concluir, cancelar ou reatribuir**. Por padrão, essa aba mostra
+    **somente os chamados atribuídos ao próprio usuário logado** — o
+    resto da equipe não aparece ali. Quem tem a permissão **Ver Todos**
+    (configurável em Perfis de Acesso) ganha um alternador "Meus
+    Chamados / Todos os Chamados" no topo da aba: ao escolher "Todos",
+    passa a ver os chamados de qualquer responsável, mas continua sem
+    poder alterar os que não são seus — os campos aparecem travados do
+    mesmo jeito que para o resto da equipe. Esse filtro é reforçado no
+    servidor: sem a permissão, nem forçando o parâmetro pela URL dá pra
+    ver chamados de outra pessoa. Mostra cartões de resumo (Em
+    Andamento, Aguardando, Urgentes em Atendimento), clicáveis para
+    filtrar, e o filtro **"Parado há mais de (dias)"**.
   - **Resolvidos**: chamados Concluídos/Cancelados, com as colunas
     **Solicitado em** e **Concluído em** (para os cancelados, mostra a
     data da última alteração com a marcação "cancelado"). É também
@@ -1000,25 +1019,27 @@ web-scati/
   abriu) ou uma resposta nova em algum chamado — e tocam um bipe curto
   quando a novidade chega, enquanto o sistema estiver aberto em alguma
   aba do navegador (a verificação é feita a cada 25 segundos). As duas
-  situações são destacadas de um jeito diferente, tanto na listagem de
-  chamados quanto no menu do sininho: uma **solicitação nova** pinta a
-  linha inteira (ou a caixa inteira do item, no sininho) de azul vivo;
-  uma **mensagem nova** mostra um contador com a quantidade de
-  respostas ainda não lidas naquele chamado — e quando as duas coisas
-  acontecem ao mesmo tempo (uma solicitação nova que já recebeu
-  resposta antes de ser aberta), aparecem as duas juntas: a linha
-  pintada de azul **e** o contador. O sininho também mostra quem
-  escreveu e uma prévia da última mensagem. Abrir a ficha do chamado
-  marca tudo como lido — some a cor, o contador, a contagem do menu
-  lateral e do sininho. Administrador e Padrão são avisados sobre
-  chamados ainda **sem responsável definido** (pra alguém poder
-  assumi-los), mas, assim que um chamado tem um responsável atribuído,
-  só esse responsável (além de quem abriu) é avisado das mensagens nele
-  — o restante da equipe deixa de ver esse chamado no sininho e na
-  contagem do menu lateral, mesmo vendo-o normalmente na listagem geral
-  de Chamados. O perfil Usuário só é avisado sobre os próprios chamados
-  (como solicitante ou responsável) — e nunca sobre a própria
-  solicitação que acabou de abrir, já que ele sabe que ela existe.
+  situações são destacadas de um jeito diferente: na listagem de
+  chamados, uma **solicitação nova** pinta a linha inteira de azul vivo
+  e mostra a indicação **[Novo]** ao lado do ícone de mensagem (na
+  coluna Ações); uma **mensagem nova** mostra um contador no canto
+  desse mesmo ícone, com a quantidade de respostas ainda não lidas
+  naquele chamado — e quando as duas coisas acontecem ao mesmo tempo
+  (uma solicitação nova que já recebeu resposta antes de ser aberta),
+  aparecem as duas juntas. No sininho, o destaque equivalente pinta a
+  caixa inteira do item de azul vivo e mostra quem escreveu e uma
+  prévia da última mensagem. Abrir a ficha do chamado marca tudo como
+  lido — some a cor, o contador, a contagem do menu lateral e do
+  sininho. Administrador e Padrão são avisados sobre chamados ainda
+  **sem responsável definido** (pra alguém poder assumi-los), mas,
+  assim que um chamado tem um responsável atribuído, **só esse
+  responsável é avisado das mensagens nele** — nem quem abriu o
+  chamado, nem o restante da equipe continuam vendo esse chamado no
+  sininho ou na contagem do menu lateral depois disso, mesmo vendo-o
+  normalmente na listagem geral de Chamados. O perfil Usuário só é
+  avisado sobre os próprios chamados (como solicitante ou responsável)
+  — e nunca sobre a própria solicitação que acabou de abrir, já que ele
+  sabe que ela existe.
 
   > Nota técnica: a notificação sonora funciona enquanto o navegador
   > estiver aberto com alguma página do sistema carregada (mesmo em

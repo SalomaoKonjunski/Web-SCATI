@@ -837,7 +837,7 @@ function permissoesPerfil(string $perfil): array
     }
 
     $stmt = db()->prepare(
-        'SELECT pp.modulo, pp.visualizar, pp.alterar
+        'SELECT pp.modulo, pp.visualizar, pp.alterar, pp.ver_todos
          FROM perfil_permissoes pp
          JOIN perfis_acesso pa ON pa.id = pp.perfil_id
          WHERE pa.nome = :perfil'
@@ -847,8 +847,9 @@ function permissoesPerfil(string $perfil): array
     $mapa = [];
     foreach ($stmt->fetchAll() as $linha) {
         $mapa[$linha['modulo']] = [
-            'ver'     => (bool) $linha['visualizar'],
-            'alterar' => (bool) $linha['alterar'],
+            'ver'       => (bool) $linha['visualizar'],
+            'alterar'   => (bool) $linha['alterar'],
+            'ver_todos' => (bool) $linha['ver_todos'],
         ];
     }
     $cache[$perfil] = $mapa;
@@ -872,6 +873,26 @@ function temPermissao(string $modulo, string $acao = 'ver', ?string $perfil = nu
     }
     $permissoes = permissoesPerfil($perfil);
     return $permissoes[$modulo][$acao] ?? false;
+}
+
+/**
+ * Permissão extra específica do módulo Chamados: sem ela, a aba Em
+ * Atendimento só mostra os chamados em que o usuário é o responsável;
+ * com ela, também pode ver (sem poder alterar) os chamados atribuídos a
+ * qualquer pessoa da equipe. Um perfil protegido (Administrador) sempre
+ * tem essa permissão, como todas as outras.
+ */
+function temVerTodosChamados(?string $perfil = null): bool
+{
+    $perfil ??= usuarioLogado()['perfil'] ?? null;
+    if ($perfil === null) {
+        return false;
+    }
+    if (perfilEhProtegido($perfil)) {
+        return true;
+    }
+    $permissoes = permissoesPerfil($perfil);
+    return $permissoes['chamados']['ver_todos'] ?? false;
 }
 
 /**
@@ -1034,19 +1055,21 @@ function corTipoManutencao(string $nome): string
  * (uma solicitação nova que ele nunca abriu). Usado para o sininho de
  * notificação e para o aviso em vermelho do menu lateral.
  *
- * $verTodos = true considera, além dos próprios, os chamados ainda sem
- * responsável definido (usado para Administrador/Padrão, que precisam
- * ver chamados novos pra poder assumi-los); false restringe estritamente
- * aos chamados em que o usuário é o solicitante ou o responsável (usado
- * para o perfil Usuário, que só vê os próprios chamados). Em ambos os
- * casos, uma vez que o chamado já tem um responsável definido, só esse
- * responsável (e quem abriu) é notificado das mensagens nele — não o
- * restante da equipe.
+ * $verTodos = true considera os chamados ainda sem responsável definido
+ * (usado para Administrador/Padrão, que precisam ver chamados novos pra
+ * poder assumi-los) e os que já estão atribuídos a este usuário — mas
+ * não os que ele só abriu (em nome de outra pessoa, por exemplo) sem
+ * ser o responsável: quem só abriu não é mais incomodado com mensagens
+ * de um chamado que já está sendo cuidado por outra pessoa. false
+ * restringe estritamente aos chamados em que o usuário é o solicitante
+ * ou o responsável (usado para o perfil Usuário, que precisa continuar
+ * sabendo das respostas nos próprios chamados, mesmo sem ser quem
+ * executa o atendimento).
  */
 function contarChamadosNaoLidos(int $usuarioId, bool $verTodos = false): int
 {
     $condicaoVisibilidade = $verTodos
-        ? '(c.criado_por_id = :uid2 OR c.responsavel_id = :uid3 OR c.responsavel_id IS NULL)'
+        ? '(c.responsavel_id = :uid3 OR c.responsavel_id IS NULL)'
         : '(c.criado_por_id = :uid2 OR c.responsavel_id = :uid3)';
     $stmt = db()->prepare(
         "SELECT COUNT(DISTINCT c.id)
@@ -1063,9 +1086,11 @@ function contarChamadosNaoLidos(int $usuarioId, bool $verTodos = false): int
                )
            )"
     );
-    $stmt->execute([
-        'uid1' => $usuarioId, 'uid2' => $usuarioId, 'uid3' => $usuarioId, 'uid4' => $usuarioId, 'uid5' => $usuarioId,
-    ]);
+    $params = ['uid1' => $usuarioId, 'uid3' => $usuarioId, 'uid4' => $usuarioId, 'uid5' => $usuarioId];
+    if (!$verTodos) {
+        $params['uid2'] = $usuarioId;
+    }
+    $stmt->execute($params);
 
     return (int) $stmt->fetchColumn();
 }
@@ -1081,7 +1106,7 @@ function contarChamadosNaoLidos(int $usuarioId, bool $verTodos = false): int
 function listarChamadosNaoLidos(int $usuarioId, bool $verTodos = false): array
 {
     $condicaoVisibilidade = $verTodos
-        ? '(c.criado_por_id = :uid2 OR c.responsavel_id = :uid3 OR c.responsavel_id IS NULL)'
+        ? '(c.responsavel_id = :uid3 OR c.responsavel_id IS NULL)'
         : '(c.criado_por_id = :uid2 OR c.responsavel_id = :uid3)';
     $stmt = db()->prepare(
         "SELECT c.id AS chamado_id, c.titulo, c.descricao, c.solicitante, c.criado_em,
@@ -1110,10 +1135,11 @@ function listarChamadosNaoLidos(int $usuarioId, bool $verTodos = false): array
          ORDER BY COALESCE(ultima.criado_em, c.criado_em) DESC
          LIMIT 10"
     );
-    $stmt->execute([
-        'uid1' => $usuarioId, 'uid2' => $usuarioId, 'uid3' => $usuarioId,
-        'uid4' => $usuarioId, 'uid5' => $usuarioId, 'uid6' => $usuarioId,
-    ]);
+    $params = ['uid1' => $usuarioId, 'uid3' => $usuarioId, 'uid4' => $usuarioId, 'uid5' => $usuarioId, 'uid6' => $usuarioId];
+    if (!$verTodos) {
+        $params['uid2'] = $usuarioId;
+    }
+    $stmt->execute($params);
 
     return $stmt->fetchAll();
 }

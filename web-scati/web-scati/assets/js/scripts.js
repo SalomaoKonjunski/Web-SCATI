@@ -783,6 +783,13 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (checkboxAlterar) {
                     checkboxAlterar.checked = false;
                 }
+                // "Ver Todos os Chamados" também não faz sentido sem "Visualizar".
+                if (checkboxVer.dataset.modulo === 'chamados') {
+                    const checkboxVerTodos = document.querySelector('[name="ver_todos_chamados"]');
+                    if (checkboxVerTodos) {
+                        checkboxVerTodos.checked = false;
+                    }
+                }
             }
         });
     });
@@ -801,14 +808,14 @@ document.addEventListener('DOMContentLoaded', function () {
     if (marcarTudoPerfil) {
         marcarTudoPerfil.addEventListener('click', function (e) {
             e.preventDefault();
-            document.querySelectorAll('.js-perfil-ver, .js-perfil-alterar').forEach(function (campo) { campo.checked = true; });
+            document.querySelectorAll('.js-perfil-ver, .js-perfil-alterar, [name="ver_todos_chamados"]').forEach(function (campo) { campo.checked = true; });
         });
     }
     const desmarcarTudoPerfil = document.querySelector('.js-perfil-desmarcar-tudo');
     if (desmarcarTudoPerfil) {
         desmarcarTudoPerfil.addEventListener('click', function (e) {
             e.preventDefault();
-            document.querySelectorAll('.js-perfil-ver, .js-perfil-alterar').forEach(function (campo) { campo.checked = false; });
+            document.querySelectorAll('.js-perfil-ver, .js-perfil-alterar, [name="ver_todos_chamados"]').forEach(function (campo) { campo.checked = false; });
         });
     }
 });

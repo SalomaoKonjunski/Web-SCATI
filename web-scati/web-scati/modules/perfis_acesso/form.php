@@ -28,13 +28,17 @@ if ($edicao) {
         // completo sempre (ver temPermissao()); mostra tudo marcado só
         // pra deixar isso visível na tela.
         foreach ($modulos as $chave => $modulo) {
-            $permissoes[$chave] = ['ver' => true, 'alterar' => !($modulo['somenteVisualizar'] ?? false)];
+            $permissoes[$chave] = ['ver' => true, 'alterar' => !($modulo['somenteVisualizar'] ?? false), 'ver_todos' => true];
         }
     } else {
-        $stmtPerm = $pdo->prepare('SELECT modulo, visualizar, alterar FROM perfil_permissoes WHERE perfil_id = :id');
+        $stmtPerm = $pdo->prepare('SELECT modulo, visualizar, alterar, ver_todos FROM perfil_permissoes WHERE perfil_id = :id');
         $stmtPerm->execute(['id' => $id]);
         foreach ($stmtPerm->fetchAll() as $linha) {
-            $permissoes[$linha['modulo']] = ['ver' => (bool) $linha['visualizar'], 'alterar' => (bool) $linha['alterar']];
+            $permissoes[$linha['modulo']] = [
+                'ver' => (bool) $linha['visualizar'],
+                'alterar' => (bool) $linha['alterar'],
+                'ver_todos' => (bool) $linha['ver_todos'],
+            ];
         }
     }
 }
@@ -53,7 +57,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$somenteLeitura) {
         if ($alterar) {
             $ver = true;
         }
-        $permissoes[$chave] = ['ver' => $ver, 'alterar' => $alterar];
+        // "Ver Todos os Chamados" só existe no módulo Chamados (ver tabela
+        // mais abaixo) — não faz sentido sem "Visualizar" também marcado.
+        $verTodosChamados = $chave === 'chamados' && $ver && isset($_POST['ver_todos_chamados']);
+        $permissoes[$chave] = ['ver' => $ver, 'alterar' => $alterar, 'ver_todos' => $verTodosChamados];
     }
 
     if ($perfil['nome'] === '') {
@@ -92,7 +99,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$somenteLeitura) {
         // volume de linhas é pequeno (no máximo 1 por módulo do sistema).
         $pdo->prepare('DELETE FROM perfil_permissoes WHERE perfil_id = :id')->execute(['id' => $perfilId]);
         $stmtInsert = $pdo->prepare(
-            'INSERT INTO perfil_permissoes (perfil_id, modulo, visualizar, alterar) VALUES (:perfil_id, :modulo, :ver, :alterar)'
+            'INSERT INTO perfil_permissoes (perfil_id, modulo, visualizar, alterar, ver_todos) VALUES (:perfil_id, :modulo, :ver, :alterar, :ver_todos)'
         );
         foreach ($permissoes as $chave => $valores) {
             if (!$valores['ver'] && !$valores['alterar']) {
@@ -103,6 +110,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$somenteLeitura) {
                 'modulo' => $chave,
                 'ver' => $valores['ver'] ? 1 : 0,
                 'alterar' => $valores['alterar'] ? 1 : 0,
+                'ver_todos' => $valores['ver_todos'] ? 1 : 0,
             ]);
         }
 
@@ -158,7 +166,9 @@ include __DIR__ . '/../../includes/header.php';
             <p class="text-muted small">
                 <strong>Visualizar</strong>: a aba aparece no menu e o perfil pode abrir as páginas (só leitura).
                 <strong>Alterar</strong>: além de ver, pode criar, editar e excluir registros ali — só fica
-                disponível pra marcar quando "Visualizar" também está marcado.
+                disponível pra marcar quando "Visualizar" também está marcado. Em <strong>Chamados</strong>, tem
+                uma coluna extra: <strong>Ver Todos</strong> libera ver (sem poder alterar) os chamados atribuídos
+                a qualquer pessoa da equipe na aba Em Atendimento — sem marcar, cada um só vê os próprios.
             </p>
             <div class="table-responsive">
                 <table class="table table-hover mb-0">
@@ -167,6 +177,7 @@ include __DIR__ . '/../../includes/header.php';
                             <th>Módulo</th>
                             <th class="text-center" style="width: 9rem;">Visualizar</th>
                             <th class="text-center" style="width: 9rem;">Alterar</th>
+                            <th class="text-center" style="width: 9rem;">Ver Todos</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -174,6 +185,7 @@ include __DIR__ . '/../../includes/header.php';
                             <?php
                                 $ver = $permissoes[$chave]['ver'] ?? false;
                                 $alterar = $permissoes[$chave]['alterar'] ?? false;
+                                $verTodosChamados = $permissoes[$chave]['ver_todos'] ?? false;
                                 $somenteVer = $modulo['somenteVisualizar'] ?? false;
                             ?>
                             <tr>
@@ -188,6 +200,15 @@ include __DIR__ . '/../../includes/header.php';
                                     <?php else: ?>
                                         <input type="checkbox" class="form-check-input js-perfil-alterar" name="alterar_<?= e($chave) ?>" data-modulo="<?= e($chave) ?>"
                                                <?= $alterar ? 'checked' : '' ?> <?= $somenteLeitura ? 'disabled' : '' ?>>
+                                    <?php endif; ?>
+                                </td>
+                                <td class="text-center">
+                                    <?php if ($chave === 'chamados'): ?>
+                                        <input type="checkbox" class="form-check-input" name="ver_todos_chamados"
+                                               <?= $verTodosChamados ? 'checked' : '' ?> <?= $somenteLeitura ? 'disabled' : '' ?>
+                                               title="Ver (sem poder alterar) os chamados atribuídos a qualquer pessoa da equipe">
+                                    <?php else: ?>
+                                        <span class="text-muted" title="Só se aplica a Chamados">—</span>
                                     <?php endif; ?>
                                 </td>
                             </tr>
