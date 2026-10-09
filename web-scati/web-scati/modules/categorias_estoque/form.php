@@ -35,13 +35,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $erros[] = 'Selecione uma cor válida.';
     }
 
-    // A categoria "Toner" é usada por nome em várias regras do sistema (aba
-    // Toner das impressoras, alerta de impressora sem toner, etc.) — precisa
-    // continuar existindo com este nome exato.
-    if ($edicao && $registro['nome'] === 'Toner' && $categoria['nome'] !== 'Toner') {
-        $erros[] = 'A categoria "Toner" não pode ser renomeada, pois é usada pela funcionalidade de Toner de impressoras.';
-    }
-
     if (empty($erros)) {
         $sqlCheck = 'SELECT id FROM categorias_estoque WHERE nome = :nome' . ($edicao ? ' AND id != :id' : '');
         $stmtCheck = $pdo->prepare($sqlCheck);

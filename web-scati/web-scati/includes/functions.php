@@ -326,6 +326,26 @@ function registrarHistoricoEstoque(?int $estoqueId, string $itemNome, ?string $c
 }
 
 /**
+ * Registra uma movimentação no histórico de um Toner/Tinta (Cadastro,
+ * Baixa ou Reposição) — $equipamentoId só se aplica a 'Baixa' (qual
+ * impressora recebeu a unidade).
+ */
+function registrarMovimentacaoToner(int $tonerId, string $tipo, int $quantidade, ?int $equipamentoId = null): void
+{
+    $stmt = db()->prepare(
+        'INSERT INTO toner_movimentacoes (toner_id, tipo, quantidade, equipamento_id, usuario_nome)
+         VALUES (:toner_id, :tipo, :quantidade, :equipamento_id, :usuario_nome)'
+    );
+    $stmt->execute([
+        'toner_id' => $tonerId,
+        'tipo' => $tipo,
+        'quantidade' => $quantidade,
+        'equipamento_id' => $equipamentoId,
+        'usuario_nome' => usuarioLogado()['usuario'] ?? null,
+    ]);
+}
+
+/**
  * Definição única dos grupos de campos que uma categoria de equipamento
  * pode habilitar — controla quais cards aparecem no cadastro/ficha de
  * Equipamentos para os tipos não protegidos (Computador, Notebook,
@@ -355,8 +375,6 @@ function gruposCamposEquipamento(): array
             'icone' => 'bi-printer',
             'campos' => [
                 'ip' => ['label' => 'Endereço IP'],
-                'modelo_toner' => ['label' => 'Modelo do Toner'],
-                'qtd_toners' => ['label' => 'Qtd. de Toners Disponíveis'],
                 'toner_duracao_dias' => ['label' => 'Duração estimada do toner (dias)'],
             ],
         ],

@@ -12,12 +12,11 @@ $busca = trim($_GET['busca'] ?? '');
 $filtroStatus = $_GET['status'] ?? '';
 
 $sql = "SELECT e.*,
-               GROUP_CONCAT(DISTINCT CASE WHEN c.nome = 'Toner' THEN es.nome END ORDER BY es.nome SEPARATOR ', ') AS toners_nomes,
-               COUNT(DISTINCT CASE WHEN c.nome = 'Toner' THEN iv.id END) AS qtd_toners_vinculados
+               GROUP_CONCAT(DISTINCT t.nome ORDER BY t.nome SEPARATOR ', ') AS toners_nomes,
+               COUNT(DISTINCT t.id) AS qtd_toners_vinculados
         FROM equipamentos e
-        LEFT JOIN itens_vinculados iv ON iv.equipamento_id = e.id
-        LEFT JOIN estoque es ON es.id = iv.estoque_id
-        LEFT JOIN categorias_estoque c ON c.id = es.categoria_id
+        LEFT JOIN toner_impressoras ti ON ti.equipamento_id = e.id
+        LEFT JOIN toners t ON t.id = ti.toner_id
         WHERE e.tipo = 'Impressora'";
 $params = [];
 
@@ -47,6 +46,11 @@ include __DIR__ . '/../../includes/header.php';
     <h1 class="h3 mb-0"><i class="bi bi-printer me-2"></i>Impressoras</h1>
     <a href="../equipamentos/form.php?tipo=Impressora" class="btn btn-primary"><i class="bi bi-plus-lg"></i> Nova Impressora</a>
 </div>
+
+<ul class="nav nav-tabs mb-3">
+    <li class="nav-item"><a class="nav-link active" href="index.php"><i class="bi bi-list-ul"></i> Impressoras</a></li>
+    <li class="nav-item"><a class="nav-link" href="toners.php"><i class="bi bi-droplet-half"></i> Toners e Tintas</a></li>
+</ul>
 
 <div class="card mb-3">
     <div class="card-body">

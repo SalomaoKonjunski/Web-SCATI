@@ -17,11 +17,6 @@ if (!$categoria) {
     redirect('/modules/categorias_estoque/index.php');
 }
 
-if ($categoria['nome'] === 'Toner') {
-    flash('danger', 'A categoria "Toner" não pode ser excluída, pois é usada pela funcionalidade de Toner de impressoras.');
-    redirect('/modules/categorias_estoque/index.php');
-}
-
 $stmtCount = $pdo->prepare('SELECT COUNT(*) FROM estoque WHERE categoria_id = :id');
 $stmtCount->execute(['id' => $id]);
 $totalItens = (int) $stmtCount->fetchColumn();

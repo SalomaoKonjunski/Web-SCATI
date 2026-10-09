@@ -370,6 +370,14 @@ Funcional (v1.0).
    mysql --default-character-set=utf8mb4 -u root -p scati < database/migration_chamados_ver_todos.sql
    ```
 
+   Se o banco já existia antes do catálogo de **Toners e Tintas** (ainda
+   não tem a tabela `toners`), rode também esta migração incremental
+   **uma única vez** — ela também migra os toners que já estavam
+   cadastrados no Estoque e vinculados a alguma impressora:
+   ```bash
+   mysql --default-character-set=utf8mb4 -u root -p scati < database/migration_toners_tintas.sql
+   ```
+
    > Importante: ao importar qualquer um dos arquivos `.sql` deste projeto,
    > garanta que o cliente MySQL use UTF-8 (ex.: `mysql --default-character-set=utf8mb4 -u root -p < arquivo.sql`),
    > caso contrário os valores acentuados dos campos `ENUM` (como "Disponível")
@@ -549,20 +557,21 @@ web-scati/
   listagem são clicáveis para ordenar a tabela por aquela coluna — clicar
   de novo inverte a direção (crescente/decrescente) — e os filtros de
   pesquisa continuam aplicados ao trocar a ordenação.
-- **Impressoras**: aba própria no menu lateral com uma listagem separada,
-  mostrando só os equipamentos do tipo Impressora (reaproveita a mesma
-  tabela de Equipamentos, sem cadastro duplicado) — impressoras não
-  aparecem na listagem de Equipamentos nem no filtro "Tipo" de lá, só
-  aqui. Além de Patrimônio,
+- **Impressoras**: aba própria no menu lateral, dividida em duas sub-abas.
+  **Impressoras** é uma listagem separada mostrando só os equipamentos do
+  tipo Impressora (reaproveita a mesma tabela de Equipamentos, sem
+  cadastro duplicado) — impressoras não aparecem na listagem de
+  Equipamentos nem no filtro "Tipo" de lá, só aqui. Além de Patrimônio,
   Marca/Modelo, IP, Status e Localização, mostra também o **Toner**
-  instalado — ou um alerta "Sem toner" quando a impressora não tem
+  vinculado — ou um alerta "Sem toner" quando a impressora não tem
   nenhum vinculado no momento. Tem pesquisa e filtro por status
   próprios. O botão "Nova Impressora" abre o cadastro de equipamentos
   já com o tipo Impressora selecionado; cadastro, edição, ficha e
   exclusão continuam nas mesmas telas do módulo de Equipamentos. Por não
   se aplicarem a impressoras, as abas/seções **Hardware** e
   **Licenciamento** não aparecem para esse tipo de equipamento (nem na
-  ficha, nem no cadastro, nem na ficha para impressão).
+  ficha, nem no cadastro, nem na ficha para impressão). A sub-aba
+  **Toners e Tintas** é o catálogo próprio de toner — ver item abaixo.
 - **Servidores**: tipo de equipamento cadastrado no mesmo módulo de
   Equipamentos, com campos adicionais (função do servidor, status
   Ativo/Inativo e observações) e uma aba própria de **Compartilhamentos**,
@@ -621,7 +630,7 @@ web-scati/
   item com várias unidades em estoque (ex.: "Adaptador de Vídeo",
   quantidade = 4) seja distribuído entre vários equipamentos ao mesmo
   tempo — vincular uma unidade não trava as demais. A tabela de itens
-  vinculados (e a de Toner) agrupa por **nome do item**: quando o
+  vinculados agrupa por **nome do item**: quando o
   equipamento tem mais de um registro vinculado com o mesmo nome —
   seja a mesma marca/modelo (ex.: 2 cabos de rede) ou marcas/modelos
   diferentes cadastrados separadamente no Estoque (ex.: um monitor
@@ -645,34 +654,47 @@ web-scati/
   duplicado é criado — a quantidade informada é somada ao item já
   existente, mantendo um único registro consolidado no Estoque, e 1
   unidade desse registro é vinculada ao equipamento.
-- **Toner de impressoras**: aba própria "Toner" na ficha de equipamentos do
-  tipo Impressora (reaproveita o mecanismo de Itens Vinculados acima,
-  restrito à categoria de estoque "Toner"). Permite vincular, desvincular e
-  também excluir o toner diretamente da tela da impressora, além do mesmo
-  atalho "Cadastrar e Vincular" (com a mesma lógica de evitar duplicidade)
-  para registrar e vincular um toner sem sair da página. A mesma seção
-  "Toner" também aparece direto na tela de **edição** da impressora
-  (Equipamentos > Editar), então dá pra vincular, desvincular ou cadastrar
-  um toner sem precisar abrir a ficha separadamente. Ao editar um
-  equipamento ainda não salvo, aparece um aviso pedindo para salvar o
-  cadastro primeiro. Impressoras só podem ter itens de estoque da
-  categoria "Toner" vinculados — a aba genérica "Itens Vinculados" (usada
-  pelos demais tipos de equipamento) não aparece para impressoras, e o
-  sistema recusa no servidor qualquer tentativa de vincular ou
-  cadastrar-e-vincular um item de outra categoria a uma impressora.
-- **Alerta de troca de toner por tempo de uso**: independente da
-  vinculação de itens de Estoque acima, cada impressora pode ter uma
-  **duração estimada do toner** (em dias, ex.: 90 ≈ 3 meses) definida no
-  campo "Duração estimada do toner (dias)" em Equipamentos > Editar. Um
-  botão **"Registrar Troca de Toner"** (na aba Toner da ficha e na tela de
-  edição) grava a data de hoje como a última troca e reinicia a contagem —
-  o evento fica registrado no Histórico do equipamento. Com base nessa data
-  e na duração configurada, um painel mostra se a impressora está "Em dia",
-  com a "Troca se aproximando" ou com a "Troca atrasada". Quando a troca
-  está próxima ou vencida, a impressora aparece automaticamente na Central
-  de Alertas do Dashboard. Como cada impressora tem sua própria duração
-  configurada, locais com uso mais intenso podem ter um prazo menor que
-  locais com uso mais leve.
+- **Toners e Tintas**: catálogo próprio, numa sub-aba dentro de
+  **Impressoras** (`Impressoras > Toners e Tintas`) — não é mais um caso
+  particular do Estoque genérico. Cada toner/tinta é cadastrado uma vez
+  (nome, tipo Toner/Tinta, marca, modelo, quantidade mínima e
+  localização) e pode ser vinculado a **várias impressoras ao mesmo
+  tempo** (tabela `toner_impressoras`, N:N) — útil quando o mesmo modelo
+  atende várias impressoras iguais. A listagem destaca em amarelo os
+  itens abaixo da quantidade mínima e em vermelho os zerados.
+
+  A quantidade em estoque se ajusta por dois botões, na tela de cada
+  toner (`toner.php`): **"Dar baixa (instalar)"**, que exige escolher
+  **para qual impressora vinculada** aquela unidade foi instalada, e
+  **"Adicionar (repor)"**, que só repõe estoque sem afetar nenhuma
+  impressora. Dar baixa faz duas coisas num passo só: desconta a
+  quantidade do toner **e** registra automaticamente um evento de
+  **troca de toner** na impressora escolhida — reinicia o prazo do
+  alerta de troca a partir de hoje, exatamente como o botão manual
+  "Registrar Troca de Toner" (que continua existindo na ficha do
+  equipamento, como alternativa independente de estoque). Ao chegar
+  nessa tela a partir do botão "Gerenciar neste Toner" na ficha de uma
+  impressora específica, a baixa já nasce travada naquela impressora,
+  sem precisar escolher de novo; chegando direto pela aba Toners e
+  Tintas, se o toner estiver vinculado a mais de uma impressora, o
+  sistema pede pra escolher qual delas recebeu a unidade antes de
+  confirmar. A tela também lista as últimas movimentações (cadastro,
+  baixas e reposições, com data e usuário).
+
+  Na ficha e na edição da impressora, a seção **Toner** ficou só um
+  resumo — status do alerta (Em dia/Troca se aproximando/Troca
+  atrasada, calculado a partir da **duração estimada do toner**, em
+  dias, configurada em Equipamentos > Editar) e o(s) toner(s)
+  vinculados com a quantidade atual, com um botão que leva direto à
+  tela de ajuste já no contexto daquela impressora. Quando a troca está
+  próxima ou vencida, a impressora aparece automaticamente na Central
+  de Alertas do Dashboard.
+
+  > Quem já usava o sistema antes dessa mudança: os toners que já
+  > estavam cadastrados no Estoque (categoria "Toner" ou "Tinta") e
+  > vinculados a alguma impressora são migrados automaticamente pro
+  > catálogo novo — ver `database/migration_toners_tintas.sql`, seguro
+  > de rodar mais de uma vez.
 - **Cadastro e exclusão de itens de estoque com histórico**: toda vez que
   um item é cadastrado no Estoque, um evento "Cadastro" é gravado
   automaticamente na tabela `historico_estoque`. A exclusão de qualquer
@@ -803,9 +825,8 @@ web-scati/
   sistema:
   - **Categorias de Estoque**: CRUD completo das categorias usadas para
     classificar itens do Estoque — antes só podiam ser criadas via SQL
-    direto. A categoria "Toner" é protegida contra renomeação e exclusão
-    (é usada por nome em outras partes do sistema), e uma categoria com
-    itens de estoque vinculados não pode ser excluída. Dá pra arrastar
+    direto. Uma categoria com itens de estoque vinculados não pode ser
+    excluída. Dá pra arrastar
     uma categoria pelo ícone de "alça" para escolher a ordem em que ela
     aparece nessa lista e em todo dropdown "Categoria" do sistema, e
     escolher a **cor** dela — 12 opções prontas ou, pelo seletor

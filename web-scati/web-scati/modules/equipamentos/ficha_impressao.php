@@ -22,6 +22,13 @@ if (!$eq) {
 }
 
 $gruposHabilitados = gruposHabilitadosParaTipo($eq['tipo']);
+
+$tonersNomes = null;
+if (ehImpressora($eq['tipo'])) {
+    $stmtToners = $pdo->prepare('SELECT t.nome FROM toner_impressoras ti JOIN toners t ON t.id = ti.toner_id WHERE ti.equipamento_id = :id ORDER BY t.nome');
+    $stmtToners->execute(['id' => $id]);
+    $tonersNomes = implode(', ', $stmtToners->fetchAll(PDO::FETCH_COLUMN)) ?: null;
+}
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -106,7 +113,7 @@ $gruposHabilitados = gruposHabilitadosParaTipo($eq['tipo']);
                 <?php if (in_array('impressora', $gruposHabilitados, true)): ?>
                     <h6 class="text-uppercase small mt-4">Dados da Impressora</h6>
                     <div class="ficha-campo"><strong>Endereço IP:</strong> <?= e($eq['ip']) ?: '-' ?></div>
-                    <div class="ficha-campo"><strong>Modelo do Toner:</strong> <?= e($eq['modelo_toner']) ?: '-' ?></div>
+                    <div class="ficha-campo"><strong>Toner:</strong> <?= e($tonersNomes) ?: '-' ?></div>
                 <?php endif; ?>
 
                 <?php if (in_array('rede_computador', $gruposHabilitados, true)): ?>

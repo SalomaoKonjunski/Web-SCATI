@@ -363,6 +363,66 @@ CREATE TABLE itens_vinculados (
 ) ENGINE=InnoDB;
 
 -- ---------------------------------------------------------------------
+-- Tabela: toners (catálogo próprio de toners/tintas, aba "Toners e
+-- Tintas" em Impressoras — substitui o fluxo antigo de vincular toner
+-- via Estoque genérico, um vínculo por unidade)
+-- ---------------------------------------------------------------------
+CREATE TABLE toners (
+    id                      INT AUTO_INCREMENT PRIMARY KEY,
+    nome                    VARCHAR(120) NOT NULL,
+    tipo                    ENUM('Toner','Tinta') NOT NULL DEFAULT 'Toner',
+    marca                   VARCHAR(80) NULL,
+    modelo                  VARCHAR(80) NULL,
+    quantidade              INT NOT NULL DEFAULT 0,
+    quantidade_minima       INT NOT NULL DEFAULT 0,
+    localizacao             VARCHAR(120) NULL,
+    observacoes             TEXT NULL,
+    -- Preenchido só quando este registro veio da migração de um item de
+    -- Estoque (categoria Toner/Tinta) já existente — guarda o id de
+    -- origem só pra a migração ser idempotente, não usado pelo sistema.
+    migrado_de_estoque_id   INT NULL,
+    criado_em               DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+-- ---------------------------------------------------------------------
+-- Tabela: toner_impressoras (N:N — um toner pode atender várias
+-- impressoras; uma impressora pode ter mais de um toner compatível)
+-- ---------------------------------------------------------------------
+CREATE TABLE toner_impressoras (
+    id              INT AUTO_INCREMENT PRIMARY KEY,
+    toner_id        INT NOT NULL,
+    equipamento_id  INT NOT NULL,
+
+    CONSTRAINT fk_tonerimp_toner
+        FOREIGN KEY (toner_id) REFERENCES toners(id) ON DELETE CASCADE,
+    CONSTRAINT fk_tonerimp_equipamento
+        FOREIGN KEY (equipamento_id) REFERENCES equipamentos(id) ON DELETE CASCADE,
+    UNIQUE KEY uniq_toner_equipamento (toner_id, equipamento_id)
+) ENGINE=InnoDB;
+
+-- ---------------------------------------------------------------------
+-- Tabela: toner_movimentacoes (histórico de cadastro/baixa/reposição de
+-- cada toner — toda baixa guarda pra qual impressora foi, permitindo
+-- registrar automaticamente o evento de troca de toner nela)
+-- ---------------------------------------------------------------------
+CREATE TABLE toner_movimentacoes (
+    id              INT AUTO_INCREMENT PRIMARY KEY,
+    toner_id        INT NOT NULL,
+    tipo            ENUM('Cadastro','Baixa','Reposição') NOT NULL,
+    quantidade      INT NOT NULL,
+    -- Só preenchido quando tipo = 'Baixa': qual impressora recebeu a unidade.
+    equipamento_id  INT NULL,
+    usuario_nome    VARCHAR(50) NULL,
+    criado_em       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_tonermov_toner
+        FOREIGN KEY (toner_id) REFERENCES toners(id) ON DELETE CASCADE,
+    CONSTRAINT fk_tonermov_equipamento
+        FOREIGN KEY (equipamento_id) REFERENCES equipamentos(id) ON DELETE SET NULL
+) ENGINE=InnoDB;
+CREATE INDEX idx_tonermov_toner ON toner_movimentacoes(toner_id);
+
+-- ---------------------------------------------------------------------
 -- Tabela: licencas
 -- Regra: EQUIPAMENTO (1) -------- (N) LICENÇAS
 -- Uma licença pertence a, no máximo, um único equipamento.
