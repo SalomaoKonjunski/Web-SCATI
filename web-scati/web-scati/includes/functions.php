@@ -1171,6 +1171,32 @@ function podeGerenciarChamado(array $chamado, array $usuarioAtual): bool
 }
 
 /**
+ * Código único e permanente do chamado, só pra exibição/pesquisa — não
+ * precisa de coluna própria no banco, é sempre derivado do id (nunca
+ * muda, nunca repete). Ex.: id 142 vira "CH-000142".
+ */
+function codigoChamado(int $id): string
+{
+    return 'CH-' . str_pad((string) $id, 6, '0', STR_PAD_LEFT);
+}
+
+/**
+ * Lista os usuários com acesso de "suporte" a Chamados (perfil com
+ * Chamados:Alterar, inclusive o protegido Administrador) — são os únicos
+ * que podem receber um chamado atribuído ou transferido. Um cadastro só
+ * Solicitante (temPermissao('chamados','alterar') = false) nunca aparece
+ * aqui, mesmo que o Administrador tente forçar pela URL.
+ */
+function usuariosSuporte(): array
+{
+    $usuarios = db()->query('SELECT id, usuario, perfil FROM usuarios ORDER BY usuario')->fetchAll();
+    return array_values(array_filter(
+        $usuarios,
+        static fn (array $u): bool => temPermissao('chamados', 'alterar', $u['perfil'])
+    ));
+}
+
+/**
  * Registra um evento no histórico automático do chamado (aberto, mudança
  * de andamento/prioridade/responsável), com o usuário logado no momento.
  */

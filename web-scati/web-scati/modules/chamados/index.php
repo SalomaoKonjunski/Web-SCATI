@@ -59,11 +59,18 @@ if ($aba === 'resolvidos') {
     $sql .= " AND c.status NOT IN ('Concluído', 'Cancelado') AND c.responsavel_id IS NULL";
 }
 if ($busca !== '') {
-    $sql .= " AND (c.titulo LIKE :busca1 OR c.descricao LIKE :busca2 OR c.solicitante LIKE :busca3)";
+    $condicoesBusca = ['c.titulo LIKE :busca1', 'c.descricao LIKE :busca2', 'c.solicitante LIKE :busca3'];
     $curingaBusca = '%' . $busca . '%';
     $params['busca1'] = $curingaBusca;
     $params['busca2'] = $curingaBusca;
     $params['busca3'] = $curingaBusca;
+    // Aceita buscar pelo código do chamado (ex.: "CH-000142", "CH000142",
+    // "000142" ou só "142") — ver codigoChamado().
+    if (preg_match('/^(?:CH-?)?0*(\d+)$/i', $busca, $m)) {
+        $condicoesBusca[] = 'c.id = :busca_codigo';
+        $params['busca_codigo'] = (int) $m[1];
+    }
+    $sql .= ' AND (' . implode(' OR ', $condicoesBusca) . ')';
 }
 if ($filtroStatus !== '') {
     $sql .= " AND c.status = :status";
@@ -296,7 +303,7 @@ include __DIR__ . '/../../includes/header.php';
             <?php if ($aba === 'atendimento'): ?><input type="hidden" name="escopo" value="<?= e($escopo) ?>"><?php endif; ?>
             <div class="col-md-4">
                 <label class="form-label small text-muted mb-1">Pesquisar</label>
-                <input type="text" name="busca" class="form-control" placeholder="Título, descrição ou usuário..." value="<?= e($busca) ?>">
+                <input type="text" name="busca" class="form-control" placeholder="Código (ex: CH-000142), título, descrição ou usuário..." value="<?= e($busca) ?>">
             </div>
             <?php if ($aba !== 'novos'): ?>
             <div class="col-md-2">
@@ -353,6 +360,7 @@ include __DIR__ . '/../../includes/header.php';
         <table class="table table-hover align-middle mb-0">
             <thead class="table-light">
                 <tr>
+                    <th>Código</th>
                     <th>Título</th>
                     <th>Prioridade</th>
                     <?php if ($aba !== 'novos'): ?><th>Andamento</th><th>Responsável</th><?php endif; ?>
@@ -367,7 +375,7 @@ include __DIR__ . '/../../includes/header.php';
             </thead>
             <tbody>
                 <?php
-                    $totalColunas = 2 + ($aba !== 'novos' ? 2 : 0) + ($aba === 'resolvidos' ? 2 : 1) + ($souSolicitante ? 0 : 1);
+                    $totalColunas = 3 + ($aba !== 'novos' ? 2 : 0) + ($aba === 'resolvidos' ? 2 : 1) + ($souSolicitante ? 0 : 1);
                 ?>
                 <?php if (empty($chamados)): ?>
                     <tr><td colspan="<?= $totalColunas ?>" class="text-center text-muted py-4">Nenhum chamado encontrado.</td></tr>
@@ -398,6 +406,7 @@ include __DIR__ . '/../../includes/header.php';
                         }
                     ?>
                     <tr data-href="form.php?id=<?= (int) $chamado['id'] ?>" class="<?= $classeLinha ?>">
+                        <td><span class="scati-chamado-codigo"><?= e(codigoChamado((int) $chamado['id'])) ?></span></td>
                         <td>
                             <strong><?= e($chamado['titulo']) ?></strong>
                             <?php if ($descricaoResumo !== ''): ?>

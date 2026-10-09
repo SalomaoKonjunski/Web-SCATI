@@ -54,6 +54,9 @@ $atribuido = $edicao && $chamado['responsavel_id'] !== null;
 $podeGerenciar = $edicao && podeGerenciarChamado($chamado, $usuarioAtual);
 
 $usuarios = $pdo->query('SELECT id, usuario FROM usuarios ORDER BY usuario')->fetchAll();
+// Só cadastros com acesso de suporte a Chamados podem receber um chamado
+// atribuído ou transferido — ver usuariosSuporte().
+$usuariosSuporte = usuariosSuporte();
 
 $erros = [];
 
@@ -89,7 +92,10 @@ if (!$edicao && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $responsavelId = null;
     $responsavelNome = null;
     if ($responsavelIdForm !== '') {
-        foreach ($usuarios as $u) {
+        // Só cadastros de suporte (ver usuariosSuporte()) podem nascer
+        // responsáveis por um chamado — valida contra a mesma lista usada
+        // no select, pra não aceitar um id forçado fora dela.
+        foreach ($usuariosSuporte as $u) {
             if ((string) $u['id'] === $responsavelIdForm) {
                 $responsavelId = (int) $u['id'];
                 $responsavelNome = $u['usuario'];
@@ -152,7 +158,15 @@ if (!$edicao && $_SERVER['REQUEST_METHOD'] === 'POST') {
 $respostas = [];
 $anexosPorResposta = [];
 $observacoes = [];
+$historicoChamado = [];
 if ($edicao) {
+    $stmtHistorico = $pdo->prepare(
+        'SELECT evento, descricao, usuario_nome, data_hora FROM historico_chamados
+         WHERE chamado_id = :id ORDER BY data_hora ASC, id ASC'
+    );
+    $stmtHistorico->execute(['id' => $id]);
+    $historicoChamado = $stmtHistorico->fetchAll();
+
     $stmtRespostas = $pdo->prepare('SELECT * FROM chamado_respostas WHERE chamado_id = :id ORDER BY criado_em ASC');
     $stmtRespostas->execute(['id' => $id]);
     $respostas = $stmtRespostas->fetchAll();
@@ -212,7 +226,10 @@ include __DIR__ . '/../../includes/header.php';
 ?>
 
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h1 class="h3 mb-0"><i class="bi bi-life-preserver me-2"></i><?= e($tituloPagina) ?></h1>
+    <h1 class="h3 mb-0">
+        <i class="bi bi-life-preserver me-2"></i><?= e($tituloPagina) ?>
+        <?php if ($edicao): ?><span class="scati-chamado-codigo fs-6 align-middle ms-1"><?= e(codigoChamado($id)) ?></span><?php endif; ?>
+    </h1>
     <a href="index.php" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Voltar</a>
 </div>
 
@@ -294,20 +311,9 @@ include __DIR__ . '/../../includes/header.php';
                     </div>
                     <?php if ($podeGerenciar): ?>
                         <div class="col-md-6 d-flex gap-2 justify-content-md-end flex-wrap">
-                            <?php if ($usuarioAtual['admin']): ?>
-                                <form method="post" action="atribuir_outro.php" class="d-flex gap-2">
-                                    <input type="hidden" name="id" value="<?= (int) $id ?>">
-                                    <select name="responsavel_id" class="form-select form-select-sm" style="width: auto;">
-                                        <option value="">Repassar para...</option>
-                                        <?php foreach ($usuarios as $u): ?>
-                                            <?php if ((int) $u['id'] !== (int) $chamado['responsavel_id']): ?>
-                                                <option value="<?= (int) $u['id'] ?>"><?= e($u['usuario']) ?></option>
-                                            <?php endif; ?>
-                                        <?php endforeach; ?>
-                                    </select>
-                                    <button type="submit" class="btn btn-outline-secondary btn-sm"><i class="bi bi-person-rotate"></i> Repassar</button>
-                                </form>
-                            <?php endif; ?>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#modalTransferirChamado">
+                                <i class="bi bi-send"></i> Transferir
+                            </button>
                             <?php if ($chamado['status'] !== 'Concluído'): ?>
                                 <form method="post" action="atualizar_campo.php">
                                     <input type="hidden" name="id" value="<?= (int) $id ?>">
@@ -333,6 +339,79 @@ include __DIR__ . '/../../includes/header.php';
         </div>
     </div>
 
+    <?php if ($podeGerenciar): ?>
+    <div class="modal fade" id="modalTransferirChamado" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <form method="post" action="atribuir_outro.php">
+                    <div class="modal-header">
+                        <h5 class="modal-title"><i class="bi bi-send me-2"></i>Transferir Chamado</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                    </div>
+                    <div class="modal-body">
+                        <input type="hidden" name="id" value="<?= (int) $id ?>">
+                        <div class="mb-3">
+                            <label class="form-label">Transferir para *</label>
+                            <select name="responsavel_id" class="form-select" required>
+                                <option value="">Selecione...</option>
+                                <?php foreach ($usuariosSuporte as $u): ?>
+                                    <?php if ((int) $u['id'] !== (int) $chamado['responsavel_id']): ?>
+                                        <option value="<?= (int) $u['id'] ?>"><?= e($u['usuario']) ?></option>
+                                    <?php endif; ?>
+                                <?php endforeach; ?>
+                            </select>
+                            <div class="form-text"><i class="bi bi-info-circle"></i> Só aparecem aqui os cadastros com acesso de suporte a Chamados.</div>
+                        </div>
+                        <div class="mb-1">
+                            <label class="form-label">Motivo da transferência *</label>
+                            <textarea name="motivo" class="form-control" rows="3" maxlength="200" required
+                                      placeholder="Explique por que está passando este chamado para outra pessoa..."></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary"><i class="bi bi-send"></i> Confirmar Transferência</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <?php endif; ?>
+
+    <?php if (!empty($historicoChamado)): ?>
+    <div class="card mb-3">
+        <div class="card-header bg-white"><i class="bi bi-clock-history me-1"></i> Histórico</div>
+        <div class="list-group list-group-flush">
+            <?php foreach ($historicoChamado as $evento): ?>
+                <?php
+                    $iconeEvento = match ($evento['evento']) {
+                        'Aberto' => 'bi-plus-circle text-primary',
+                        'Responsável' => 'bi-person-rotate text-primary',
+                        'Andamento' => 'bi-arrow-repeat text-warning',
+                        'Prioridade' => 'bi-flag text-secondary',
+                        default => 'bi-dot text-muted',
+                    };
+                    // "Repassado de X para Y — Motivo: ..." guarda a explicação da
+                    // transferência numa linha destacada à parte, mais fácil de ler.
+                    $partesHistorico = explode(' — Motivo: ', $evento['descricao'], 2);
+                ?>
+                <div class="list-group-item py-2">
+                    <div class="small">
+                        <i class="bi <?= $iconeEvento ?> me-1"></i><?= e($partesHistorico[0]) ?>
+                        <?php if (!empty($evento['usuario_nome'])): ?> · <?= e($evento['usuario_nome']) ?><?php endif; ?>
+                    </div>
+                    <div class="small text-muted mb-1"><?= formatDateTime($evento['data_hora']) ?></div>
+                    <?php if (isset($partesHistorico[1])): ?>
+                        <div class="small bg-light border rounded p-2">
+                            <i class="bi bi-chat-left-quote text-muted"></i> <?= e(trim($partesHistorico[1], '"')) ?>
+                        </div>
+                    <?php endif; ?>
+                </div>
+            <?php endforeach; ?>
+        </div>
+    </div>
+    <?php endif; ?>
+
     <?php if (!$somenteLeitura && !$atribuido): ?>
     <div class="card mb-3 border-primary">
         <div class="card-header bg-primary bg-opacity-10 border-primary">
@@ -353,7 +432,7 @@ include __DIR__ . '/../../includes/header.php';
                     <input type="hidden" name="id" value="<?= (int) $id ?>">
                     <select name="responsavel_id" class="form-select">
                         <option value="">Atribuir a outra pessoa...</option>
-                        <?php foreach ($usuarios as $u): ?>
+                        <?php foreach ($usuariosSuporte as $u): ?>
                             <option value="<?= (int) $u['id'] ?>"><?= e($u['usuario']) ?></option>
                         <?php endforeach; ?>
                     </select>
@@ -406,7 +485,7 @@ include __DIR__ . '/../../includes/header.php';
                 <label class="form-label">Responsável</label>
                 <select name="responsavel_id" class="form-select">
                     <option value="">Deixar sem responsável (fila de triagem)</option>
-                    <?php foreach ($usuarios as $u): ?>
+                    <?php foreach ($usuariosSuporte as $u): ?>
                         <option value="<?= (int) $u['id'] ?>"><?= e($u['usuario']) ?></option>
                     <?php endforeach; ?>
                 </select>

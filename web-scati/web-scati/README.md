@@ -957,14 +957,30 @@ web-scati/
     onde dá pra excluir um chamado antigo — exclusão só é permitida
     depois de encerrado, e só pelo responsável ou um Administrador.
 
-  **Só o Administrador pode atribuir um chamado a outra pessoa** —
-  tanto um chamado novo (botão "Atribuir a outra pessoa" na ficha)
-  quanto repassar um já atribuído (botão "Repassar"). Assumir um
+  Atribuir um chamado **novo** a outra pessoa (botão "Atribuir a outra
+  pessoa" na ficha, antes de qualquer responsável) continua exclusivo do
+  Administrador. Já **transferir** um chamado que já está Em Atendimento
+  (botão "Transferir") é liberado também para o próprio responsável
+  atual, além do Administrador — mas exige **explicar o motivo** da
+  transferência num campo obrigatório, que fica registrado no histórico
+  do chamado (visível ali mesmo na ficha, pra quem recebe e pra quem
+  acompanha depois). Em ambos os casos, só é possível atribuir ou
+  transferir para um **cadastro de suporte** (perfil com permissão
+  Chamados:Alterar, como Padrão ou Administrador) — o seletor nunca
+  mostra um cadastro Solicitante (como o perfil Usuário), e o servidor
+  recusa mesmo que alguém tente forçar pela requisição direta. Assumir um
   chamado pra si mesmo continua liberado pra qualquer um da equipe.
   Virar responsável por um chamado que estava em "Novos" já avança o
-  andamento automaticamente para "Em andamento". Um Administrador
-  também pode criar um chamado já nascendo atribuído a alguém,
-  escolhendo o responsável direto no cadastro.
+  andamento automaticamente para "Em andamento". Um Administrador também
+  pode criar um chamado já nascendo atribuído a alguém, escolhendo o
+  responsável direto no cadastro.
+
+  Cada chamado recebe um **código único e permanente** assim que é
+  criado (ex.: `CH-000142`, derivado do próprio id — não precisa de
+  coluna extra no banco), mostrado na ficha e em toda listagem. Serve
+  pra localizar um chamado depois — o campo de busca aceita o código
+  completo (`CH-000142`), sem o prefixo (`000142`) ou só o número
+  (`142`) — útil pra identificar um chamado por telefone com quem abriu.
 
   Cada chamado tem título, **descrição** (a solicitação em si — campo
   obrigatório), o campo **Usuário** (quem pediu) e **prioridade**
@@ -1051,12 +1067,14 @@ web-scati/
   Cada chamado tem um histórico automático, registrando quem fez e
   quando: abertura (com a descrição da solicitação), mudanças de
   andamento (destacando quando o chamado é marcado como concluído), de
-  prioridade e de responsável — capturado tanto ao editar a ficha
+  prioridade e de responsável (atribuição, transferência — com o motivo
+  informado — ou autoatribuição) — capturado tanto ao editar a ficha
   quanto pelos atalhos rápidos da listagem (seletores inline e
-  "Atribuir para mim"). Esse histórico não aparece mais na própria
-  ficha do chamado; ele fica disponível apenas no relatório
-  "Histórico de alterações" (aba **Relatórios**), junto com o
-  histórico de equipamentos e estoque.
+  "Atribuir para mim"). Esse histórico aparece direto na própria ficha
+  do chamado, numa linha do tempo compacta logo abaixo dos dados
+  principais, e também continua disponível no relatório "Histórico de
+  alterações" (aba **Relatórios**), junto com o histórico de
+  equipamentos e estoque.
 
   Também tem uma seção **Observações**, visível só para o perfil
   Administrador (nem o solicitante, nem Padrão/Usuário veem essa
