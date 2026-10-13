@@ -538,8 +538,12 @@ web-scati/
   ao passar o mouse/focar em cada fatia e um botão para alternar para
   visualização em tabela. As 5 categorias com mais itens aparecem com cor
   própria; o restante é agrupado em "Outras categorias".
-- **Equipamentos**: CRUD completo, pesquisa e filtros (tipo, status, rede),
-  ficha individual com abas de Dados Gerais, Hardware, Licenciamento,
+- **Equipamentos**: CRUD completo, pesquisa e filtros (tipo, status, rede).
+  O filtro **Tipo** aceita marcar mais de uma opção ao mesmo tempo (ex.:
+  Notebook + Computador) — um dropdown com checkbox por tipo, com atalhos
+  "Marcar todos"/"Desmarcar todos" e um botão que mostra o tipo escolhido
+  (ou "N selecionados", com mais de um marcado). Ficha individual com
+  abas de Dados Gerais, Hardware, Licenciamento,
   Financeiro, Histórico e Observações. Todo equipamento tem um campo
   **Nome do Equipamento** (obrigatório, ex.: "Notebook do Financeiro"),
   usado como identificador principal (em negrito) nas listagens de

@@ -10,7 +10,14 @@ $pdo = db();
 
 // --- Filtros e pesquisa -------------------------------------------------
 $busca      = trim($_GET['busca'] ?? '');
-$filtroTipo = $_GET['tipo'] ?? '';
+// Tipo aceita mais de uma seleção (ex.: Notebook + Computador) — o campo
+// vem como tipo[] do dropdown de checkboxes, mas um link antigo com
+// ?tipo=Notebook (valor único) continua funcionando.
+$filtroTipoBruto = $_GET['tipo'] ?? [];
+$filtroTipo = array_values(array_unique(array_filter(
+    is_array($filtroTipoBruto) ? $filtroTipoBruto : [$filtroTipoBruto],
+    static fn ($t) => $t !== ''
+)));
 $filtroStatus = $_GET['status'] ?? '';
 $filtroRede = $_GET['rede_id'] ?? '';
 
@@ -49,9 +56,13 @@ if ($busca !== '') {
     $params['busca6'] = $curingaBusca;
     $params['busca7'] = $curingaBusca;
 }
-if ($filtroTipo !== '') {
-    $sql .= " AND e.tipo = :tipo";
-    $params['tipo'] = $filtroTipo;
+if (!empty($filtroTipo)) {
+    $marcadoresTipo = [];
+    foreach ($filtroTipo as $i => $tipo) {
+        $marcadoresTipo[] = ':tipo' . $i;
+        $params['tipo' . $i] = $tipo;
+    }
+    $sql .= ' AND e.tipo IN (' . implode(',', $marcadoresTipo) . ')';
 }
 if ($filtroStatus !== '') {
     $sql .= " AND e.status = :status";
@@ -114,13 +125,34 @@ include __DIR__ . '/../../includes/header.php';
             </div>
             <div class="col-md-2">
                 <label class="form-label small text-muted mb-1">Tipo</label>
-                <select name="tipo" class="form-select">
-                    <option value="">Todos</option>
-                    <?php foreach (tiposEquipamento() as $tipo): ?>
-                        <?php if ($tipo === 'Impressora') continue; ?>
-                        <option value="<?= e($tipo) ?>" <?= $filtroTipo === $tipo ? 'selected' : '' ?>><?= e($tipo) ?></option>
-                    <?php endforeach; ?>
-                </select>
+                <div class="dropdown">
+                    <button type="button" class="btn btn-outline-secondary dropdown-toggle w-100 text-start text-truncate"
+                            data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">
+                        <?php
+                            if (empty($filtroTipo)) {
+                                echo 'Todos';
+                            } elseif (count($filtroTipo) === 1) {
+                                echo e($filtroTipo[0]);
+                            } else {
+                                echo count($filtroTipo) . ' selecionados';
+                            }
+                        ?>
+                    </button>
+                    <div class="dropdown-menu p-2 js-filtro-tipo-dropdown" style="max-height: 280px; overflow-y: auto; min-width: 14rem;">
+                        <div class="d-flex justify-content-between small mb-2 px-1">
+                            <a href="#" class="text-decoration-none js-filtro-tipo-marcar-tudo">Marcar todos</a>
+                            <a href="#" class="text-decoration-none text-muted js-filtro-tipo-desmarcar-tudo">Desmarcar todos</a>
+                        </div>
+                        <?php foreach (tiposEquipamento() as $tipo): ?>
+                            <?php if ($tipo === 'Impressora') continue; ?>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="tipo[]" value="<?= e($tipo) ?>"
+                                       id="filtroTipo<?= e(md5($tipo)) ?>" <?= in_array($tipo, $filtroTipo, true) ? 'checked' : '' ?>>
+                                <label class="form-check-label" for="filtroTipo<?= e(md5($tipo)) ?>"><?= e($tipo) ?></label>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
             </div>
             <div class="col-md-2">
                 <label class="form-label small text-muted mb-1">Status</label>

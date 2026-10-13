@@ -818,4 +818,23 @@ document.addEventListener('DOMContentLoaded', function () {
             document.querySelectorAll('.js-perfil-ver, .js-perfil-alterar, [name="ver_todos_chamados"]').forEach(function (campo) { campo.checked = false; });
         });
     }
+
+    // Dropdown de checkboxes do filtro "Tipo" (Equipamentos) — marcar/
+    // desmarcar tudo só dentro do próprio dropdown, sem fechar o menu.
+    document.querySelectorAll('.js-filtro-tipo-dropdown').forEach(function (menu) {
+        const marcarTudo = menu.querySelector('.js-filtro-tipo-marcar-tudo');
+        const desmarcarTudo = menu.querySelector('.js-filtro-tipo-desmarcar-tudo');
+        if (marcarTudo) {
+            marcarTudo.addEventListener('click', function (e) {
+                e.preventDefault();
+                menu.querySelectorAll('input[type="checkbox"]').forEach(function (campo) { campo.checked = true; });
+            });
+        }
+        if (desmarcarTudo) {
+            desmarcarTudo.addEventListener('click', function (e) {
+                e.preventDefault();
+                menu.querySelectorAll('input[type="checkbox"]').forEach(function (campo) { campo.checked = false; });
+            });
+        }
+    });
 });
