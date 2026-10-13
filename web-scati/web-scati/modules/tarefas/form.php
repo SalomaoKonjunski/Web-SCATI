@@ -115,6 +115,12 @@ $proximaExecucaoInputValue = $_SERVER['REQUEST_METHOD'] === 'POST'
     ? ($_POST['proxima_execucao'] ?? '')
     : (new DateTime($tarefa['proxima_execucao']))->format('Y-m-d\TH:i');
 
+// Quando o alerta ainda não chegou na data prevista, o botão rápido de
+// "Concluir" some da listagem (modules/tarefas/index.php) — abrir o
+// cadastro e usar o botão abaixo é o único jeito de concluir antes do
+// prazo (ver concluir.php, parâmetro via_cadastro).
+$prazoForm = $edicao ? prazoTarefa($tarefa['proxima_execucao']) : null;
+
 $pageTitle = $edicao ? 'Editar Alerta' : 'Novo Alerta';
 
 include __DIR__ . '/../../includes/header.php';
@@ -203,5 +209,35 @@ include __DIR__ . '/../../includes/header.php';
         <a href="index.php" class="btn btn-outline-secondary">Cancelar</a>
     </div>
 </form>
+
+<?php if ($edicao): ?>
+<div class="card mb-5">
+    <div class="card-body d-flex flex-wrap align-items-center gap-3">
+        <div>
+            <strong><i class="bi bi-check-circle me-1"></i>Marcar como concluída</strong>
+            <?php if ($prazoForm['vencida']): ?>
+                <p class="text-muted small mb-0 mt-1">
+                    Esse alerta já está no prazo de vencer (ou atrasado) — concluir agora reinicia a contagem a
+                    partir de hoje.
+                </p>
+            <?php else: ?>
+                <p class="text-muted small mb-0 mt-1">
+                    Previsto para <strong><?= formatDateTime($tarefa['proxima_execucao']) ?></strong> — ainda não
+                    chegou. Concluir por aqui é uma <strong>conclusão antecipada</strong> (só é permitida no
+                    cadastro, não pela listagem) e já reinicia o prazo a partir de hoje.
+                </p>
+            <?php endif; ?>
+        </div>
+        <form method="post" action="concluir.php" class="ms-auto">
+            <input type="hidden" name="id" value="<?= (int) $id ?>">
+            <input type="hidden" name="via_cadastro" value="1">
+            <button type="submit" class="btn btn-outline-success <?= $prazoForm['vencida'] ? '' : 'js-confirm-delete' ?>"
+                    <?= $prazoForm['vencida'] ? '' : 'data-confirm-msg="Este alerta ainda não venceu. Marcar como concluída mesmo assim, antes do prazo?"' ?>>
+                <i class="bi bi-check-lg"></i> Marcar como Concluída
+            </button>
+        </form>
+    </div>
+</div>
+<?php endif; ?>
 
 <?php include __DIR__ . '/../../includes/footer.php'; ?>

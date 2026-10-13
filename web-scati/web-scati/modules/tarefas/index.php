@@ -76,12 +76,19 @@ include __DIR__ . '/../../includes/header.php';
                         </td>
                         <td class="text-end">
                             <?php if ($podeAlterar): ?>
-                                <form method="post" action="concluir.php" class="d-inline">
-                                    <input type="hidden" name="id" value="<?= (int) $tarefa['id'] ?>">
-                                    <button type="submit" class="btn btn-sm btn-outline-success" title="Marcar como concluída hoje">
+                                <?php if ($prazo['vencida']): ?>
+                                    <form method="post" action="concluir.php" class="d-inline">
+                                        <input type="hidden" name="id" value="<?= (int) $tarefa['id'] ?>">
+                                        <button type="submit" class="btn btn-sm btn-outline-success" title="Marcar como concluída hoje">
+                                            <i class="bi bi-check-lg"></i>
+                                        </button>
+                                    </form>
+                                <?php else: ?>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" disabled
+                                            title="Ainda não chegou a data prevista — pra concluir antes, abra o cadastro deste alerta.">
                                         <i class="bi bi-check-lg"></i>
                                     </button>
-                                </form>
+                                <?php endif; ?>
                                 <a href="form.php?id=<?= (int) $tarefa['id'] ?>" class="btn btn-sm btn-outline-primary" title="Editar"><i class="bi bi-pencil"></i></a>
                                 <a href="delete.php?id=<?= (int) $tarefa['id'] ?>" class="btn btn-sm btn-outline-danger js-confirm-delete"
                                    data-confirm-msg="Excluir o alerta &quot;<?= e($tarefa['titulo']) ?>&quot;?"><i class="bi bi-trash"></i></a>

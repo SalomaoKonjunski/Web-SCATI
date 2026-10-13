@@ -768,15 +768,28 @@ web-scati/
   escolher "2 dias" grava e reabre mostrando "2 dias", não "48 horas").
   Quando o alerta tem um **responsável específico**, só ele (e qualquer
   Administrador) o vê no card do Dashboard; em "Qualquer um da equipe",
-  aparece pra todo mundo com acesso ao módulo, como sempre foi. O botão
-  de concluir marca a execução de hoje e recalcula a próxima data
-  automaticamente a partir de hoje + frequência, preservando o mesmo
-  horário configurado (ex.: um alerta mensal às 14:00 continua vencendo
-  às 14:00, não no horário em que alguém clicou em "Concluir"; mensal a
-  partir de 31/01 cai em 28 ou 29/02, não em "+30 dias" fixos); alertas
-  pausados (campo "ativo" desmarcado) saem do card do Dashboard sem
-  precisar ser excluídos. Sujeito às permissões de **Visualizar/Alterar**
-  do módulo "Central de Alertas" em Perfis de Acesso.
+  aparece pra todo mundo com acesso ao módulo, como sempre foi — essa
+  antecedência continua controlando só a visibilidade no Dashboard, não
+  a listagem da Central de Alertas em si (que sempre mostra todos os
+  alertas, vencidos ou não). Concluir marca a execução de hoje e
+  recalcula a próxima data automaticamente a partir de hoje + frequência,
+  preservando o mesmo horário configurado (ex.: um alerta mensal às
+  14:00 continua vencendo às 14:00, não no horário em que alguém clicou
+  em "Concluir"; mensal a partir de 31/01 cai em 28 ou 29/02, não em
+  "+30 dias" fixos).
+
+  O botão de concluir rápido, na listagem, só aparece **clicável depois
+  que a data e hora da Próxima Execução realmente chegam** — antes
+  disso, fica desabilitado (cinza), com uma dica explicando o motivo.
+  Pra concluir **antes do prazo**, é preciso abrir o cadastro do alerta
+  (`form.php`): lá, um card "Marcar como concluída" sempre disponível
+  explica se a conclusão seria dentro do prazo normal ou **antecipada**
+  (nesse caso, pede confirmação antes de aplicar). Essa trava é
+  reforçada no servidor — uma tentativa de concluir pela listagem antes
+  da data, mesmo por requisição direta, é recusada. Alertas pausados
+  (campo "ativo" desmarcado) saem do card do Dashboard sem precisar ser
+  excluídos. Sujeito às permissões de **Visualizar/Alterar** do módulo
+  "Central de Alertas" em Perfis de Acesso.
 - **App instalável (PWA) e notificações push**: o sistema pode ser
   "instalado" pelo navegador — Chrome/Edge no computador, Chrome no
   Android, Safari no iPhone (menu Compartilhar → "Adicionar à Tela de
