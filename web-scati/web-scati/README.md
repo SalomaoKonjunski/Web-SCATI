@@ -729,7 +729,12 @@ web-scati/
     (Equipamentos, Estoque, Licenças ou Chamados), quais **colunas**
     aparecem e quantos **filtros** quiser (campo + operador + valor,
     combinados sempre com E — ex.: Status é igual a "Em uso" **e** Tipo é
-    igual a "Computador"). O relatório gerado pode ser exportado em
+    igual a "Computador"). Na origem **Equipamentos**, as colunas incluem
+    também as configurações de **Hardware** do cadastro (Processador,
+    Memória RAM, Armazenamento, Sistema Operacional, Placa Mãe e Placa de
+    Vídeo) — para equipamentos de um tipo sem o grupo Hardware habilitado
+    (ex.: Monitor, Switch), essas colunas aparecem em branco na tabela, como
+    qualquer outro campo não preenchido. O relatório gerado pode ser exportado em
     **CSV** (com BOM UTF-8 e `;` como separador, pronto para abrir no
     Excel em pt-BR), impresso, ou **salvo como favorito** — fica
     disponível na barra lateral de Relatórios, em "Personalizado", pronto

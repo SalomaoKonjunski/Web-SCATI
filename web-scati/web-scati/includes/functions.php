@@ -543,6 +543,17 @@ function origensRelatorioPersonalizado(): array
                 'fornecedor'          => ['label' => 'Fornecedor', 'sql' => 'e.fornecedor', 'tipo' => 'texto'],
                 'valor_atual'         => ['label' => 'Valor Atual', 'sql' => 'e.valor_atual', 'tipo' => 'dinheiro'],
                 'acesso_usb'          => ['label' => 'Acesso USB', 'sql' => 'e.acesso_usb', 'tipo' => 'booleano', 'opcoes' => ['Sim', 'Não']],
+                // Campos do grupo "Hardware" do cadastro de Equipamentos — só
+                // preenchidos pra tipos com esse grupo habilitado (Computador,
+                // Notebook ou um tipo personalizado com o grupo ligado em
+                // Categorias de Equipamentos); nos demais tipos, ficam vazios
+                // no relatório, igual a qualquer outro campo opcional aqui.
+                'processador'         => ['label' => 'Processador', 'sql' => 'e.processador', 'tipo' => 'texto'],
+                'memoria_ram'         => ['label' => 'Memória RAM', 'sql' => 'e.memoria_ram', 'tipo' => 'texto'],
+                'armazenamento'       => ['label' => 'Armazenamento', 'sql' => 'e.armazenamento', 'tipo' => 'texto'],
+                'sistema_operacional' => ['label' => 'Sistema Operacional', 'sql' => 'e.sistema_operacional', 'tipo' => 'texto'],
+                'placa_mae'           => ['label' => 'Placa Mãe', 'sql' => 'e.placa_mae', 'tipo' => 'texto'],
+                'placa_video'         => ['label' => 'Placa de Vídeo', 'sql' => 'e.placa_video', 'tipo' => 'texto'],
             ],
         ],
         'estoque' => [
