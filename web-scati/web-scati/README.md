@@ -1066,6 +1066,19 @@ web-scati/
   os anexos dos próprios chamados, mesmo sabendo o link direto do
   arquivo.
 
+  A conversa atualiza **em tempo real**: enquanto a ficha do chamado
+  está aberta, o navegador busca mensagens novas a cada poucos segundos
+  e já mostra na tela, sem precisar recarregar a página — se a outra
+  pessoa envolvida no chamado também estiver com a ficha aberta nesse
+  momento, ela vê a mensagem aparecer sozinha quase na hora, com o
+  mesmo visual de sempre (inclusive anexos). Isso vale pra qualquer
+  perfil que possa visualizar aquele chamado, não só quem participa da
+  conversa; a busca só roda enquanto a aba está em primeiro plano, pra
+  não gastar requisição à toa com a página em segundo plano. Abrir a
+  mensagem recebida ao vivo já marca o chamado como visto, do mesmo
+  jeito que abrir a ficha — some da contagem do sininho e do menu
+  lateral sem precisar de nenhuma ação extra.
+
   O sistema de notificação é unificado: tanto a **contagem em
   vermelho ao lado de "Chamados" no menu lateral** quanto o **sininho**
   no topo da tela só aparecem quando existe uma novidade que o usuário

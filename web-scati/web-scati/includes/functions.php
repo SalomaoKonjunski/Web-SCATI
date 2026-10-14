@@ -1175,6 +1175,48 @@ function marcarChamadoVisto(int $chamadoId, int $usuarioId): void
 }
 
 /**
+ * Renderiza uma mensagem (balão) da conversa de um chamado — usada tanto
+ * na carga normal da ficha (modules/chamados/form.php) quanto no retorno
+ * do polling de mensagens novas (modules/chamados/respostas_novas.php),
+ * pra garantir que os dois caminhos produzam exatamente o mesmo HTML.
+ */
+function renderRespostaChamado(array $resposta, array $anexosResposta, int $usuarioAtualId): string
+{
+    $minhaMensagem = $resposta['usuario_id'] !== null && (int) $resposta['usuario_id'] === $usuarioAtualId;
+
+    ob_start();
+    ?>
+    <div class="d-flex <?= $minhaMensagem ? 'justify-content-end' : 'justify-content-start' ?> mb-2" data-resposta-id="<?= (int) $resposta['id'] ?>">
+        <div class="p-2 px-3 rounded-3 <?= $minhaMensagem ? 'bg-primary text-white' : 'bg-light border' ?>" style="max-width: 75%;">
+            <div class="small fw-semibold <?= $minhaMensagem ? '' : 'text-muted' ?>"><?= e($resposta['usuario_nome']) ?></div>
+            <?php foreach ($anexosResposta as $anexo): ?>
+                <?php if (str_starts_with($anexo['tipo_mime'] ?? '', 'image/')): ?>
+                    <a href="anexo_download.php?id=<?= (int) $anexo['id'] ?>" target="_blank" rel="noopener">
+                        <img src="anexo_download.php?id=<?= (int) $anexo['id'] ?>" alt="<?= e($anexo['nome_original']) ?>"
+                             class="scati-anexo-foto mt-1 mb-2">
+                    </a>
+                <?php else: ?>
+                    <a href="anexo_download.php?id=<?= (int) $anexo['id'] ?>" class="scati-anexo-arquivo mt-1 mb-2 text-decoration-none <?= $minhaMensagem ? 'text-white' : 'text-body' ?>">
+                        <i class="bi <?= e(iconeAnexo(pathinfo($anexo['nome_original'], PATHINFO_EXTENSION))) ?> fs-4"></i>
+                        <span class="flex-grow-1 overflow-hidden">
+                            <span class="d-block text-truncate" style="max-width: 180px;"><?= e($anexo['nome_original']) ?></span>
+                            <span class="small opacity-75"><?= formatBytes((int) $anexo['tamanho']) ?></span>
+                        </span>
+                        <i class="bi bi-download"></i>
+                    </a>
+                <?php endif; ?>
+            <?php endforeach; ?>
+            <?php if (trim($resposta['mensagem']) !== ''): ?>
+                <div style="white-space: pre-wrap;"><?= e($resposta['mensagem']) ?></div>
+            <?php endif; ?>
+            <div class="small <?= $minhaMensagem ? 'text-white-50' : 'text-muted' ?>"><?= formatDateTime($resposta['criado_em']) ?></div>
+        </div>
+    </div>
+    <?php
+    return ob_get_clean();
+}
+
+/**
  * Ciclo de vida dos Chamados: um chamado sem responsável é de triagem
  * (qualquer um da equipe pode ver/priorizar, ninguém ainda "dono" dele);
  * uma vez atribuído, só o responsável — ou um Administrador, que sempre

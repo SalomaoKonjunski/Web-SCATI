@@ -837,4 +837,54 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         }
     });
+
+    // Conversa do chamado (modules/chamados/form.php): enquanto a ficha
+    // está aberta, busca mensagens novas a cada poucos segundos e injeta
+    // na tela sem precisar recarregar a página — é o que faz uma
+    // mensagem enviada por outra pessoa aparecer "na hora" pra quem já
+    // está com o chat aberto.
+    const listaRespostas = document.getElementById('listaRespostas');
+    if (listaRespostas) {
+        const chamadoId = listaRespostas.dataset.chamadoId;
+        const semRespostasAinda = document.getElementById('semRespostasAinda');
+
+        function estaRoladoNoFim() {
+            return (window.innerHeight + window.scrollY) >= (document.body.scrollHeight - 80);
+        }
+
+        function buscarRespostasNovas() {
+            const ultimoId = listaRespostas.dataset.ultimoId || '0';
+            fetch('respostas_novas.php?chamado_id=' + encodeURIComponent(chamadoId) + '&apos_id=' + encodeURIComponent(ultimoId), { credentials: 'same-origin' })
+                .then(function (resp) { return resp.ok ? resp.json() : null; })
+                .then(function (dados) {
+                    if (!dados || !dados.respostas || dados.respostas.length === 0) return;
+                    const jaRolado = estaRoladoNoFim();
+                    if (semRespostasAinda) {
+                        semRespostasAinda.remove();
+                    }
+                    dados.respostas.forEach(function (item) {
+                        listaRespostas.insertAdjacentHTML('beforeend', item.html);
+                    });
+                    listaRespostas.dataset.ultimoId = String(dados.ultimo_id);
+                    if (jaRolado) {
+                        window.scrollTo(0, document.body.scrollHeight);
+                    }
+                })
+                .catch(function () {
+                    // falha de rede - tenta de novo na próxima checagem
+                });
+        }
+
+        // Só busca enquanto a aba está visível, pra não gastar requisição
+        // à toa com a página em segundo plano — ao voltar, busca na hora.
+        let intervaloRespostas = setInterval(buscarRespostasNovas, 3000);
+        document.addEventListener('visibilitychange', function () {
+            if (document.hidden) {
+                clearInterval(intervaloRespostas);
+            } else {
+                buscarRespostasNovas();
+                intervaloRespostas = setInterval(buscarRespostasNovas, 3000);
+            }
+        });
+    }
 });
