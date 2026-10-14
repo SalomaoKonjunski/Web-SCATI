@@ -249,6 +249,23 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    // Construtor de Relatório: bloco fixo do campo principal da origem
+    // (Tipo, Categoria...), logo abaixo de "Colunas" — mesmas checkboxes
+    // marcando um hidden "filtro_valor[]" agregado, só que fora do
+    // #filtrosContainer e sem passar por "Adicionar filtro" (ver
+    // renderBlocoCampoPrincipal(), em construtor.php).
+    const blocoPrincipal = document.querySelector('.filtro-principal-bloco');
+    if (blocoPrincipal) {
+        blocoPrincipal.addEventListener('change', function (e) {
+            if (!e.target.classList.contains('filtro-valor-opcao')) {
+                return;
+            }
+            const valorOculto = blocoPrincipal.querySelector('.filtro-valor-oculto');
+            const marcados = blocoPrincipal.querySelectorAll('.filtro-valor-opcao:checked');
+            valorOculto.value = Array.from(marcados).map(function (cb) { return cb.value; }).join(',');
+        });
+    }
+
     // Botão de mostrar/ocultar em campos de senha (cadastro de Usuários:
     // Senha de login e Senha do Email Corporativo). Sempre começa oculto.
     document.querySelectorAll('.senha-toggle-btn').forEach(function (botao) {

@@ -748,7 +748,14 @@ web-scati/
     demais campos (nome, marca, observações...) continuam com o seletor de
     operador tradicional (contém, é igual a, maior que, está vazio...) e um
     valor digitado livremente, com sugestões de autocompletar pelos valores
-    já usados. Na origem **Equipamentos**, as colunas incluem
+    já usados. Logo abaixo de **Colunas**, o campo principal de cada origem
+    (**Tipo** em Equipamentos e Licenças, **Categoria** em Estoque,
+    **Status** em Chamados) tem seu próprio bloco fixo e sempre visível,
+    mostrando todas as opções possíveis como checkbox — já funcionando como
+    filtro por conta própria, sem precisar clicar em "Adicionar filtro". Do
+    lado de cada opção aparece quantos registros já existem com aquele
+    valor (ou "nenhum cadastrado" quando ainda não tem nenhum), pra dar uma
+    ideia dos dados antes mesmo de filtrar. Na origem **Equipamentos**, as colunas incluem
     também as configurações de **Hardware** do cadastro (Processador,
     Memória RAM, Armazenamento, Sistema Operacional, Placa Mãe e Placa de
     Vídeo) — para equipamentos de um tipo sem o grupo Hardware habilitado

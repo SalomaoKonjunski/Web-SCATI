@@ -537,6 +537,11 @@ function origensRelatorioPersonalizado(): array
             'descricao' => 'Nome, patrimônio, tipo, status, responsável, financeiro...',
             'from' => 'equipamentos e LEFT JOIN redes r ON r.id = e.rede_id',
             'ordem_padrao' => 'e.nome',
+            // Campo "principal" dessa origem — exibido como um bloco fixo de
+            // checkboxes logo abaixo de "Colunas" no Construtor de Relatório,
+            // já funcionando como filtro, sem precisar passar por "Adicionar
+            // filtro" (ver renderBlocoCampoPrincipal(), em construtor.php).
+            'campo_principal' => 'tipo',
             'colunas' => [
                 'nome'                => ['label' => 'Nome', 'sql' => 'e.nome', 'tipo' => 'texto'],
                 'patrimonio'          => ['label' => 'Patrimônio', 'sql' => 'e.patrimonio', 'tipo' => 'texto'],
@@ -572,6 +577,7 @@ function origensRelatorioPersonalizado(): array
             'descricao' => 'Itens, categorias, quantidades, localização...',
             'from' => 'estoque es JOIN categorias_estoque c ON c.id = es.categoria_id',
             'ordem_padrao' => 'es.nome',
+            'campo_principal' => 'categoria_nome',
             'colunas' => [
                 'nome'              => ['label' => 'Nome', 'sql' => 'es.nome', 'tipo' => 'texto'],
                 'categoria_nome'    => ['label' => 'Categoria', 'sql' => 'c.nome', 'tipo' => 'select', 'opcoes' => categoriasEstoqueNomes()],
@@ -589,6 +595,7 @@ function origensRelatorioPersonalizado(): array
             'descricao' => 'Software, fabricante, validade, vínculo...',
             'from' => 'licencas l LEFT JOIN equipamentos eq ON eq.id = l.equipamento_id',
             'ordem_padrao' => 'l.software',
+            'campo_principal' => 'tipo',
             'colunas' => [
                 'software'               => ['label' => 'Software', 'sql' => 'l.software', 'tipo' => 'texto'],
                 'fabricante'             => ['label' => 'Fabricante', 'sql' => 'l.fabricante', 'tipo' => 'texto'],
@@ -604,6 +611,7 @@ function origensRelatorioPersonalizado(): array
             'descricao' => 'Título, solicitante, prioridade, status...',
             'from' => 'chamados ch LEFT JOIN usuarios u ON u.id = ch.responsavel_id',
             'ordem_padrao' => 'ch.criado_em DESC',
+            'campo_principal' => 'status',
             'colunas' => [
                 'titulo'           => ['label' => 'Título', 'sql' => 'ch.titulo', 'tipo' => 'texto'],
                 'solicitante'      => ['label' => 'Solicitante', 'sql' => 'ch.solicitante', 'tipo' => 'texto'],
@@ -795,6 +803,40 @@ function montarRelatorioPersonalizado(string $origemChave, array $colunasChaves,
         'colunas' => $colunasValidas,
         'origem_def' => $origemDef,
     ];
+}
+
+/**
+ * Quantos registros existem pra cada opção de um campo 'select' ou
+ * 'booleano' de uma origem do Construtor de Relatório — usado no bloco
+ * fixo do campo principal (campo_principal, em origensRelatorioPersonalizado())
+ * pra mostrar, do lado de cada opção, quantos registros já existem com
+ * aquele valor (0 quando ainda não tem nenhum).
+ *
+ * @return array<string, int> Opção (texto) => quantidade.
+ */
+function contagensPorOpcaoRelatorioPersonalizado(string $origemChave, string $campo): array
+{
+    $origens = origensRelatorioPersonalizado();
+    if (!isset($origens[$origemChave]['colunas'][$campo])) {
+        return [];
+    }
+    $origemDef = $origens[$origemChave];
+    $colDef = $origemDef['colunas'][$campo];
+
+    $linhas = db()->query(
+        'SELECT ' . $colDef['sql'] . ' AS valor, COUNT(*) AS total FROM ' . $origemDef['from']
+        . ' GROUP BY ' . $colDef['sql']
+    )->fetchAll();
+
+    $contagens = [];
+    foreach ($linhas as $linha) {
+        $chave = $colDef['tipo'] === 'booleano'
+            ? ((int) $linha['valor'] === 1 ? 'Sim' : 'Não')
+            : (string) $linha['valor'];
+        $contagens[$chave] = (int) $linha['total'];
+    }
+
+    return $contagens;
 }
 
 /**

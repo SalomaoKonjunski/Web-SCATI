@@ -96,6 +96,26 @@ if (!is_array($colunasSelecionadas)) {
 }
 $origemDefAtual = $origens[$origemAtual];
 
+// Separa o filtro do campo principal (ver campo_principal em
+// origensRelatorioPersonalizado()) dos demais — ele tem seu próprio bloco
+// fixo logo abaixo de "Colunas", então não entra na lista do passo 3
+// "Filtros" pra não aparecer duplicado. $filtrosAtuais continua com TODOS
+// os filtros (incluindo o do campo principal) pra gerar o relatório, o
+// CSV e o favorito salvo normalmente.
+$campoPrincipalAtual = $origemDefAtual['campo_principal'] ?? null;
+$valoresCampoPrincipal = [];
+$filtrosSecundarios = [];
+foreach ($filtrosAtuais as $filtro) {
+    if ($campoPrincipalAtual !== null && $filtro['campo'] === $campoPrincipalAtual) {
+        $valoresCampoPrincipal = array_values(array_filter(array_map('trim', explode(',', (string) $filtro['valor'])), fn ($v) => $v !== ''));
+        continue;
+    }
+    $filtrosSecundarios[] = $filtro;
+}
+$contagensCampoPrincipal = $campoPrincipalAtual !== null
+    ? contagensPorOpcaoRelatorioPersonalizado($origemAtual, $campoPrincipalAtual)
+    : [];
+
 // Gera o relatório assim que houver origem + ao menos 1 coluna válidas.
 $gerado = false;
 $linhas = [];
@@ -114,10 +134,15 @@ if (!empty($colunasSelecionadas)) {
 /**
  * Renderiza uma linha do bloco de filtros (passo 3). Usada tanto para os
  * filtros já configurados (na primeira carga da página) quanto para a
- * <template> clonada via JS ao clicar em "Adicionar filtro".
+ * <template> clonada via JS ao clicar em "Adicionar filtro". O campo
+ * principal da origem (ver campo_principal em origensRelatorioPersonalizado())
+ * não aparece como opção aqui — ele já tem seu próprio bloco fixo logo
+ * abaixo de "Colunas" (renderBlocoCampoPrincipal()), então oferecê-lo de
+ * novo aqui só duplicaria o mesmo filtro.
  */
 function renderFiltroLinha(array $origemDef, array $operadoresPorTipo, string $campo, string $operador, string $valor): void
 {
+    $campoPrincipal = $origemDef['campo_principal'] ?? null;
     $def = $origemDef['colunas'][$campo] ?? null;
     // Campos com um conjunto fechado de valores (tipo, status, categoria,
     // prioridade...) mostram todas as opções já visíveis como checkbox, sem
@@ -146,6 +171,7 @@ function renderFiltroLinha(array $origemDef, array $operadoresPorTipo, string $c
         <select class="form-select form-select-sm filtro-campo-select" name="filtro_campo[]" style="max-width: 200px;">
             <option value="">Selecione...</option>
             <?php foreach ($origemDef['colunas'] as $chaveCol => $defCol): ?>
+                <?php if ($chaveCol === $campoPrincipal) continue; ?>
                 <option value="<?= e($chaveCol) ?>" <?= $campo === $chaveCol ? 'selected' : '' ?>><?= e($defCol['label']) ?></option>
             <?php endforeach; ?>
         </select>
@@ -189,6 +215,51 @@ function renderFiltroLinha(array $origemDef, array $operadoresPorTipo, string $c
                    value="<?= e(implode(',', $valoresMarcados)) ?>" <?= $ehSelecao ? '' : 'disabled' ?>>
         </div>
         <button type="button" class="btn btn-sm btn-outline-danger btn-remover-filtro" title="Remover filtro"><i class="bi bi-trash"></i></button>
+    </div>
+    <?php
+}
+
+/**
+ * Renderiza o bloco fixo do campo principal da origem (ex.: "Tipo" em
+ * Equipamentos e Licenças, "Categoria" em Estoque, "Status" em Chamados —
+ * ver campo_principal em origensRelatorioPersonalizado()), logo abaixo de
+ * "Colunas". Mostra sempre todas as opções possíveis como checkbox, com a
+ * quantidade de registros já cadastrados com cada uma — já funciona como
+ * um filtro por conta própria (mesmo mecanismo de "está em qualquer uma
+ * das marcadas" do passo 3), sem precisar passar por "Adicionar filtro".
+ */
+function renderBlocoCampoPrincipal(array $origemDef, array $valoresMarcados, array $contagens): void
+{
+    $campoPrincipal = $origemDef['campo_principal'] ?? null;
+    $def = $campoPrincipal ? ($origemDef['colunas'][$campoPrincipal] ?? null) : null;
+    if (!$def) {
+        return;
+    }
+    ?>
+    <div class="card mb-3 filtro-principal-bloco">
+        <div class="card-header bg-white">
+            <strong><?= e($def['label']) ?></strong>
+        </div>
+        <div class="card-body">
+            <p class="text-muted small">Marque pra filtrar o relatório por <?= e(mb_strtolower($def['label'])) ?> — pode marcar mais de um. Deixe tudo desmarcado pra trazer qualquer um.</p>
+            <div class="d-flex flex-wrap gap-3">
+                <?php foreach ($def['opcoes'] as $indiceOpcao => $opcao): ?>
+                    <?php $qtd = $contagens[$opcao] ?? 0; ?>
+                    <div class="form-check">
+                        <input class="form-check-input filtro-valor-opcao" type="checkbox" value="<?= e($opcao) ?>"
+                               <?= in_array($opcao, $valoresMarcados, true) ? 'checked' : '' ?>
+                               id="filtroPrincipal_opt<?= (int) $indiceOpcao ?>">
+                        <label class="form-check-label" for="filtroPrincipal_opt<?= (int) $indiceOpcao ?>">
+                            <?= e($opcao) ?>
+                            <span class="text-muted small">(<?= $qtd > 0 ? $qtd : 'nenhum cadastrado' ?>)</span>
+                        </label>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+            <input type="hidden" name="filtro_campo[]" value="<?= e($campoPrincipal) ?>">
+            <input type="hidden" name="filtro_operador[]" value="igual">
+            <input type="hidden" class="filtro-valor-oculto" name="filtro_valor[]" value="<?= e(implode(',', $valoresMarcados)) ?>">
+        </div>
     </div>
     <?php
 }
@@ -355,6 +426,8 @@ include __DIR__ . '/../../includes/header.php';
         </div>
     </div>
 
+    <?php renderBlocoCampoPrincipal($origemDefAtual, $valoresCampoPrincipal, $contagensCampoPrincipal); ?>
+
     <!-- Passo 3: Filtros -->
     <div class="card mb-3">
         <div class="card-header bg-white">
@@ -364,7 +437,7 @@ include __DIR__ . '/../../includes/header.php';
             <p class="text-muted small">Opcional. Combine quantos filtros quiser — todos precisam ser verdadeiros ao mesmo tempo (E).</p>
 
             <div id="filtrosContainer">
-                <?php foreach ($filtrosAtuais as $filtro): ?>
+                <?php foreach ($filtrosSecundarios as $filtro): ?>
                     <?php renderFiltroLinha($origemDefAtual, $operadoresPorTipo, (string) $filtro['campo'], (string) $filtro['operador'], (string) $filtro['valor']); ?>
                 <?php endforeach; ?>
             </div>
