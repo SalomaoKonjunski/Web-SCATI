@@ -118,65 +118,93 @@ document.addEventListener('DOMContentLoaded', function () {
             const campoSelect = linha.querySelector('.filtro-campo-select');
             const operadorSelect = linha.querySelector('.filtro-operador-select');
             const valorInput = linha.querySelector('.filtro-valor-input');
-            const valorSelect = linha.querySelector('.filtro-valor-select');
+            const opcoesWrap = linha.querySelector('.filtro-valor-opcoes');
+            const valorOculto = linha.querySelector('.filtro-valor-oculto');
             const datalist = linha.querySelector('datalist');
             const def = colunasOrigem[campoSelect.value];
 
             operadorSelect.innerHTML = '';
             valorInput.value = '';
             datalist.innerHTML = '';
-            valorSelect.innerHTML = '<option value="">Selecione...</option>';
+            opcoesWrap.querySelectorAll('.form-check').forEach(function (el) { el.remove(); });
+            valorOculto.value = '';
+
+            const ehSelecao = !!def && (def.tipo === 'select' || def.tipo === 'booleano');
 
             if (!def) {
                 valorInput.disabled = false;
-                valorSelect.disabled = true;
+                operadorSelect.disabled = false;
+                operadorSelect.style.display = '';
+                valorOculto.disabled = true;
                 toggleValorInput(linha);
                 return;
             }
 
-            const operadores = operadoresPorTipo[def.tipo] || {};
-            Object.keys(operadores).forEach(function (chaveOp) {
-                const opcao = document.createElement('option');
-                opcao.value = chaveOp;
-                opcao.textContent = operadores[chaveOp];
-                operadorSelect.appendChild(opcao);
-            });
-
-            // Mesma regra do PHP (renderFiltroLinha, em construtor.php): campo
-            // com conjunto fechado de valores usa o <select> de valor; os
-            // demais usam o <input> de texto/número/data com sugestões no
-            // datalist. O elemento desativado não é enviado no formulário.
-            const ehSelecao = def.tipo === 'select' || def.tipo === 'booleano';
-            valorInput.type = tipoParaInputHtml(def.tipo);
-            valorInput.disabled = ehSelecao;
-            valorSelect.disabled = !ehSelecao;
-
-            if (ehSelecao && def.opcoes) {
-                def.opcoes.forEach(function (valorOpcao) {
+            if (!ehSelecao) {
+                const operadores = operadoresPorTipo[def.tipo] || {};
+                Object.keys(operadores).forEach(function (chaveOp) {
                     const opcao = document.createElement('option');
-                    opcao.value = valorOpcao;
-                    opcao.textContent = valorOpcao;
-                    valorSelect.appendChild(opcao);
+                    opcao.value = chaveOp;
+                    opcao.textContent = operadores[chaveOp];
+                    operadorSelect.appendChild(opcao);
                 });
+                valorInput.type = tipoParaInputHtml(def.tipo);
+                if (def.opcoes) {
+                    def.opcoes.forEach(function (valorOpcao) {
+                        const opcao = document.createElement('option');
+                        opcao.value = valorOpcao;
+                        datalist.appendChild(opcao);
+                    });
+                }
             } else if (def.opcoes) {
-                def.opcoes.forEach(function (valorOpcao) {
-                    const opcao = document.createElement('option');
-                    opcao.value = valorOpcao;
-                    datalist.appendChild(opcao);
+                // Mesma regra do PHP (renderFiltroLinha, em construtor.php):
+                // campo com conjunto fechado de valores mostra todas as
+                // opções como checkbox (pode marcar mais de uma), sem
+                // operador — os demais continuam com o <input> de
+                // texto/número/data e o seletor de operador normal.
+                def.opcoes.forEach(function (valorOpcao, indice) {
+                    proximoIdDatalist++;
+                    const id = 'filtroOpcaoNova_' + proximoIdDatalist + '_' + indice;
+                    const wrap = document.createElement('div');
+                    wrap.className = 'form-check form-check-inline m-0';
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.className = 'form-check-input filtro-valor-opcao';
+                    checkbox.value = valorOpcao;
+                    checkbox.id = id;
+                    const label = document.createElement('label');
+                    label.className = 'form-check-label small';
+                    label.setAttribute('for', id);
+                    label.textContent = valorOpcao;
+                    wrap.appendChild(checkbox);
+                    wrap.appendChild(label);
+                    opcoesWrap.insertBefore(wrap, valorOculto);
                 });
             }
 
+            operadorSelect.style.display = ehSelecao ? 'none' : '';
+            operadorSelect.disabled = ehSelecao;
+            valorInput.disabled = ehSelecao;
+            valorOculto.disabled = !ehSelecao;
+
             toggleValorInput(linha);
+        }
+
+        function atualizarValorOculto(linha) {
+            const valorOculto = linha.querySelector('.filtro-valor-oculto');
+            const marcados = linha.querySelectorAll('.filtro-valor-opcao:checked');
+            valorOculto.value = Array.from(marcados).map(function (cb) { return cb.value; }).join(',');
         }
 
         function toggleValorInput(linha) {
             const operadorSelect = linha.querySelector('.filtro-operador-select');
             const valorInput = linha.querySelector('.filtro-valor-input');
-            const valorSelect = linha.querySelector('.filtro-valor-select');
-            const semValor = operadorSelect.value === 'vazio' || operadorSelect.value === 'nao_vazio';
-            const ehSelecao = !valorSelect.disabled;
+            const opcoesWrap = linha.querySelector('.filtro-valor-opcoes');
+            const valorOculto = linha.querySelector('.filtro-valor-oculto');
+            const ehSelecao = !valorOculto.disabled;
+            const semValor = !ehSelecao && (operadorSelect.value === 'vazio' || operadorSelect.value === 'nao_vazio');
             valorInput.style.display = (semValor || ehSelecao) ? 'none' : '';
-            valorSelect.style.display = (semValor || !ehSelecao) ? 'none' : '';
+            opcoesWrap.style.display = ehSelecao ? '' : 'none';
         }
 
         function novaLinhaFiltro() {
@@ -214,6 +242,9 @@ document.addEventListener('DOMContentLoaded', function () {
             }
             if (e.target.classList.contains('filtro-operador-select')) {
                 toggleValorInput(e.target.closest('.filtro-linha'));
+            }
+            if (e.target.classList.contains('filtro-valor-opcao')) {
+                atualizarValorOculto(e.target.closest('.filtro-linha'));
             }
         });
     }

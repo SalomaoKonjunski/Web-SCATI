@@ -120,9 +120,11 @@ function renderFiltroLinha(array $origemDef, array $operadoresPorTipo, string $c
 {
     $def = $origemDef['colunas'][$campo] ?? null;
     // Campos com um conjunto fechado de valores (tipo, status, categoria,
-    // prioridade...) usam um dropdown de verdade no valor do filtro, com as
-    // mesmas opções do cadastro — em vez de um campo de texto livre, que
-    // deixava digitar qualquer coisa (inclusive um valor que não existe).
+    // prioridade...) mostram todas as opções já visíveis como checkbox, sem
+    // precisar escolher um operador antes — marcar uma ou mais opções já
+    // significa "está em qualquer uma destas" (um OU entre as marcadas).
+    // Os demais campos (texto, número, data...) continuam com o seletor de
+    // operador normal (contém, é igual a, está vazio...) e um valor livre.
     $ehSelecao = $def && in_array($def['tipo'], ['select', 'booleano'], true);
     $tipoHtml = 'text';
     if ($def && !$ehSelecao) {
@@ -132,51 +134,60 @@ function renderFiltroLinha(array $origemDef, array $operadoresPorTipo, string $c
             default => 'text',
         };
     }
-    $semValor = in_array($operador, ['vazio', 'nao_vazio'], true);
+    $semValor = !$ehSelecao && in_array($operador, ['vazio', 'nao_vazio'], true);
     static $contador = 0;
     $contador++;
-    $datalistId = 'filtroDatalist_' . $contador;
+    $linhaId = 'filtroLinha_' . $contador;
+    $valoresMarcados = $ehSelecao
+        ? array_values(array_filter(array_map('trim', explode(',', $valor)), fn ($v) => $v !== ''))
+        : [];
     ?>
-    <div class="filtro-linha d-flex gap-2 align-items-center mb-2">
+    <div class="filtro-linha d-flex flex-wrap gap-2 align-items-center mb-2">
         <select class="form-select form-select-sm filtro-campo-select" name="filtro_campo[]" style="max-width: 200px;">
             <option value="">Selecione...</option>
             <?php foreach ($origemDef['colunas'] as $chaveCol => $defCol): ?>
                 <option value="<?= e($chaveCol) ?>" <?= $campo === $chaveCol ? 'selected' : '' ?>><?= e($defCol['label']) ?></option>
             <?php endforeach; ?>
         </select>
-        <select class="form-select form-select-sm filtro-operador-select" name="filtro_operador[]" style="max-width: 170px;">
-            <?php if ($def): ?>
+        <select class="form-select form-select-sm filtro-operador-select" name="filtro_operador[]"
+                style="max-width: 170px; <?= $ehSelecao ? 'display:none;' : '' ?>" <?= $ehSelecao ? 'disabled' : '' ?>>
+            <?php if ($def && !$ehSelecao): ?>
                 <?php foreach ($operadoresPorTipo[$def['tipo']] as $chaveOp => $labelOp): ?>
                     <option value="<?= e($chaveOp) ?>" <?= $operador === $chaveOp ? 'selected' : '' ?>><?= e($labelOp) ?></option>
                 <?php endforeach; ?>
             <?php endif; ?>
         </select>
         <?php
-            // Só um dos dois (input ou select) fica habilitado por vez —
-            // o desabilitado não é enviado no envio do formulário (GET/POST),
-            // então nunca sobra um "filtro_valor[]" duplicado pra esta linha.
+            // Só um dos dois (input de texto ou grupo de checkboxes) fica
+            // habilitado por vez — o desabilitado não é enviado no envio do
+            // formulário (GET/POST), então nunca sobra um "filtro_valor[]"
+            // duplicado pra esta linha.
             $estiloInput = ($ehSelecao || $semValor) ? 'display:none;' : '';
-            $estiloSelect = (!$ehSelecao || $semValor) ? 'display:none;' : '';
         ?>
         <input type="<?= e($tipoHtml) ?>" class="form-control form-control-sm filtro-valor-input" name="filtro_valor[]"
-               value="<?= e($valor) ?>" list="<?= e($datalistId) ?>"
+               value="<?= e($valor) ?>" list="<?= e($linhaId) ?>_datalist"
                style="max-width: 200px; <?= $estiloInput ?>" <?= $ehSelecao ? 'disabled' : '' ?>>
-        <datalist id="<?= e($datalistId) ?>">
+        <datalist id="<?= e($linhaId) ?>_datalist">
             <?php if ($def && !$ehSelecao && !empty($def['opcoes'])): ?>
                 <?php foreach ($def['opcoes'] as $opcao): ?>
                     <option value="<?= e($opcao) ?>">
                 <?php endforeach; ?>
             <?php endif; ?>
         </datalist>
-        <select class="form-select form-select-sm filtro-valor-select" name="filtro_valor[]"
-                style="max-width: 200px; <?= $estiloSelect ?>" <?= $ehSelecao ? '' : 'disabled' ?>>
-            <option value="">Selecione...</option>
+        <div class="filtro-valor-opcoes d-flex flex-wrap gap-2" style="<?= $ehSelecao ? '' : 'display:none;' ?>">
             <?php if ($ehSelecao): ?>
-                <?php foreach ($def['opcoes'] as $opcao): ?>
-                    <option value="<?= e($opcao) ?>" <?= $valor === $opcao ? 'selected' : '' ?>><?= e($opcao) ?></option>
+                <?php foreach ($def['opcoes'] as $indiceOpcao => $opcao): ?>
+                    <div class="form-check form-check-inline m-0">
+                        <input class="form-check-input filtro-valor-opcao" type="checkbox" value="<?= e($opcao) ?>"
+                               <?= in_array($opcao, $valoresMarcados, true) ? 'checked' : '' ?>
+                               id="<?= e($linhaId) ?>_opt<?= (int) $indiceOpcao ?>">
+                        <label class="form-check-label small" for="<?= e($linhaId) ?>_opt<?= (int) $indiceOpcao ?>"><?= e($opcao) ?></label>
+                    </div>
                 <?php endforeach; ?>
             <?php endif; ?>
-        </select>
+            <input type="hidden" class="filtro-valor-oculto" name="filtro_valor[]"
+                   value="<?= e(implode(',', $valoresMarcados)) ?>" <?= $ehSelecao ? '' : 'disabled' ?>>
+        </div>
         <button type="button" class="btn btn-sm btn-outline-danger btn-remover-filtro" title="Remover filtro"><i class="bi bi-trash"></i></button>
     </div>
     <?php
@@ -225,12 +236,22 @@ include __DIR__ . '/../../includes/header.php';
                         if (!$defCampo) {
                             continue;
                         }
-                        $labelOperador = $operadoresPorTipo[$defCampo['tipo']][$filtro['operador']] ?? $filtro['operador'];
-                        $semValorBadge = in_array($filtro['operador'], ['vazio', 'nao_vazio'], true);
+                        // Campo de opções fixas: "Tipo: Computador, Notebook"
+                        // (uma ou mais opções marcadas, sem operador). Os
+                        // demais: "Nome contém abc" / "Valor Atual maior que 100".
+                        if (in_array($defCampo['tipo'], ['select', 'booleano'], true)) {
+                            $valoresBadge = array_filter(array_map('trim', explode(',', (string) $filtro['valor'])), fn ($v) => $v !== '');
+                            if (empty($valoresBadge)) {
+                                continue;
+                            }
+                            $textoBadge = e($defCampo['label']) . ': ' . e(implode(', ', $valoresBadge));
+                        } else {
+                            $labelOperador = $operadoresPorTipo[$defCampo['tipo']][$filtro['operador']] ?? $filtro['operador'];
+                            $semValorBadge = in_array($filtro['operador'], ['vazio', 'nao_vazio'], true);
+                            $textoBadge = e($defCampo['label']) . ' ' . e($labelOperador) . ($semValorBadge ? '' : ' ' . e((string) $filtro['valor']));
+                        }
                     ?>
-                    <span class="badge bg-light text-dark border">
-                        <?= e($defCampo['label']) ?> <?= e($labelOperador) ?><?= $semValorBadge ? '' : ' ' . e((string) $filtro['valor']) ?>
-                    </span>
+                    <span class="badge bg-light text-dark border"><?= $textoBadge ?></span>
                 <?php endforeach; ?>
             </div>
         </div>

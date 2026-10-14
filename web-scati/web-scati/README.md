@@ -738,15 +738,17 @@ web-scati/
   - **Construtor de Relatório**: além dos relatórios fixos acima, uma tela
     de relatório configurável — escolha a **origem dos dados**
     (Equipamentos, Estoque, Licenças ou Chamados), quais **colunas**
-    aparecem e quantos **filtros** quiser (campo + operador + valor,
-    combinados sempre com E — ex.: Status é igual a "Em uso" **e** Tipo é
-    igual a "Computador"). No valor do filtro, um campo com um conjunto
+    aparecem e quantos **filtros** quiser, combinados sempre com E (ex.:
+    Status "Em uso" **e** Tipo "Computador"). Um campo com um conjunto
     fechado de opções (Tipo e Status de Equipamentos, Categoria de Estoque,
-    Tipo de Licença, Prioridade e Status de Chamados) aparece como um
-    **dropdown** com as opções cadastradas no sistema — não dá pra digitar
-    um valor que não existe; os demais campos (nome, marca, observações...)
-    continuam como texto livre, com sugestões de autocompletar pelos
-    valores já usados. Na origem **Equipamentos**, as colunas incluem
+    Tipo de Licença, Prioridade e Status de Chamados) mostra **todas as
+    opções já visíveis como checkbox**, sem precisar escolher um operador
+    antes — pode marcar quantas quiser (ex.: Tipo "Computador" **ou**
+    "Notebook" no mesmo filtro, funcionando como OU entre as marcadas). Os
+    demais campos (nome, marca, observações...) continuam com o seletor de
+    operador tradicional (contém, é igual a, maior que, está vazio...) e um
+    valor digitado livremente, com sugestões de autocompletar pelos valores
+    já usados. Na origem **Equipamentos**, as colunas incluem
     também as configurações de **Hardware** do cadastro (Processador,
     Memória RAM, Armazenamento, Sistema Operacional, Placa Mãe e Placa de
     Vídeo) — para equipamentos de um tipo sem o grupo Hardware habilitado

@@ -706,6 +706,31 @@ function montarRelatorioPersonalizado(string $origemChave, array $colunasChaves,
             continue;
         }
         $colDef = $origemDef['colunas'][$campo];
+
+        // Campos de opções fixas (Tipo, Status, Categoria...) não passam
+        // por operador: o valor chega como uma lista separada por vírgula
+        // das opções marcadas no Construtor (ver renderFiltroLinha(), em
+        // construtor.php), e o filtro sempre significa "está em qualquer
+        // uma destas" — um IN(...) com as opções marcadas.
+        if (in_array($colDef['tipo'], ['select', 'booleano'], true)) {
+            $valoresMarcados = array_values(array_filter(array_map('trim', explode(',', $valor)), fn ($v) => $v !== ''));
+            if (empty($valoresMarcados)) {
+                continue;
+            }
+            if ($colDef['tipo'] === 'booleano') {
+                $valoresMarcados = array_map(fn ($v) => $v === 'Sim' ? 1 : 0, $valoresMarcados);
+            }
+            $marcadores = [];
+            foreach ($valoresMarcados as $valorMarcado) {
+                $indice++;
+                $paramKey = 'f' . $indice;
+                $marcadores[] = ":$paramKey";
+                $params[$paramKey] = $valorMarcado;
+            }
+            $condicoes[] = $colDef['sql'] . ' IN (' . implode(', ', $marcadores) . ')';
+            continue;
+        }
+
         $operadoresValidos = $operadoresPorTipo[$colDef['tipo']] ?? [];
         if (!isset($operadoresValidos[$operador])) {
             continue;
@@ -719,36 +744,35 @@ function montarRelatorioPersonalizado(string $origemChave, array $colunasChaves,
         // Comparações de data/hora usam DATE() para "a partir de"/"até"
         // funcionarem pelo dia inteiro, mesmo em colunas DATETIME.
         $sqlCol = $colDef['tipo'] === 'datahora' ? 'DATE(' . $colDef['sql'] . ')' : $colDef['sql'];
-        $valorFinal = $colDef['tipo'] === 'booleano' ? ($valor === 'Sim' ? 1 : 0) : $valor;
 
         switch ($operador) {
             case 'contem':
                 $condicoes[] = "$sqlCol LIKE :$paramKey";
-                $params[$paramKey] = '%' . $valorFinal . '%';
+                $params[$paramKey] = '%' . $valor . '%';
                 break;
             case 'igual':
                 $condicoes[] = "$sqlCol = :$paramKey";
-                $params[$paramKey] = $valorFinal;
+                $params[$paramKey] = $valor;
                 break;
             case 'diferente':
                 $condicoes[] = "$sqlCol <> :$paramKey";
-                $params[$paramKey] = $valorFinal;
+                $params[$paramKey] = $valor;
                 break;
             case 'maior':
                 $condicoes[] = "$sqlCol > :$paramKey";
-                $params[$paramKey] = $valorFinal;
+                $params[$paramKey] = $valor;
                 break;
             case 'menor':
                 $condicoes[] = "$sqlCol < :$paramKey";
-                $params[$paramKey] = $valorFinal;
+                $params[$paramKey] = $valor;
                 break;
             case 'a_partir':
                 $condicoes[] = "$sqlCol >= :$paramKey";
-                $params[$paramKey] = $valorFinal;
+                $params[$paramKey] = $valor;
                 break;
             case 'ate':
                 $condicoes[] = "$sqlCol <= :$paramKey";
-                $params[$paramKey] = $valorFinal;
+                $params[$paramKey] = $valor;
                 break;
             case 'vazio':
                 $condicoes[] = "($sqlCol IS NULL OR $sqlCol = '')";
