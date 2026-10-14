@@ -502,6 +502,16 @@ function statusChamado(): array
 }
 
 /**
+ * Nomes das categorias de Estoque cadastradas (Configurações > Categorias
+ * de Estoque), usados como opções do filtro "Categoria" no Construtor de
+ * Relatório (origem Estoque).
+ */
+function categoriasEstoqueNomes(): array
+{
+    return db()->query('SELECT nome FROM categorias_estoque ORDER BY nome ASC')->fetchAll(PDO::FETCH_COLUMN);
+}
+
+/**
  * Whitelist única de origens de dados e colunas disponíveis no Construtor
  * de Relatório (Relatórios > Construtor de Relatório). Cada origem define
  * a tabela/junção ("from") e a ordenação padrão em SQL fixo (nunca vindo
@@ -564,7 +574,7 @@ function origensRelatorioPersonalizado(): array
             'ordem_padrao' => 'es.nome',
             'colunas' => [
                 'nome'              => ['label' => 'Nome', 'sql' => 'es.nome', 'tipo' => 'texto'],
-                'categoria_nome'    => ['label' => 'Categoria', 'sql' => 'c.nome', 'tipo' => 'texto'],
+                'categoria_nome'    => ['label' => 'Categoria', 'sql' => 'c.nome', 'tipo' => 'select', 'opcoes' => categoriasEstoqueNomes()],
                 'marca'             => ['label' => 'Marca', 'sql' => 'es.marca', 'tipo' => 'texto'],
                 'modelo'            => ['label' => 'Modelo', 'sql' => 'es.modelo', 'tipo' => 'texto'],
                 'quantidade'        => ['label' => 'Quantidade', 'sql' => 'es.quantidade', 'tipo' => 'numero'],

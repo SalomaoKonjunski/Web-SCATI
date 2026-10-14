@@ -119,8 +119,13 @@ if (!empty($colunasSelecionadas)) {
 function renderFiltroLinha(array $origemDef, array $operadoresPorTipo, string $campo, string $operador, string $valor): void
 {
     $def = $origemDef['colunas'][$campo] ?? null;
+    // Campos com um conjunto fechado de valores (tipo, status, categoria,
+    // prioridade...) usam um dropdown de verdade no valor do filtro, com as
+    // mesmas opções do cadastro — em vez de um campo de texto livre, que
+    // deixava digitar qualquer coisa (inclusive um valor que não existe).
+    $ehSelecao = $def && in_array($def['tipo'], ['select', 'booleano'], true);
     $tipoHtml = 'text';
-    if ($def) {
+    if ($def && !$ehSelecao) {
         $tipoHtml = match ($def['tipo']) {
             'numero', 'dinheiro' => 'number',
             'data', 'datahora' => 'date',
@@ -146,16 +151,32 @@ function renderFiltroLinha(array $origemDef, array $operadoresPorTipo, string $c
                 <?php endforeach; ?>
             <?php endif; ?>
         </select>
+        <?php
+            // Só um dos dois (input ou select) fica habilitado por vez —
+            // o desabilitado não é enviado no envio do formulário (GET/POST),
+            // então nunca sobra um "filtro_valor[]" duplicado pra esta linha.
+            $estiloInput = ($ehSelecao || $semValor) ? 'display:none;' : '';
+            $estiloSelect = (!$ehSelecao || $semValor) ? 'display:none;' : '';
+        ?>
         <input type="<?= e($tipoHtml) ?>" class="form-control form-control-sm filtro-valor-input" name="filtro_valor[]"
                value="<?= e($valor) ?>" list="<?= e($datalistId) ?>"
-               style="max-width: 200px; <?= $semValor ? 'display:none;' : '' ?>">
+               style="max-width: 200px; <?= $estiloInput ?>" <?= $ehSelecao ? 'disabled' : '' ?>>
         <datalist id="<?= e($datalistId) ?>">
-            <?php if ($def && !empty($def['opcoes'])): ?>
+            <?php if ($def && !$ehSelecao && !empty($def['opcoes'])): ?>
                 <?php foreach ($def['opcoes'] as $opcao): ?>
                     <option value="<?= e($opcao) ?>">
                 <?php endforeach; ?>
             <?php endif; ?>
         </datalist>
+        <select class="form-select form-select-sm filtro-valor-select" name="filtro_valor[]"
+                style="max-width: 200px; <?= $estiloSelect ?>" <?= $ehSelecao ? '' : 'disabled' ?>>
+            <option value="">Selecione...</option>
+            <?php if ($ehSelecao): ?>
+                <?php foreach ($def['opcoes'] as $opcao): ?>
+                    <option value="<?= e($opcao) ?>" <?= $valor === $opcao ? 'selected' : '' ?>><?= e($opcao) ?></option>
+                <?php endforeach; ?>
+            <?php endif; ?>
+        </select>
         <button type="button" class="btn btn-sm btn-outline-danger btn-remover-filtro" title="Remover filtro"><i class="bi bi-trash"></i></button>
     </div>
     <?php

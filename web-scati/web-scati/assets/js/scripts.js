@@ -118,14 +118,19 @@ document.addEventListener('DOMContentLoaded', function () {
             const campoSelect = linha.querySelector('.filtro-campo-select');
             const operadorSelect = linha.querySelector('.filtro-operador-select');
             const valorInput = linha.querySelector('.filtro-valor-input');
+            const valorSelect = linha.querySelector('.filtro-valor-select');
             const datalist = linha.querySelector('datalist');
             const def = colunasOrigem[campoSelect.value];
 
             operadorSelect.innerHTML = '';
             valorInput.value = '';
             datalist.innerHTML = '';
+            valorSelect.innerHTML = '<option value="">Selecione...</option>';
 
             if (!def) {
+                valorInput.disabled = false;
+                valorSelect.disabled = true;
+                toggleValorInput(linha);
                 return;
             }
 
@@ -137,9 +142,23 @@ document.addEventListener('DOMContentLoaded', function () {
                 operadorSelect.appendChild(opcao);
             });
 
+            // Mesma regra do PHP (renderFiltroLinha, em construtor.php): campo
+            // com conjunto fechado de valores usa o <select> de valor; os
+            // demais usam o <input> de texto/número/data com sugestões no
+            // datalist. O elemento desativado não é enviado no formulário.
+            const ehSelecao = def.tipo === 'select' || def.tipo === 'booleano';
             valorInput.type = tipoParaInputHtml(def.tipo);
+            valorInput.disabled = ehSelecao;
+            valorSelect.disabled = !ehSelecao;
 
-            if (def.opcoes) {
+            if (ehSelecao && def.opcoes) {
+                def.opcoes.forEach(function (valorOpcao) {
+                    const opcao = document.createElement('option');
+                    opcao.value = valorOpcao;
+                    opcao.textContent = valorOpcao;
+                    valorSelect.appendChild(opcao);
+                });
+            } else if (def.opcoes) {
                 def.opcoes.forEach(function (valorOpcao) {
                     const opcao = document.createElement('option');
                     opcao.value = valorOpcao;
@@ -153,8 +172,11 @@ document.addEventListener('DOMContentLoaded', function () {
         function toggleValorInput(linha) {
             const operadorSelect = linha.querySelector('.filtro-operador-select');
             const valorInput = linha.querySelector('.filtro-valor-input');
+            const valorSelect = linha.querySelector('.filtro-valor-select');
             const semValor = operadorSelect.value === 'vazio' || operadorSelect.value === 'nao_vazio';
-            valorInput.style.display = semValor ? 'none' : '';
+            const ehSelecao = !valorSelect.disabled;
+            valorInput.style.display = (semValor || ehSelecao) ? 'none' : '';
+            valorSelect.style.display = (semValor || !ehSelecao) ? 'none' : '';
         }
 
         function novaLinhaFiltro() {
