@@ -263,17 +263,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cadastrar_item_estoqu
         $mensagemCadastro = 'Item cadastrado no estoque e ';
     }
 
-    // Vincula automaticamente 1 unidade a este equipamento
-    $stmtDecr = $pdo->prepare('UPDATE estoque SET quantidade = quantidade - 1 WHERE id = :id AND quantidade > 0');
-    $stmtDecr->execute(['id' => $itemId]);
+    // Vincula automaticamente as $novaQuantidade unidades recém-cadastradas
+    // (ou reaproveitadas) a este equipamento — decremento atômico: só reduz
+    // o estoque geral se ainda houver unidades suficientes disponíveis.
+    $stmtDecr = $pdo->prepare('UPDATE estoque SET quantidade = quantidade - :qtd1 WHERE id = :id AND quantidade >= :qtd2');
+    $stmtDecr->execute(['qtd1' => $novaQuantidade, 'id' => $itemId, 'qtd2' => $novaQuantidade]);
 
     if ($stmtDecr->rowCount() > 0) {
-        $pdo->prepare('INSERT INTO itens_vinculados (estoque_id, equipamento_id) VALUES (:estoque_id, :equipamento_id)')
-            ->execute(['estoque_id' => $itemId, 'equipamento_id' => $id]);
-        registrarHistorico($id, 'Item', 'Item "' . $novoNome . '" ' . ($itemExistente ? 'reaproveitado do estoque' : 'cadastrado no estoque') . ' e vinculado a este equipamento');
-        flash('success', $mensagemCadastro . 'vinculado com sucesso.');
+        $stmtVincular = $pdo->prepare('INSERT INTO itens_vinculados (estoque_id, equipamento_id) VALUES (:estoque_id, :equipamento_id)');
+        for ($i = 0; $i < $novaQuantidade; $i++) {
+            $stmtVincular->execute(['estoque_id' => $itemId, 'equipamento_id' => $id]);
+        }
+        registrarHistorico($id, 'Item', 'Item "' . $novoNome . '" ' . ($itemExistente ? 'reaproveitado do estoque' : 'cadastrado no estoque') . ' — ' . $novaQuantidade . ' unidade(s) vinculada(s) a este equipamento');
+        flash('success', $mensagemCadastro . ($novaQuantidade > 1 ? $novaQuantidade . ' unidades vinculadas' : 'vinculado') . ' com sucesso.');
     } else {
-        flash('success', $mensagemCadastro . 'atualizado, mas não foi possível vinculá-lo automaticamente.');
+        flash('success', $mensagemCadastro . 'atualizado, mas não foi possível vincular as unidades automaticamente.');
     }
 
     redirect('/modules/equipamentos/view.php?id=' . $id . '#' . $destinoAba);
@@ -741,11 +745,11 @@ include __DIR__ . '/../../includes/header.php';
             <div class="collapse mt-3" id="novoItemEstoqueCollapse">
                 <div class="card card-body bg-light">
                     <p class="text-muted small mb-3">
-                        Cadastra um item de qualquer categoria do Estoque e já vincula 1 unidade a este equipamento,
-                        sem sair desta página. Se já existir um item com o mesmo nome, marca e modelo, a quantidade
-                        informada é somada ao item existente em vez de criar um cadastro duplicado. Marca ou modelo
-                        diferentes (ex.: outra marca de monitor) geram um novo registro, mantendo cada modelo
-                        rastreável separadamente.
+                        Cadastra um item de qualquer categoria do Estoque e já vincula toda a quantidade informada
+                        a este equipamento, sem sair desta página. Se já existir um item com o mesmo nome, marca e
+                        modelo, a quantidade informada é somada ao item existente em vez de criar um cadastro
+                        duplicado. Marca ou modelo diferentes (ex.: outra marca de monitor) geram um novo registro,
+                        mantendo cada modelo rastreável separadamente.
                     </p>
                     <form method="post" class="row g-2">
                         <input type="hidden" name="destino_aba" value="itens">

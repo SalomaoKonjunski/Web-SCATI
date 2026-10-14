@@ -652,12 +652,14 @@ web-scati/
   não é preciso sair da ficha do equipamento: o botão "Cadastrar e
   Vincular" abre o formulário de cadastro completo (com todos os campos
   do cadastro padrão de Estoque, inclusive Observações) direto na aba, e
-  ao confirmar o item já é criado e vinculado a este equipamento em uma
-  única ação. Se já existir um item com o mesmo nome (mesmo que
-  categoria, marca ou modelo sejam diferentes), nenhum cadastro
+  ao confirmar o item já é criado e **toda a quantidade informada** é
+  vinculada a este equipamento em uma única ação (ex.: quantidade = 2
+  cadastra o item e já vincula as 2 unidades a ele, não sobra nenhuma
+  solta no Estoque geral). Se já existir um item com o mesmo nome (mesmo
+  que categoria, marca ou modelo sejam diferentes), nenhum cadastro
   duplicado é criado — a quantidade informada é somada ao item já
-  existente, mantendo um único registro consolidado no Estoque, e 1
-  unidade desse registro é vinculada ao equipamento.
+  existente, mantendo um único registro consolidado no Estoque, e essa
+  mesma quantidade é vinculada ao equipamento.
 - **Toners e Tintas**: catálogo próprio, numa sub-aba dentro de
   **Impressoras** (`Impressoras > Toners e Tintas`) — não é mais um caso
   particular do Estoque genérico. Cada toner/tinta é cadastrado uma vez
