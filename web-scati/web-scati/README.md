@@ -764,11 +764,20 @@ web-scati/
     Memória RAM, Armazenamento, Sistema Operacional, Placa Mãe e Placa de
     Vídeo) — para equipamentos de um tipo sem o grupo Hardware habilitado
     (ex.: Monitor, Switch), essas colunas aparecem em branco na tabela, como
-    qualquer outro campo não preenchido. O relatório gerado pode ser exportado em
+    qualquer outro campo não preenchido. Os cabeçalhos da tabela de
+    **Resultado** são clicáveis para **ordenar** por qualquer coluna que
+    esteja no relatório (ex.: Localização, Tipo...) — clicar de novo
+    inverte a direção (crescente/decrescente), preservando origem, colunas
+    e filtros atuais; a ordenação escolhida vale também pro CSV exportado.
+    O relatório gerado pode ser exportado em
     **CSV** (com BOM UTF-8 e `;` como separador, pronto para abrir no
     Excel em pt-BR), impresso, ou **salvo como favorito** — fica
     disponível na barra lateral de Relatórios, em "Personalizado", pronto
-    para reabrir sem configurar tudo de novo. A consulta é montada com
+    para reabrir sem configurar tudo de novo. O botão **Imprimir** (e a
+    impressão/exportação em PDF pelo diálogo do navegador) mostra só a
+    tabela de **Resultado** e a contagem de registros — o cabeçalho da
+    página, o link de editar origem/colunas/filtros e os badges de
+    "Filtros aplicados" ficam ocultos na folha impressa. A consulta é montada com
     segurança: a origem e as colunas escolhidas pelo usuário só são
     usadas como chave de busca num whitelist fixo no código
     (`origensRelatorioPersonalizado()`, em `includes/functions.php`) —

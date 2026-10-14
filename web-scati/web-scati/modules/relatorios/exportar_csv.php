@@ -21,7 +21,10 @@ foreach ($camposGet as $i => $campo) {
     $filtros[] = ['campo' => $campo, 'operador' => $operadoresGet[$i] ?? '', 'valor' => $valoresGet[$i] ?? ''];
 }
 
-$consulta = montarRelatorioPersonalizado($origemChave, $colunasChaves, $filtros);
+$ordenarPor = isset($_GET['ordenar']) && $_GET['ordenar'] !== '' ? (string) $_GET['ordenar'] : null;
+$direcaoOrdenacao = (($_GET['direcao'] ?? 'asc') === 'desc') ? 'desc' : 'asc';
+
+$consulta = montarRelatorioPersonalizado($origemChave, $colunasChaves, $filtros, $ordenarPor, $direcaoOrdenacao);
 
 if ($consulta === null) {
     flash('danger', 'Selecione a origem e ao menos uma coluna antes de exportar.');

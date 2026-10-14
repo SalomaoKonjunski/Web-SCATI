@@ -676,8 +676,15 @@ function operadoresRelatorioPersonalizado(): array
  * coluna válida tiver sido informada.
  *
  * $filtros é uma lista de ['campo' => string, 'operador' => string, 'valor' => string].
+ *
+ * $ordenarPor, se informado, precisa ser uma das colunas efetivamente
+ * selecionadas (mesmo whitelist de $colunasChaves) — substitui a
+ * ordenação padrão da origem (ordem_padrao) por essa coluna; qualquer
+ * valor fora dessa lista é ignorado silenciosamente, caindo de volta pra
+ * ordem padrão. $direcao só aceita 'asc' ou 'desc' (qualquer outra coisa
+ * vira 'asc').
  */
-function montarRelatorioPersonalizado(string $origemChave, array $colunasChaves, array $filtros): ?array
+function montarRelatorioPersonalizado(string $origemChave, array $colunasChaves, array $filtros, ?string $ordenarPor = null, string $direcao = 'asc'): ?array
 {
     $origens = origensRelatorioPersonalizado();
     if (!isset($origens[$origemChave])) {
@@ -802,7 +809,12 @@ function montarRelatorioPersonalizado(string $origemChave, array $colunasChaves,
     if (!empty($condicoes)) {
         $sql .= ' WHERE ' . implode(' AND ', $condicoes);
     }
-    $sql .= ' ORDER BY ' . $origemDef['ordem_padrao'];
+
+    $ordem = $origemDef['ordem_padrao'];
+    if ($ordenarPor !== null && isset($colunasValidas[$ordenarPor])) {
+        $ordem = $colunasValidas[$ordenarPor]['sql'] . ' ' . (strtolower($direcao) === 'desc' ? 'DESC' : 'ASC');
+    }
+    $sql .= ' ORDER BY ' . $ordem;
 
     return [
         'sql' => $sql,

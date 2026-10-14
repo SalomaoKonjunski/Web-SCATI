@@ -137,12 +137,20 @@ foreach ($filtrosAtuais as $filtro) {
 }
 $contagensCampoPrincipal = $campoPrincipalAtual !== null ? ($opcoesPorCampo[$campoPrincipalAtual]['contagens'] ?? []) : [];
 
+// Ordenação do resultado: clicando num cabeçalho da tabela (ver
+// linkOrdenacaoRelatorio()/iconeOrdenacaoRelatorio() abaixo) — se não vier
+// nada na URL, cai na ordem padrão da origem (ordem_padrao). Só aceita
+// ordenar por uma coluna que esteja de fato no relatório (validado dentro
+// de montarRelatorioPersonalizado(), contra o mesmo whitelist de sempre).
+$ordenarPor = isset($_GET['ordenar']) && $_GET['ordenar'] !== '' ? (string) $_GET['ordenar'] : null;
+$direcaoOrdenacao = (($_GET['direcao'] ?? 'asc') === 'desc') ? 'desc' : 'asc';
+
 // Gera o relatório assim que houver origem + ao menos 1 coluna válidas.
 $gerado = false;
 $linhas = [];
 $colunasResultado = [];
 if (!empty($colunasSelecionadas)) {
-    $consulta = montarRelatorioPersonalizado($origemAtual, $colunasSelecionadas, $filtrosAtuais);
+    $consulta = montarRelatorioPersonalizado($origemAtual, $colunasSelecionadas, $filtrosAtuais, $ordenarPor, $direcaoOrdenacao);
     if ($consulta !== null) {
         $stmt = $pdo->prepare($consulta['sql']);
         $stmt->execute($consulta['params']);
@@ -150,6 +158,29 @@ if (!empty($colunasSelecionadas)) {
         $colunasResultado = $consulta['colunas'];
         $gerado = true;
     }
+}
+
+/**
+ * Monta o link de ordenação de um cabeçalho da tabela de resultado,
+ * preservando origem/colunas/filtros atuais e alternando asc/desc quando a
+ * coluna clicada já é a ordenação ativa — mesmo padrão já usado na
+ * listagem de Equipamentos (linkOrdenacao(), em modules/equipamentos/index.php).
+ */
+function linkOrdenacaoRelatorio(string $coluna, ?string $ordenarPor, string $direcao): string
+{
+    $novaDirecao = ($ordenarPor === $coluna && $direcao === 'asc') ? 'desc' : 'asc';
+    $query = $_GET;
+    $query['ordenar'] = $coluna;
+    $query['direcao'] = $novaDirecao;
+    return '?' . http_build_query($query);
+}
+
+function iconeOrdenacaoRelatorio(string $coluna, ?string $ordenarPor, string $direcao): string
+{
+    if ($ordenarPor !== $coluna) {
+        return '';
+    }
+    return $direcao === 'asc' ? ' <i class="bi bi-sort-up"></i>' : ' <i class="bi bi-sort-down"></i>';
 }
 
 /**
@@ -301,7 +332,7 @@ function renderBlocoCampoPrincipal(array $origemDef, array $valoresMarcados, arr
 include __DIR__ . '/../../includes/header.php';
 ?>
 
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="d-flex justify-content-between align-items-center mb-4 d-print-none">
     <div>
         <h1 class="h3 mb-0"><i class="bi bi-magic me-2"></i>Construtor de Relatório</h1>
         <a href="index.php" class="small"><i class="bi bi-arrow-left"></i> Voltar para Relatórios</a>
@@ -315,7 +346,7 @@ include __DIR__ . '/../../includes/header.php';
 <?php endif; ?>
 
 <?php if ($gerado): ?>
-    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2 d-print-none">
         <div>
             <strong><?= e($origemDefAtual['label']) ?></strong>
             <?php if ($favoritoAtual): ?>
@@ -323,8 +354,16 @@ include __DIR__ . '/../../includes/header.php';
             <?php endif; ?>
             <div><a href="#construtorForm" class="small"><i class="bi bi-pencil"></i> Editar origem, colunas ou filtros</a></div>
         </div>
-        <div class="d-flex gap-2 d-print-none">
-            <a class="btn btn-sm btn-outline-secondary" href="exportar_csv.php?<?= e(http_build_query(['origem' => $origemAtual, 'colunas' => $colunasSelecionadas, 'filtro_campo' => array_column($filtrosAtuais, 'campo'), 'filtro_operador' => array_column($filtrosAtuais, 'operador'), 'filtro_valor' => array_column($filtrosAtuais, 'valor')])) ?>">
+        <div class="d-flex gap-2">
+            <a class="btn btn-sm btn-outline-secondary" href="exportar_csv.php?<?= e(http_build_query(array_filter([
+                'origem' => $origemAtual,
+                'colunas' => $colunasSelecionadas,
+                'filtro_campo' => array_column($filtrosAtuais, 'campo'),
+                'filtro_operador' => array_column($filtrosAtuais, 'operador'),
+                'filtro_valor' => array_column($filtrosAtuais, 'valor'),
+                'ordenar' => $ordenarPor,
+                'direcao' => $ordenarPor !== null ? $direcaoOrdenacao : null,
+            ]))) ?>">
                 <i class="bi bi-filetype-csv"></i> Exportar CSV
             </a>
             <button class="btn btn-sm btn-outline-secondary" onclick="window.print()"><i class="bi bi-printer"></i> Imprimir</button>
@@ -332,7 +371,7 @@ include __DIR__ . '/../../includes/header.php';
     </div>
 
     <?php if (!empty($filtrosAtuais)): ?>
-        <div class="card mb-3">
+        <div class="card mb-3 d-print-none">
             <div class="card-body py-2 d-flex flex-wrap gap-2 align-items-center">
                 <span class="text-muted small me-1">Filtros aplicados:</span>
                 <?php foreach ($filtrosAtuais as $filtro): ?>
@@ -370,7 +409,15 @@ include __DIR__ . '/../../includes/header.php';
         <div class="table-responsive">
             <table class="table table-sm table-hover mb-0">
                 <thead class="table-light">
-                    <tr><?php foreach ($colunasResultado as $def): ?><th><?= e($def['label']) ?></th><?php endforeach; ?></tr>
+                    <tr>
+                        <?php foreach ($colunasResultado as $chave => $def): ?>
+                            <th>
+                                <a class="text-dark text-decoration-none" href="<?= e(linkOrdenacaoRelatorio($chave, $ordenarPor, $direcaoOrdenacao)) ?>">
+                                    <?= e($def['label']) ?><?= iconeOrdenacaoRelatorio($chave, $ordenarPor, $direcaoOrdenacao) ?>
+                                </a>
+                            </th>
+                        <?php endforeach; ?>
+                    </tr>
                 </thead>
                 <tbody>
                     <?php if (empty($linhas)): ?>
