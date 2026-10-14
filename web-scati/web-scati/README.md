@@ -934,7 +934,12 @@ web-scati/
   exigem autenticação (usuário e senha, com a senha armazenada com hash
   bcrypt via `password_hash()`). Cada usuário tem um **perfil de
   acesso**, definido na tela **Usuários** (menu lateral) e gerenciado em
-  **Configurações > Perfis de Acesso** (restrita ao Administrador):
+  **Configurações > Perfis de Acesso** (restrita ao Administrador). A
+  listagem de Usuários é ordenada primeiro por perfil — nessa ordem fixa:
+  **Administrador**, **Usuário**, **Padrão** e por último qualquer perfil
+  personalizado (agrupado por nome do perfil) — e só depois por nome de
+  usuário dentro de cada perfil, em vez de misturar todo mundo em ordem
+  alfabética:
   - **Administrador**: perfil fixo do sistema — sempre acesso completo a
     tudo, não pode ser renomeado, editado nem excluído. Garante que o
     sistema nunca fique sem ninguém capaz de gerenciar os demais perfis

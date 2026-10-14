@@ -8,7 +8,17 @@ exigirPermissao('usuarios', 'ver');
 $pdo = db();
 $pageTitle = 'Usuários';
 
-$usuarios = $pdo->query('SELECT * FROM usuarios ORDER BY usuario ASC')->fetchAll();
+// Ordena por perfil (Administrador, depois Usuário, depois Padrão — nessa
+// ordem fixa, não alfabética) e só então por nome de usuário. Um perfil
+// personalizado (criado em Configurações > Perfis de Acesso) não entra
+// nessa lista fixa, então FIELD() devolve 0 pra ele — o "= 0" empurra
+// esses perfis pro final, agrupados entre si por nome do perfil.
+$usuarios = $pdo->query(
+    "SELECT * FROM usuarios
+     ORDER BY (FIELD(perfil, 'Administrador', 'Usuário', 'Padrão') = 0),
+              FIELD(perfil, 'Administrador', 'Usuário', 'Padrão'),
+              perfil ASC, usuario ASC"
+)->fetchAll();
 $totalAdmins = (int) $pdo->query("SELECT COUNT(*) FROM usuarios WHERE perfil = 'Administrador'")->fetchColumn();
 $usuarioAtualId = usuarioLogado()['id'];
 
