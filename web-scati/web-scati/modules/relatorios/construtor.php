@@ -262,17 +262,19 @@ function renderFiltroLinha(array $origemDef, array $operadoresPorTipo, array $op
                 <?php endforeach; ?>
             <?php endif; ?>
         </datalist>
-        <div class="filtro-valor-opcoes d-flex flex-wrap gap-2" style="<?= $ehSelecao ? '' : 'display:none;' ?>">
+        <div class="filtro-valor-opcoes row g-2 w-100 ms-0 mt-1" style="<?= $ehSelecao ? '' : 'display:none;' ?>">
             <?php if ($ehSelecao): ?>
                 <?php foreach ($opcoesInfo['opcoes'] as $indiceOpcao => $opcao): ?>
                     <?php $qtd = $opcoesInfo['contagens'][$opcao] ?? 0; ?>
-                    <div class="form-check form-check-inline m-0">
-                        <input class="form-check-input filtro-valor-opcao" type="checkbox" value="<?= e($opcao) ?>"
-                               <?= in_array($opcao, $valoresMarcados, true) ? 'checked' : '' ?>
-                               id="<?= e($linhaId) ?>_opt<?= (int) $indiceOpcao ?>">
-                        <label class="form-check-label small" for="<?= e($linhaId) ?>_opt<?= (int) $indiceOpcao ?>">
-                            <?= e($opcao) ?> <span class="text-muted">(<?= $qtd > 0 ? $qtd : 'nenhum cadastrado' ?>)</span>
-                        </label>
+                    <div class="col-md-3 col-6 filtro-valor-opcao-coluna">
+                        <div class="form-check">
+                            <input class="form-check-input filtro-valor-opcao" type="checkbox" value="<?= e($opcao) ?>"
+                                   <?= in_array($opcao, $valoresMarcados, true) ? 'checked' : '' ?>
+                                   id="<?= e($linhaId) ?>_opt<?= (int) $indiceOpcao ?>">
+                            <label class="form-check-label small" for="<?= e($linhaId) ?>_opt<?= (int) $indiceOpcao ?>">
+                                <?= e($opcao) ?> <span class="text-muted">(<?= $qtd > 0 ? $qtd : 'nenhum cadastrado' ?>)</span>
+                            </label>
+                        </div>
                     </div>
                 <?php endforeach; ?>
             <?php endif; ?>
@@ -307,17 +309,19 @@ function renderBlocoCampoPrincipal(array $origemDef, array $valoresMarcados, arr
         </div>
         <div class="card-body">
             <p class="text-muted small">Marque pra filtrar o relatório por <?= e(mb_strtolower($def['label'])) ?> — pode marcar mais de um. Deixe tudo desmarcado pra trazer qualquer um.</p>
-            <div class="d-flex flex-wrap gap-3">
+            <div class="row g-2">
                 <?php foreach ($def['opcoes'] as $indiceOpcao => $opcao): ?>
                     <?php $qtd = $contagens[$opcao] ?? 0; ?>
-                    <div class="form-check">
-                        <input class="form-check-input filtro-valor-opcao" type="checkbox" value="<?= e($opcao) ?>"
-                               <?= in_array($opcao, $valoresMarcados, true) ? 'checked' : '' ?>
-                               id="filtroPrincipal_opt<?= (int) $indiceOpcao ?>">
-                        <label class="form-check-label" for="filtroPrincipal_opt<?= (int) $indiceOpcao ?>">
-                            <?= e($opcao) ?>
-                            <span class="text-muted small">(<?= $qtd > 0 ? $qtd : 'nenhum cadastrado' ?>)</span>
-                        </label>
+                    <div class="col-md-3 col-6">
+                        <div class="form-check">
+                            <input class="form-check-input filtro-valor-opcao" type="checkbox" value="<?= e($opcao) ?>"
+                                   <?= in_array($opcao, $valoresMarcados, true) ? 'checked' : '' ?>
+                                   id="filtroPrincipal_opt<?= (int) $indiceOpcao ?>">
+                            <label class="form-check-label" for="filtroPrincipal_opt<?= (int) $indiceOpcao ?>">
+                                <?= e($opcao) ?>
+                                <span class="text-muted small">(<?= $qtd > 0 ? $qtd : 'nenhum cadastrado' ?>)</span>
+                            </label>
+                        </div>
                     </div>
                 <?php endforeach; ?>
             </div>

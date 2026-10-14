@@ -127,7 +127,7 @@ document.addEventListener('DOMContentLoaded', function () {
             operadorSelect.innerHTML = '';
             valorInput.value = '';
             datalist.innerHTML = '';
-            opcoesWrap.querySelectorAll('.form-check').forEach(function (el) { el.remove(); });
+            opcoesWrap.querySelectorAll('.filtro-valor-opcao-coluna').forEach(function (el) { el.remove(); });
             valorOculto.value = '';
 
             if (!def) {
@@ -163,8 +163,10 @@ document.addEventListener('DOMContentLoaded', function () {
                     proximoIdDatalist++;
                     const id = 'filtroOpcaoNova_' + proximoIdDatalist + '_' + indice;
                     const qtd = contagens[valorOpcao] || 0;
+                    const coluna = document.createElement('div');
+                    coluna.className = 'col-md-3 col-6 filtro-valor-opcao-coluna';
                     const wrap = document.createElement('div');
-                    wrap.className = 'form-check form-check-inline m-0';
+                    wrap.className = 'form-check';
                     const checkbox = document.createElement('input');
                     checkbox.type = 'checkbox';
                     checkbox.className = 'form-check-input filtro-valor-opcao';
@@ -176,7 +178,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     label.textContent = valorOpcao + ' (' + (qtd > 0 ? qtd : 'nenhum cadastrado') + ')';
                     wrap.appendChild(checkbox);
                     wrap.appendChild(label);
-                    opcoesWrap.insertBefore(wrap, valorOculto);
+                    coluna.appendChild(wrap);
+                    opcoesWrap.insertBefore(coluna, valorOculto);
                 });
             }
 
