@@ -589,6 +589,15 @@ web-scati/
   USB" disponível no cadastro de **qualquer tipo de equipamento**, exibido
   na ficha como um badge (Permitido/Bloqueado) na seção Localização e Uso.
   Alterações ficam registradas no histórico do equipamento.
+- **Usuário Responsável**: campo "Usuário Responsável" (seção Localização
+  e Uso do cadastro) é um dropdown com os usuários cadastrados no sistema
+  (Configurações > Usuários), em vez de texto livre — evita nomes
+  duplicados/digitados diferente para a mesma pessoa. Um equipamento que já
+  tinha um responsável cadastrado antes dessa mudança (texto livre) ou que
+  aponta pra um usuário que já foi excluído do sistema continua mostrando
+  esse valor como opção selecionada no dropdown, marcada "(usuário não
+  cadastrado)" — o dado não é apagado sozinho, só deixa de aparecer depois
+  que alguém trocar e salvar com um usuário da lista.
 - **Anexos**: aba na ficha de qualquer equipamento para anexar arquivos
   (nota fiscal, foto, manual em PDF, etc.), com descrição opcional,
   download e exclusão. O upload valida extensão (imagens, PDF, Office,

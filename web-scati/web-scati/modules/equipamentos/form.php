@@ -247,6 +247,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $redes = $pdo->query('SELECT id, nome FROM redes ORDER BY nome')->fetchAll();
 $categoriasEquip = $pdo->query('SELECT * FROM categorias_equipamento ORDER BY ordem ASC, nome ASC')->fetchAll();
+$usuariosSistema = $pdo->query('SELECT usuario FROM usuarios ORDER BY usuario')->fetchAll(PDO::FETCH_COLUMN);
+// Equipamento já cadastrado com um responsável que não corresponde a
+// nenhum usuário atual do sistema (texto livre de antes desta tela virar
+// dropdown, ou um usuário que já foi excluído) — mantém o valor como opção
+// extra selecionada, pra não apagar o dado sozinho; some assim que o
+// cadastro for salvo com outro responsável escolhido na lista.
+$responsavelAtual = $equipamento['usuario_responsavel'] ?? '';
 $gruposEquipamento = gruposCamposEquipamento();
 $pageTitle = $edicao ? 'Editar Equipamento' : 'Novo Equipamento';
 
@@ -477,7 +484,15 @@ include __DIR__ . '/../../includes/header.php';
             </div>
             <div class="col-md-3">
                 <label class="form-label">Usuário Responsável</label>
-                <input type="text" name="usuario_responsavel" class="form-control" value="<?= e($equipamento['usuario_responsavel']) ?>">
+                <select name="usuario_responsavel" class="form-select">
+                    <option value="">Nenhum</option>
+                    <?php foreach ($usuariosSistema as $nomeUsuario): ?>
+                        <option value="<?= e($nomeUsuario) ?>" <?= $responsavelAtual === $nomeUsuario ? 'selected' : '' ?>><?= e($nomeUsuario) ?></option>
+                    <?php endforeach; ?>
+                    <?php if ($responsavelAtual !== '' && !in_array($responsavelAtual, $usuariosSistema, true)): ?>
+                        <option value="<?= e($responsavelAtual) ?>" selected><?= e($responsavelAtual) ?> (usuário não cadastrado)</option>
+                    <?php endif; ?>
+                </select>
             </div>
             <div class="col-md-3">
                 <label class="form-label">Rede</label>
