@@ -96,6 +96,29 @@ if (!is_array($colunasSelecionadas)) {
 }
 $origemDefAtual = $origens[$origemAtual];
 
+// Opções (e contagem de registros) de cada campo que pode virar checkbox
+// em vez de texto/número/data livre: os de lista fixa (Tipo, Status,
+// Categoria, Prioridade...) e também os de texto com poucos valores
+// distintos realmente cadastrados (Marca, Localização, Responsável...) —
+// ver valoresDistintosRelatorioPersonalizado(), em includes/functions.php.
+// Um campo de texto tipicamente único por registro (Nome, Observações...)
+// não entra aqui e continua como texto livre. Usado tanto no bloco fixo
+// do campo principal quanto nas linhas de Filtros (passo 3).
+$opcoesPorCampo = [];
+foreach ($origemDefAtual['colunas'] as $chaveCol => $defCol) {
+    if (in_array($defCol['tipo'], ['select', 'booleano'], true)) {
+        $opcoesPorCampo[$chaveCol] = [
+            'opcoes' => $defCol['opcoes'],
+            'contagens' => contagensPorOpcaoRelatorioPersonalizado($origemAtual, $chaveCol),
+        ];
+    } elseif ($defCol['tipo'] === 'texto') {
+        $distintos = valoresDistintosRelatorioPersonalizado($origemAtual, $chaveCol);
+        if ($distintos !== null) {
+            $opcoesPorCampo[$chaveCol] = ['opcoes' => array_keys($distintos), 'contagens' => $distintos];
+        }
+    }
+}
+
 // Separa o filtro do campo principal (ver campo_principal em
 // origensRelatorioPersonalizado()) dos demais — ele tem seu próprio bloco
 // fixo logo abaixo de "Colunas", então não entra na lista do passo 3
@@ -112,9 +135,7 @@ foreach ($filtrosAtuais as $filtro) {
     }
     $filtrosSecundarios[] = $filtro;
 }
-$contagensCampoPrincipal = $campoPrincipalAtual !== null
-    ? contagensPorOpcaoRelatorioPersonalizado($origemAtual, $campoPrincipalAtual)
-    : [];
+$contagensCampoPrincipal = $campoPrincipalAtual !== null ? ($opcoesPorCampo[$campoPrincipalAtual]['contagens'] ?? []) : [];
 
 // Gera o relatório assim que houver origem + ao menos 1 coluna válidas.
 $gerado = false;
@@ -139,18 +160,19 @@ if (!empty($colunasSelecionadas)) {
  * não aparece como opção aqui — ele já tem seu próprio bloco fixo logo
  * abaixo de "Colunas" (renderBlocoCampoPrincipal()), então oferecê-lo de
  * novo aqui só duplicaria o mesmo filtro.
+ *
+ * $opcoesPorCampo (ver construtor.php) diz quais campos têm uma lista de
+ * opções pra virar checkbox — tanto os de lista fixa (Tipo, Status...)
+ * quanto os de texto com poucos valores distintos cadastrados (Marca,
+ * Localização...). Um campo fora dessa lista continua com o seletor de
+ * operador normal (contém, é igual a, está vazio...) e um valor livre.
  */
-function renderFiltroLinha(array $origemDef, array $operadoresPorTipo, string $campo, string $operador, string $valor): void
+function renderFiltroLinha(array $origemDef, array $operadoresPorTipo, array $opcoesPorCampo, string $campo, string $operador, string $valor): void
 {
     $campoPrincipal = $origemDef['campo_principal'] ?? null;
     $def = $origemDef['colunas'][$campo] ?? null;
-    // Campos com um conjunto fechado de valores (tipo, status, categoria,
-    // prioridade...) mostram todas as opções já visíveis como checkbox, sem
-    // precisar escolher um operador antes — marcar uma ou mais opções já
-    // significa "está em qualquer uma destas" (um OU entre as marcadas).
-    // Os demais campos (texto, número, data...) continuam com o seletor de
-    // operador normal (contém, é igual a, está vazio...) e um valor livre.
-    $ehSelecao = $def && in_array($def['tipo'], ['select', 'booleano'], true);
+    $opcoesInfo = $opcoesPorCampo[$campo] ?? null;
+    $ehSelecao = $def && $opcoesInfo !== null;
     $tipoHtml = 'text';
     if ($def && !$ehSelecao) {
         $tipoHtml = match ($def['tipo']) {
@@ -184,6 +206,15 @@ function renderFiltroLinha(array $origemDef, array $operadoresPorTipo, string $c
             <?php endif; ?>
         </select>
         <?php
+            // O operador some de vista quando ehSelecao, mas precisa
+            // continuar mandando ALGUM valor pro "filtro_operador[]" dessa
+            // linha (senão esse array fica mais curto que filtro_campo[] e
+            // filtro_valor[], desalinhando o índice das linhas seguintes no
+            // parsing — por isso o hidden abaixo, espelhando o mesmo
+            // esquema de habilitar/desabilitar já usado no valor).
+        ?>
+        <input type="hidden" class="filtro-operador-oculto" name="filtro_operador[]" value="igual" <?= $ehSelecao ? '' : 'disabled' ?>>
+        <?php
             // Só um dos dois (input de texto ou grupo de checkboxes) fica
             // habilitado por vez — o desabilitado não é enviado no envio do
             // formulário (GET/POST), então nunca sobra um "filtro_valor[]"
@@ -202,12 +233,15 @@ function renderFiltroLinha(array $origemDef, array $operadoresPorTipo, string $c
         </datalist>
         <div class="filtro-valor-opcoes d-flex flex-wrap gap-2" style="<?= $ehSelecao ? '' : 'display:none;' ?>">
             <?php if ($ehSelecao): ?>
-                <?php foreach ($def['opcoes'] as $indiceOpcao => $opcao): ?>
+                <?php foreach ($opcoesInfo['opcoes'] as $indiceOpcao => $opcao): ?>
+                    <?php $qtd = $opcoesInfo['contagens'][$opcao] ?? 0; ?>
                     <div class="form-check form-check-inline m-0">
                         <input class="form-check-input filtro-valor-opcao" type="checkbox" value="<?= e($opcao) ?>"
                                <?= in_array($opcao, $valoresMarcados, true) ? 'checked' : '' ?>
                                id="<?= e($linhaId) ?>_opt<?= (int) $indiceOpcao ?>">
-                        <label class="form-check-label small" for="<?= e($linhaId) ?>_opt<?= (int) $indiceOpcao ?>"><?= e($opcao) ?></label>
+                        <label class="form-check-label small" for="<?= e($linhaId) ?>_opt<?= (int) $indiceOpcao ?>">
+                            <?= e($opcao) ?> <span class="text-muted">(<?= $qtd > 0 ? $qtd : 'nenhum cadastrado' ?>)</span>
+                        </label>
                     </div>
                 <?php endforeach; ?>
             <?php endif; ?>
@@ -307,10 +341,11 @@ include __DIR__ . '/../../includes/header.php';
                         if (!$defCampo) {
                             continue;
                         }
-                        // Campo de opções fixas: "Tipo: Computador, Notebook"
+                        // Campo com opções (lista fixa ou texto com poucos
+                        // valores distintos): "Tipo: Computador, Notebook"
                         // (uma ou mais opções marcadas, sem operador). Os
                         // demais: "Nome contém abc" / "Valor Atual maior que 100".
-                        if (in_array($defCampo['tipo'], ['select', 'booleano'], true)) {
+                        if (isset($opcoesPorCampo[$filtro['campo']])) {
                             $valoresBadge = array_filter(array_map('trim', explode(',', (string) $filtro['valor'])), fn ($v) => $v !== '');
                             if (empty($valoresBadge)) {
                                 continue;
@@ -438,14 +473,14 @@ include __DIR__ . '/../../includes/header.php';
 
             <div id="filtrosContainer">
                 <?php foreach ($filtrosSecundarios as $filtro): ?>
-                    <?php renderFiltroLinha($origemDefAtual, $operadoresPorTipo, (string) $filtro['campo'], (string) $filtro['operador'], (string) $filtro['valor']); ?>
+                    <?php renderFiltroLinha($origemDefAtual, $operadoresPorTipo, $opcoesPorCampo, (string) $filtro['campo'], (string) $filtro['operador'], (string) $filtro['valor']); ?>
                 <?php endforeach; ?>
             </div>
 
             <button class="btn btn-sm btn-outline-primary" type="button" id="btnAdicionarFiltro"><i class="bi bi-plus-lg"></i> Adicionar filtro</button>
 
             <template id="filtroLinhaTemplate">
-                <?php renderFiltroLinha($origemDefAtual, $operadoresPorTipo, '', '', ''); ?>
+                <?php renderFiltroLinha($origemDefAtual, $operadoresPorTipo, $opcoesPorCampo, '', '', ''); ?>
             </template>
         </div>
     </div>
@@ -456,10 +491,25 @@ include __DIR__ . '/../../includes/header.php';
 </form>
 
 <script>
-    window.SCATI_COLUNAS_ORIGEM = <?= json_encode(array_map(
-        fn (array $def): array => ['label' => $def['label'], 'tipo' => $def['tipo'], 'opcoes' => $def['opcoes'] ?? null],
-        $origemDefAtual['colunas']
-    ), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
+    window.SCATI_COLUNAS_ORIGEM = <?php
+        // array_map() com dois arrays não preserva as chaves originais (vira
+        // lista sequencial) — por isso o array_combine(), pra manter a chave
+        // de cada campo (nome, tipo, marca...) como chave do objeto JS.
+        $colunasParaJs = array_combine(
+            array_keys($origemDefAtual['colunas']),
+            array_map(
+                fn (array $def, string $chave): array => [
+                    'label' => $def['label'],
+                    'tipo' => $def['tipo'],
+                    'opcoes' => $opcoesPorCampo[$chave]['opcoes'] ?? null,
+                    'contagens' => $opcoesPorCampo[$chave]['contagens'] ?? null,
+                ],
+                $origemDefAtual['colunas'],
+                array_keys($origemDefAtual['colunas'])
+            )
+        );
+        echo json_encode($colunasParaJs, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP);
+    ?>;
     window.SCATI_OPERADORES_POR_TIPO = <?= json_encode($operadoresPorTipo, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
 </script>
 

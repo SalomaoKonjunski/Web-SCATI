@@ -740,22 +740,26 @@ web-scati/
     (Equipamentos, Estoque, Licenças ou Chamados), quais **colunas**
     aparecem e quantos **filtros** quiser, combinados sempre com E (ex.:
     Status "Em uso" **e** Tipo "Computador"). Um campo com um conjunto
-    fechado de opções (Tipo e Status de Equipamentos, Categoria de Estoque,
-    Tipo de Licença, Prioridade e Status de Chamados) mostra **todas as
-    opções já visíveis como checkbox**, sem precisar escolher um operador
-    antes — pode marcar quantas quiser (ex.: Tipo "Computador" **ou**
-    "Notebook" no mesmo filtro, funcionando como OU entre as marcadas). Os
-    demais campos (nome, marca, observações...) continuam com o seletor de
-    operador tradicional (contém, é igual a, maior que, está vazio...) e um
-    valor digitado livremente, com sugestões de autocompletar pelos valores
-    já usados. Logo abaixo de **Colunas**, o campo principal de cada origem
-    (**Tipo** em Equipamentos e Licenças, **Categoria** em Estoque,
-    **Status** em Chamados) tem seu próprio bloco fixo e sempre visível,
-    mostrando todas as opções possíveis como checkbox — já funcionando como
-    filtro por conta própria, sem precisar clicar em "Adicionar filtro". Do
-    lado de cada opção aparece quantos registros já existem com aquele
-    valor (ou "nenhum cadastrado" quando ainda não tem nenhum), pra dar uma
-    ideia dos dados antes mesmo de filtrar. Na origem **Equipamentos**, as colunas incluem
+    fechado de opções mostra **todas as opções já visíveis como
+    checkbox**, sem precisar escolher um operador antes — pode marcar
+    quantas quiser (ex.: Tipo "Computador" **ou** "Notebook" no mesmo
+    filtro, funcionando como OU entre as marcadas) — e do lado de cada
+    opção aparece quantos registros já existem com aquele valor (ou
+    "nenhum cadastrado" quando ainda não tem nenhum). Isso vale tanto para
+    campos de lista fixa (Tipo e Status de Equipamentos, Categoria de
+    Estoque, Tipo de Licença, Prioridade e Status de Chamados) quanto para
+    campos de texto com poucos valores distintos **realmente cadastrados**
+    (ex.: Marca, Localização, Responsável — se você só tem 3 marcas
+    diferentes cadastradas, elas aparecem como checkbox; se tiver muitas,
+    o campo continua como texto livre). Campos tipicamente únicos por
+    registro (Nome, Patrimônio, Observações...) e campos numéricos/data
+    (Valor Atual, datas) continuam com o seletor de operador tradicional
+    (contém, é igual a, maior que, está vazio...) e um valor digitado
+    livremente. Logo abaixo de **Colunas**, o campo principal de cada
+    origem (**Tipo** em Equipamentos e Licenças, **Categoria** em Estoque,
+    **Status** em Chamados) tem esse mesmo tratamento num bloco próprio,
+    fixo e sempre visível — já funcionando como filtro por conta própria,
+    sem precisar clicar em "Adicionar filtro". Na origem **Equipamentos**, as colunas incluem
     também as configurações de **Hardware** do cadastro (Processador,
     Memória RAM, Armazenamento, Sistema Operacional, Placa Mãe e Placa de
     Vídeo) — para equipamentos de um tipo sem o grupo Hardware habilitado

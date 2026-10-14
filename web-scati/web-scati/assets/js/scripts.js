@@ -117,6 +117,7 @@ document.addEventListener('DOMContentLoaded', function () {
         function atualizarLinhaFiltro(linha) {
             const campoSelect = linha.querySelector('.filtro-campo-select');
             const operadorSelect = linha.querySelector('.filtro-operador-select');
+            const operadorOculto = linha.querySelector('.filtro-operador-oculto');
             const valorInput = linha.querySelector('.filtro-valor-input');
             const opcoesWrap = linha.querySelector('.filtro-valor-opcoes');
             const valorOculto = linha.querySelector('.filtro-valor-oculto');
@@ -129,16 +130,23 @@ document.addEventListener('DOMContentLoaded', function () {
             opcoesWrap.querySelectorAll('.form-check').forEach(function (el) { el.remove(); });
             valorOculto.value = '';
 
-            const ehSelecao = !!def && (def.tipo === 'select' || def.tipo === 'booleano');
-
             if (!def) {
                 valorInput.disabled = false;
                 operadorSelect.disabled = false;
                 operadorSelect.style.display = '';
+                operadorOculto.disabled = true;
                 valorOculto.disabled = true;
                 toggleValorInput(linha);
                 return;
             }
+
+            // Mesma regra do PHP (renderFiltroLinha, em construtor.php): um
+            // campo com opções (lista fixa — Tipo, Status... — ou texto com
+            // poucos valores distintos cadastrados — Marca, Localização...)
+            // mostra todas como checkbox (pode marcar mais de uma), sem
+            // operador — os demais continuam com o <input> de
+            // texto/número/data e o seletor de operador normal.
+            const ehSelecao = !!def.opcoes;
 
             if (!ehSelecao) {
                 const operadores = operadoresPorTipo[def.tipo] || {};
@@ -149,22 +157,12 @@ document.addEventListener('DOMContentLoaded', function () {
                     operadorSelect.appendChild(opcao);
                 });
                 valorInput.type = tipoParaInputHtml(def.tipo);
-                if (def.opcoes) {
-                    def.opcoes.forEach(function (valorOpcao) {
-                        const opcao = document.createElement('option');
-                        opcao.value = valorOpcao;
-                        datalist.appendChild(opcao);
-                    });
-                }
-            } else if (def.opcoes) {
-                // Mesma regra do PHP (renderFiltroLinha, em construtor.php):
-                // campo com conjunto fechado de valores mostra todas as
-                // opções como checkbox (pode marcar mais de uma), sem
-                // operador — os demais continuam com o <input> de
-                // texto/número/data e o seletor de operador normal.
+            } else {
+                const contagens = def.contagens || {};
                 def.opcoes.forEach(function (valorOpcao, indice) {
                     proximoIdDatalist++;
                     const id = 'filtroOpcaoNova_' + proximoIdDatalist + '_' + indice;
+                    const qtd = contagens[valorOpcao] || 0;
                     const wrap = document.createElement('div');
                     wrap.className = 'form-check form-check-inline m-0';
                     const checkbox = document.createElement('input');
@@ -175,7 +173,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     const label = document.createElement('label');
                     label.className = 'form-check-label small';
                     label.setAttribute('for', id);
-                    label.textContent = valorOpcao;
+                    label.textContent = valorOpcao + ' (' + (qtd > 0 ? qtd : 'nenhum cadastrado') + ')';
                     wrap.appendChild(checkbox);
                     wrap.appendChild(label);
                     opcoesWrap.insertBefore(wrap, valorOculto);
@@ -184,6 +182,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             operadorSelect.style.display = ehSelecao ? 'none' : '';
             operadorSelect.disabled = ehSelecao;
+            operadorOculto.disabled = !ehSelecao;
             valorInput.disabled = ehSelecao;
             valorOculto.disabled = !ehSelecao;
 

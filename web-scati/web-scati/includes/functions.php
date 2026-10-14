@@ -715,12 +715,19 @@ function montarRelatorioPersonalizado(string $origemChave, array $colunasChaves,
         }
         $colDef = $origemDef['colunas'][$campo];
 
-        // Campos de opções fixas (Tipo, Status, Categoria...) não passam
-        // por operador: o valor chega como uma lista separada por vírgula
-        // das opções marcadas no Construtor (ver renderFiltroLinha(), em
-        // construtor.php), e o filtro sempre significa "está em qualquer
-        // uma destas" — um IN(...) com as opções marcadas.
-        if (in_array($colDef['tipo'], ['select', 'booleano'], true)) {
+        // Campos de opções fixas (Tipo, Status, Categoria...) ou de texto
+        // com poucos valores distintos cadastrados (Marca, Localização,
+        // Responsável...) não passam por operador: o valor chega como uma
+        // lista separada por vírgula das opções marcadas no Construtor (ver
+        // renderFiltroLinha(), em construtor.php), e o filtro sempre
+        // significa "está em qualquer uma destas" — um IN(...) com as
+        // opções marcadas. Pra texto, a elegibilidade é sempre recalculada
+        // aqui a partir dos dados reais (nunca confia em nada vindo do
+        // cliente) — o mesmo cálculo que decide se o campo aparece como
+        // checkbox na tela.
+        $ehSelecao = in_array($colDef['tipo'], ['select', 'booleano'], true)
+            || ($colDef['tipo'] === 'texto' && valoresDistintosRelatorioPersonalizado($origemChave, $campo) !== null);
+        if ($ehSelecao) {
             $valoresMarcados = array_values(array_filter(array_map('trim', explode(',', $valor)), fn ($v) => $v !== ''));
             if (empty($valoresMarcados)) {
                 continue;
@@ -837,6 +844,54 @@ function contagensPorOpcaoRelatorioPersonalizado(string $origemChave, string $ca
     }
 
     return $contagens;
+}
+
+/**
+ * Valores realmente cadastrados (e a contagem de cada um) pra um campo de
+ * texto de uma origem do Construtor de Relatório — decide se esse campo
+ * também pode virar checkbox em Filtros (passo 3) e no bloco do campo
+ * principal, do mesmo jeito que os campos de lista fixa (Tipo, Status...).
+ * Só vira checkbox quando a quantidade de valores distintos cadastrados é
+ * razoável pra uma lista desse tipo (até $limite); campos tipicamente
+ * únicos por registro (Nome, Observações...) ultrapassam o limite e
+ * continuam como texto livre. Usada tanto na tela (construtor.php) quanto
+ * em montarRelatorioPersonalizado(), pra que os dois sempre concordem
+ * sobre como um filtro deve ser interpretado — sem confiar em nada que
+ * venha do cliente.
+ *
+ * @return array<string, int>|null Valor => quantidade, ou null se o campo
+ *     não for de texto ou tiver valores distintos demais (ou nenhum).
+ */
+function valoresDistintosRelatorioPersonalizado(string $origemChave, string $campo, int $limite = 30): ?array
+{
+    $origens = origensRelatorioPersonalizado();
+    if (!isset($origens[$origemChave]['colunas'][$campo])) {
+        return null;
+    }
+    $origemDef = $origens[$origemChave];
+    $colDef = $origemDef['colunas'][$campo];
+    if ($colDef['tipo'] !== 'texto') {
+        return null;
+    }
+
+    $linhas = db()->query(
+        'SELECT ' . $colDef['sql'] . ' AS valor, COUNT(*) AS total FROM ' . $origemDef['from']
+        . ' WHERE ' . $colDef['sql'] . " IS NOT NULL AND " . $colDef['sql'] . " <> ''"
+        . ' GROUP BY ' . $colDef['sql']
+        . ' ORDER BY valor ASC'
+        . ' LIMIT ' . ($limite + 1)
+    )->fetchAll();
+
+    if (empty($linhas) || count($linhas) > $limite) {
+        return null;
+    }
+
+    $distintos = [];
+    foreach ($linhas as $linha) {
+        $distintos[(string) $linha['valor']] = (int) $linha['total'];
+    }
+
+    return $distintos;
 }
 
 /**
