@@ -283,10 +283,95 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cadastrar_item_estoqu
     redirect('/modules/equipamentos/view.php?id=' . $id . '#' . $destinoAba);
 }
 
+// Vincula este equipamento a um computador/impressora do outro lado
+// (tabela computador_impressoras, N:N) — o mesmo vínculo é gerenciável a
+// partir da ficha de qualquer um dos dois lados (ver abaixo, onde
+// $vinculosComputadorImpressora/$opcoesVinculoComputadorImpressora são
+// calculados de acordo com o tipo deste equipamento).
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['vincular_computador_impressora'])) {
+    exigirPermissao('equipamentos', 'alterar');
+    $outroId = (int) ($_POST['outro_equipamento_id'] ?? 0);
+    $abaRetorno = 'vinculoCompImp';
+
+    if ($outroId > 0) {
+        $stmtOutro = $pdo->prepare('SELECT id, nome, tipo FROM equipamentos WHERE id = :id');
+        $stmtOutro->execute(['id' => $outroId]);
+        $outro = $stmtOutro->fetch();
+
+        $computadorId = null;
+        $impressoraId = null;
+        if ($outro && ehImpressora($eq['tipo']) && ehComputador($outro['tipo'])) {
+            $computadorId = $outroId;
+            $impressoraId = $id;
+        } elseif ($outro && ehComputador($eq['tipo']) && ehImpressora($outro['tipo'])) {
+            $computadorId = $id;
+            $impressoraId = $outroId;
+        }
+
+        if ($computadorId !== null && $impressoraId !== null) {
+            $stmtExiste = $pdo->prepare('SELECT id FROM computador_impressoras WHERE computador_id = :computador_id AND impressora_id = :impressora_id');
+            $stmtExiste->execute(['computador_id' => $computadorId, 'impressora_id' => $impressoraId]);
+            if ($stmtExiste->fetch()) {
+                flash('danger', '"' . $outro['nome'] . '" já está vinculado a este equipamento.');
+            } else {
+                $pdo->prepare('INSERT INTO computador_impressoras (computador_id, impressora_id) VALUES (:computador_id, :impressora_id)')
+                    ->execute(['computador_id' => $computadorId, 'impressora_id' => $impressoraId]);
+                registrarHistorico($id, 'Vínculo', '"' . $outro['nome'] . '" vinculado a este equipamento');
+                flash('success', '"' . $outro['nome'] . '" vinculado com sucesso.');
+            }
+        } else {
+            flash('danger', 'Vínculo inválido.');
+        }
+    }
+    redirect('/modules/equipamentos/view.php?id=' . $id . '#' . $abaRetorno);
+}
+
 // Licenças vinculadas a este equipamento
 $licencas = $pdo->prepare('SELECT * FROM licencas WHERE equipamento_id = :id ORDER BY software');
 $licencas->execute(['id' => $id]);
 $licencas = $licencas->fetchAll();
+
+// Vínculo Computador <-> Impressora (tabela computador_impressoras, N:N):
+// numa impressora, mostra os computadores vinculados a ela; num
+// computador, mostra as impressoras vinculadas a ele — mesma tabela, só
+// troca de lado qual é "este equipamento" (id) e qual é "o outro".
+$vinculosComputadorImpressora = [];
+$opcoesVinculoComputadorImpressora = [];
+if (ehImpressora($eq['tipo'])) {
+    $stmtVinc = $pdo->prepare(
+        'SELECT ci.id AS vinculo_id, e.id, e.nome, e.patrimonio, e.localizacao
+         FROM computador_impressoras ci JOIN equipamentos e ON e.id = ci.computador_id
+         WHERE ci.impressora_id = :id ORDER BY e.nome'
+    );
+    $stmtVinc->execute(['id' => $id]);
+    $vinculosComputadorImpressora = $stmtVinc->fetchAll();
+
+    $stmtOpcoes = $pdo->prepare(
+        "SELECT e.id, e.nome, e.localizacao FROM equipamentos e
+         WHERE e.tipo IN ('Computador', 'Notebook')
+           AND e.id NOT IN (SELECT computador_id FROM computador_impressoras WHERE impressora_id = :id)
+         ORDER BY e.nome"
+    );
+    $stmtOpcoes->execute(['id' => $id]);
+    $opcoesVinculoComputadorImpressora = $stmtOpcoes->fetchAll();
+} elseif (ehComputador($eq['tipo'])) {
+    $stmtVinc = $pdo->prepare(
+        'SELECT ci.id AS vinculo_id, e.id, e.nome, e.patrimonio, e.localizacao
+         FROM computador_impressoras ci JOIN equipamentos e ON e.id = ci.impressora_id
+         WHERE ci.computador_id = :id ORDER BY e.nome'
+    );
+    $stmtVinc->execute(['id' => $id]);
+    $vinculosComputadorImpressora = $stmtVinc->fetchAll();
+
+    $stmtOpcoes = $pdo->prepare(
+        "SELECT e.id, e.nome, e.localizacao FROM equipamentos e
+         WHERE e.tipo = 'Impressora'
+           AND e.id NOT IN (SELECT impressora_id FROM computador_impressoras WHERE computador_id = :id)
+         ORDER BY e.nome"
+    );
+    $stmtOpcoes->execute(['id' => $id]);
+    $opcoesVinculoComputadorImpressora = $stmtOpcoes->fetchAll();
+}
 
 // Histórico automático (mais recente primeiro)
 $historico = $pdo->prepare('SELECT * FROM historico_equipamentos WHERE equipamento_id = :id ORDER BY data_hora DESC');
@@ -497,6 +582,14 @@ include __DIR__ . '/../../includes/header.php';
     <li class="nav-item" role="presentation">
         <button class="nav-link" data-bs-toggle="tab" data-bs-target="#itens" type="button">
             Itens Vinculados <span class="badge bg-secondary"><?= count($itensVinculados) ?></span>
+        </button>
+    </li>
+    <?php endif; ?>
+    <?php if (ehImpressora($eq['tipo']) || ehComputador($eq['tipo'])): ?>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#vinculoCompImp" type="button">
+            <?= ehImpressora($eq['tipo']) ? 'Computadores Vinculados' : 'Impressoras Vinculadas' ?>
+            <span class="badge bg-secondary"><?= count($vinculosComputadorImpressora) ?></span>
         </button>
     </li>
     <?php endif; ?>
@@ -799,6 +892,66 @@ include __DIR__ . '/../../includes/header.php';
                 </div>
             </div>
         </div>
+    </div>
+    <?php endif; ?>
+
+    <?php if (ehImpressora($eq['tipo']) || ehComputador($eq['tipo'])): ?>
+    <!-- Computadores Vinculados (numa impressora) / Impressoras Vinculadas (num computador) -->
+    <div class="tab-pane fade" id="vinculoCompImp">
+        <h6 class="text-muted text-uppercase small mb-3">
+            <?= ehImpressora($eq['tipo']) ? 'Computadores que imprimem nesta impressora' : 'Impressoras vinculadas a este computador' ?>
+        </h6>
+        <?php if (empty($vinculosComputadorImpressora)): ?>
+            <p class="text-muted"><?= ehImpressora($eq['tipo']) ? 'Nenhum computador vinculado a esta impressora.' : 'Nenhuma impressora vinculada a este computador.' ?></p>
+        <?php else: ?>
+            <table class="table table-sm table-hover mb-4">
+                <thead class="table-light">
+                    <tr><th>Nome</th><th>Patrimônio</th><th>Localização</th><th class="text-end">Ações</th></tr>
+                </thead>
+                <tbody>
+                <?php foreach ($vinculosComputadorImpressora as $vci): ?>
+                    <tr>
+                        <td><a href="view.php?id=<?= (int) $vci['id'] ?>"><?= e($vci['nome']) ?></a></td>
+                        <td><?= e($vci['patrimonio'] ?: 'Indefinido') ?></td>
+                        <td><?= e($vci['localizacao'] ?: '-') ?></td>
+                        <td class="text-end">
+                            <a href="desvincular_computador_impressora.php?id=<?= (int) $vci['vinculo_id'] ?>&voltar_id=<?= $id ?>" class="btn btn-sm btn-outline-danger js-confirm-delete"
+                               data-confirm-msg="Desvincular &quot;<?= e($vci['nome']) ?>&quot; deste equipamento?">
+                                <i class="bi bi-x-lg"></i> Desvincular
+                            </a>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+                </tbody>
+            </table>
+        <?php endif; ?>
+
+        <form method="post" class="row g-2 align-items-end">
+            <div class="col-md-8">
+                <label class="form-label fw-semibold">+ <?= ehImpressora($eq['tipo']) ? 'Vincular Computador' : 'Vincular Impressora' ?></label>
+                <select name="outro_equipamento_id" class="form-select" <?= empty($opcoesVinculoComputadorImpressora) ? 'disabled' : '' ?> required>
+                    <?php if (empty($opcoesVinculoComputadorImpressora)): ?>
+                        <option value=""><?= ehImpressora($eq['tipo']) ? 'Nenhum computador disponível' : 'Nenhuma impressora disponível' ?></option>
+                    <?php else: ?>
+                        <option value="">Selecione...</option>
+                        <?php foreach ($opcoesVinculoComputadorImpressora as $opVinculo): ?>
+                            <option value="<?= (int) $opVinculo['id'] ?>">
+                                <?= e($opVinculo['nome']) ?><?= $opVinculo['localizacao'] ? ' — ' . e($opVinculo['localizacao']) : '' ?>
+                            </option>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <button type="submit" name="vincular_computador_impressora" value="1" class="btn btn-primary w-100" <?= empty($opcoesVinculoComputadorImpressora) ? 'disabled' : '' ?>>
+                    <i class="bi bi-plus-lg"></i> Vincular
+                </button>
+            </div>
+        </form>
+        <p class="text-muted small mt-3 mb-0">
+            <i class="bi bi-info-circle"></i> Um computador pode estar vinculado a mais de uma impressora, e uma
+            impressora pode ter vários computadores — vincule a partir da ficha de qualquer um dos dois lados.
+        </p>
     </div>
     <?php endif; ?>
 

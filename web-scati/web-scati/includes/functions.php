@@ -204,6 +204,16 @@ function ehServidor(?string $tipo): bool
 }
 
 /**
+ * Retorna true se o equipamento é um Computador ou Notebook — os únicos
+ * tipos que podem ser vinculados a uma impressora na aba "Computadores
+ * Vinculados"/"Impressoras Vinculadas" (tabela computador_impressoras).
+ */
+function ehComputador(?string $tipo): bool
+{
+    return in_array($tipo, ['Computador', 'Notebook'], true);
+}
+
+/**
  * Lista fixa dos status operacionais aceitos para servidores.
  */
 function statusServidor(): array

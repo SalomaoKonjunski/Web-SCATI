@@ -677,6 +677,16 @@ web-scati/
   tempo** (tabela `toner_impressoras`, N:N) — útil quando o mesmo modelo
   atende várias impressoras iguais. A listagem destaca em amarelo os
   itens abaixo da quantidade mínima e em vermelho os zerados.
+- **Computadores Vinculados a Impressoras**: na ficha de uma impressora,
+  a aba **Computadores Vinculados** lista quais computadores imprimem
+  nela e permite vincular mais (dropdown + "Vincular", igual a Itens
+  Vinculados); na ficha de um Computador ou Notebook, a aba **Impressoras
+  Vinculadas** mostra a mesma relação pelo outro lado. É um vínculo N:N
+  (tabela `computador_impressoras`) — um computador pode usar mais de uma
+  impressora, e uma impressora pode atender vários computadores — e pode
+  ser criado ou desfeito pela ficha de qualquer um dos dois lados; o botão
+  "Desvincular" tem confirmação e fica registrado no histórico do
+  equipamento onde a ação foi feita.
 
   A quantidade em estoque se ajusta por dois botões, na tela de cada
   toner (`toner.php`): **"Dar baixa (instalar)"**, que exige escolher

@@ -423,6 +423,26 @@ CREATE TABLE toner_movimentacoes (
 CREATE INDEX idx_tonermov_toner ON toner_movimentacoes(toner_id);
 
 -- ---------------------------------------------------------------------
+-- Tabela: computador_impressoras (N:N — um computador pode imprimir em
+-- mais de uma impressora; uma impressora pode atender vários
+-- computadores). Gerenciável pela ficha de qualquer um dos dois lados
+-- ("Computadores Vinculados" numa impressora / "Impressoras Vinculadas"
+-- num computador).
+-- ---------------------------------------------------------------------
+CREATE TABLE computador_impressoras (
+    id              INT AUTO_INCREMENT PRIMARY KEY,
+    computador_id   INT NOT NULL,
+    impressora_id   INT NOT NULL,
+    criado_em       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_compimp_computador
+        FOREIGN KEY (computador_id) REFERENCES equipamentos(id) ON DELETE CASCADE,
+    CONSTRAINT fk_compimp_impressora
+        FOREIGN KEY (impressora_id) REFERENCES equipamentos(id) ON DELETE CASCADE,
+    UNIQUE KEY uniq_computador_impressora (computador_id, impressora_id)
+) ENGINE=InnoDB;
+
+-- ---------------------------------------------------------------------
 -- Tabela: licencas
 -- Regra: EQUIPAMENTO (1) -------- (N) LICENÇAS
 -- Uma licença pertence a, no máximo, um único equipamento.
