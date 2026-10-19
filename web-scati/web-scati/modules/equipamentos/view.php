@@ -244,9 +244,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cadastrar_item_estoqu
         );
         $mensagemCadastro = 'Item já existia no estoque — quantidade somada e ';
     } else {
+        // Reaproveita um local já cadastrado com o mesmo nome (sem diferenciar
+        // maiúsculas/minúsculas ou espaços nas pontas) ou cria um novo — mesma
+        // lógica de "achar ou criar" já usada acima pro próprio item de estoque.
+        $novoLocalId = null;
+        if ($novaLocalizacao !== '') {
+            $stmtLocalExistente = $pdo->prepare('SELECT id FROM locais_estoque WHERE LOWER(TRIM(nome)) = LOWER(TRIM(:nome)) LIMIT 1');
+            $stmtLocalExistente->execute(['nome' => $novaLocalizacao]);
+            $novoLocalId = $stmtLocalExistente->fetchColumn();
+            if (!$novoLocalId) {
+                $pdo->prepare('INSERT INTO locais_estoque (nome) VALUES (:nome)')->execute(['nome' => $novaLocalizacao]);
+                $novoLocalId = (int) $pdo->lastInsertId();
+            }
+        }
+
         $pdo->prepare(
-            'INSERT INTO estoque (nome, categoria_id, marca, modelo, quantidade, quantidade_minima, localizacao, observacoes)
-             VALUES (:nome, :categoria_id, :marca, :modelo, :quantidade, :quantidade_minima, :localizacao, :observacoes)'
+            'INSERT INTO estoque (nome, categoria_id, marca, modelo, quantidade, quantidade_minima, local_id, observacoes)
+             VALUES (:nome, :categoria_id, :marca, :modelo, :quantidade, :quantidade_minima, :local_id, :observacoes)'
         )->execute([
             'nome' => $novoNome,
             'categoria_id' => $novaCategoriaId,
@@ -254,7 +268,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cadastrar_item_estoqu
             'modelo' => $novoModelo ?: null,
             'quantidade' => $novaQuantidade,
             'quantidade_minima' => $novaQuantidadeMinima,
-            'localizacao' => $novaLocalizacao ?: null,
+            'local_id' => $novoLocalId ?: null,
             'observacoes' => $novasObservacoes ?: null,
         ]);
         $itemId = (int) $pdo->lastInsertId();

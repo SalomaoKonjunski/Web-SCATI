@@ -9,7 +9,7 @@ $pdo = db();
 $id = isset($_GET['id']) ? (int) $_GET['id'] : null;
 $edicao = $id !== null;
 
-$item = ['nome' => '', 'categoria_id' => '', 'marca' => '', 'modelo' => '', 'quantidade' => 0, 'quantidade_minima' => 0, 'localizacao' => '', 'observacoes' => ''];
+$item = ['nome' => '', 'categoria_id' => '', 'marca' => '', 'modelo' => '', 'quantidade' => 0, 'quantidade_minima' => 0, 'local_id' => '', 'observacoes' => ''];
 
 if ($edicao) {
     $stmt = $pdo->prepare('SELECT * FROM estoque WHERE id = :id');
@@ -31,7 +31,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $item['modelo'] = trim($_POST['modelo'] ?? '');
     $item['quantidade'] = $_POST['quantidade'] ?? '0';
     $item['quantidade_minima'] = $_POST['quantidade_minima'] ?? '0';
-    $item['localizacao'] = trim($_POST['localizacao'] ?? '');
+    $item['local_id'] = $_POST['local_id'] ?? '';
     $item['observacoes'] = trim($_POST['observacoes'] ?? '');
 
     if ($item['nome'] === '') {
@@ -55,7 +55,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'modelo' => $item['modelo'] ?: null,
             'quantidade' => (int) $item['quantidade'],
             'quantidade_minima' => (int) $item['quantidade_minima'],
-            'localizacao' => $item['localizacao'] ?: null,
+            'local_id' => $item['local_id'] !== '' ? (int) $item['local_id'] : null,
             'observacoes' => $item['observacoes'] ?: null,
         ];
 
@@ -63,7 +63,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $dados['id'] = $id;
             $pdo->prepare(
                 'UPDATE estoque SET nome=:nome, categoria_id=:categoria_id, marca=:marca, modelo=:modelo,
-                 quantidade=:quantidade, quantidade_minima=:quantidade_minima, localizacao=:localizacao,
+                 quantidade=:quantidade, quantidade_minima=:quantidade_minima, local_id=:local_id,
                  observacoes=:observacoes WHERE id=:id'
             )->execute($dados);
 
@@ -121,8 +121,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 flash('success', 'Já existia um item de estoque chamado "' . $itemExistente['nome'] . '" — a quantidade informada foi somada a ele em vez de criar um cadastro duplicado.');
             } else {
                 $pdo->prepare(
-                    'INSERT INTO estoque (nome, categoria_id, marca, modelo, quantidade, quantidade_minima, localizacao, observacoes)
-                     VALUES (:nome, :categoria_id, :marca, :modelo, :quantidade, :quantidade_minima, :localizacao, :observacoes)'
+                    'INSERT INTO estoque (nome, categoria_id, marca, modelo, quantidade, quantidade_minima, local_id, observacoes)
+                     VALUES (:nome, :categoria_id, :marca, :modelo, :quantidade, :quantidade_minima, :local_id, :observacoes)'
                 )->execute($dados);
                 $novoId = (int) $pdo->lastInsertId();
 
@@ -140,6 +140,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $categorias = $pdo->query('SELECT * FROM categorias_estoque ORDER BY ordem ASC, nome ASC')->fetchAll();
+$locais = $pdo->query('SELECT * FROM locais_estoque ORDER BY nome ASC')->fetchAll();
 $pageTitle = $edicao ? 'Editar Item de Estoque' : 'Novo Item de Estoque';
 
 include __DIR__ . '/../../includes/header.php';
@@ -190,7 +191,21 @@ include __DIR__ . '/../../includes/header.php';
             </div>
             <div class="col-md-6">
                 <label class="form-label">Localização</label>
-                <input type="text" name="localizacao" class="form-control" value="<?= e($item['localizacao']) ?>">
+                <select name="local_id" class="form-select" id="selectLocalEstoque">
+                    <option value="">Nenhuma</option>
+                    <?php foreach ($locais as $localOpcao): ?>
+                        <option value="<?= (int) $localOpcao['id'] ?>" <?= (string) $item['local_id'] === (string) $localOpcao['id'] ? 'selected' : '' ?>>
+                            <?= e($localOpcao['nome']) ?>
+                        </option>
+                    <?php endforeach; ?>
+                    <option value="novo" class="fst-italic">+ Novo local...</option>
+                </select>
+                <div class="input-group input-group-sm mt-2 d-none" id="novoLocalEstoqueWrap">
+                    <input type="text" class="form-control" id="novoLocalEstoqueNome" placeholder="Nome do novo local">
+                    <button type="button" class="btn btn-primary" id="novoLocalEstoqueSalvar"><i class="bi bi-check-lg"></i> Salvar</button>
+                    <button type="button" class="btn btn-outline-secondary" id="novoLocalEstoqueCancelar"><i class="bi bi-x-lg"></i></button>
+                </div>
+                <div class="form-text text-danger d-none" id="novoLocalEstoqueErro"></div>
             </div>
             <div class="col-md-6">
                 <label class="form-label">Observações</label>

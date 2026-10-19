@@ -53,6 +53,7 @@ $diasAlertaLicenca = configGet('dias_alerta_licenca', '30');
 $diasAlertaToner = configGet('dias_alerta_toner', '7');
 $fusoHorarioAtual = configGet('fuso_horario', 'America/Sao_Paulo');
 $totalCategorias = (int) $pdo->query('SELECT COUNT(*) FROM categorias_estoque')->fetchColumn();
+$totalLocaisEstoque = (int) $pdo->query('SELECT COUNT(*) FROM locais_estoque')->fetchColumn();
 $totalCategoriasEquipamento = (int) $pdo->query('SELECT COUNT(*) FROM categorias_equipamento')->fetchColumn();
 $totalTiposManutencao = (int) $pdo->query('SELECT COUNT(*) FROM tipos_manutencao')->fetchColumn();
 $usuarioAtual = usuarioLogado();
@@ -85,6 +86,22 @@ include __DIR__ . '/../../includes/header.php';
                 <p class="text-muted small mb-3"><?= $totalCategorias ?> categoria(s) cadastrada(s).</p>
                 <a href="../categorias_estoque/index.php" class="btn btn-outline-primary mt-auto">
                     <i class="bi bi-arrow-right"></i> Gerenciar Categorias
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-body d-flex flex-column">
+                <h5 class="card-title"><i class="bi bi-geo-alt me-1"></i> Locais de Estoque</h5>
+                <p class="card-text text-muted">
+                    Cadastre, renomeie ou exclua os locais usados no campo "Localização" do Estoque
+                    (Depósito TI, Sala do Financeiro, Almoxarifado, etc.).
+                </p>
+                <p class="text-muted small mb-3"><?= $totalLocaisEstoque ?> local(is) cadastrado(s).</p>
+                <a href="../locais_estoque/index.php" class="btn btn-outline-primary mt-auto">
+                    <i class="bi bi-arrow-right"></i> Gerenciar Locais
                 </a>
             </div>
         </div>

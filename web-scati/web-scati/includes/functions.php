@@ -522,6 +522,17 @@ function categoriasEstoqueNomes(): array
 }
 
 /**
+ * Nomes dos locais de Estoque cadastrados (Configurações > Locais de
+ * Estoque), usados como opções do dropdown "Localização" no cadastro do
+ * item, no filtro da listagem e no filtro "Localização" no Construtor de
+ * Relatório (origem Estoque).
+ */
+function locaisEstoqueNomes(): array
+{
+    return db()->query('SELECT nome FROM locais_estoque ORDER BY nome ASC')->fetchAll(PDO::FETCH_COLUMN);
+}
+
+/**
  * Whitelist única de origens de dados e colunas disponíveis no Construtor
  * de Relatório (Relatórios > Construtor de Relatório). Cada origem define
  * a tabela/junção ("from") e a ordenação padrão em SQL fixo (nunca vindo
@@ -585,7 +596,7 @@ function origensRelatorioPersonalizado(): array
             'label' => 'Estoque',
             'icone' => 'bi-box-seam',
             'descricao' => 'Itens, categorias, quantidades, localização...',
-            'from' => 'estoque es JOIN categorias_estoque c ON c.id = es.categoria_id',
+            'from' => 'estoque es JOIN categorias_estoque c ON c.id = es.categoria_id LEFT JOIN locais_estoque lo ON lo.id = es.local_id',
             'ordem_padrao' => 'es.nome',
             'campo_principal' => 'categoria_nome',
             'colunas' => [
@@ -595,7 +606,7 @@ function origensRelatorioPersonalizado(): array
                 'modelo'            => ['label' => 'Modelo', 'sql' => 'es.modelo', 'tipo' => 'texto'],
                 'quantidade'        => ['label' => 'Quantidade', 'sql' => 'es.quantidade', 'tipo' => 'numero'],
                 'quantidade_minima' => ['label' => 'Quantidade Mínima', 'sql' => 'es.quantidade_minima', 'tipo' => 'numero'],
-                'localizacao'       => ['label' => 'Localização', 'sql' => 'es.localizacao', 'tipo' => 'texto'],
+                'localizacao'       => ['label' => 'Localização', 'sql' => 'lo.nome', 'tipo' => 'select', 'opcoes' => locaisEstoqueNomes()],
                 'observacoes'       => ['label' => 'Observações', 'sql' => 'es.observacoes', 'tipo' => 'texto'],
             ],
         ],

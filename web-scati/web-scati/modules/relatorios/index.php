@@ -93,8 +93,8 @@ if ($relatorio !== '' && isset($titulosRelatorios[$relatorio])) {
 
         case 'estoque_lista':
             $colunas = ['Nome', 'Categoria', 'Quantidade', 'Mínimo', 'Localização'];
-            $rows = $pdo->query("SELECT es.nome, c.nome AS categoria, es.quantidade, es.quantidade_minima, es.localizacao FROM estoque es JOIN categorias_estoque c ON c.id = es.categoria_id ORDER BY es.nome")->fetchAll();
-            foreach ($rows as $r) { $linhas[] = [$r['nome'], $r['categoria'], (string) $r['quantidade'], (string) $r['quantidade_minima'], $r['localizacao'] ?: '-']; }
+            $rows = $pdo->query("SELECT es.nome, c.nome AS categoria, es.quantidade, es.quantidade_minima, lo.nome AS local_nome FROM estoque es JOIN categorias_estoque c ON c.id = es.categoria_id LEFT JOIN locais_estoque lo ON lo.id = es.local_id ORDER BY es.nome")->fetchAll();
+            foreach ($rows as $r) { $linhas[] = [$r['nome'], $r['categoria'], (string) $r['quantidade'], (string) $r['quantidade_minima'], $r['local_nome'] ?: '-']; }
             break;
 
         case 'estoque_baixo':

@@ -156,6 +156,19 @@ INSERT INTO categorias_estoque (nome) VALUES
 ('Adaptadores'), ('Outros');
 
 -- ---------------------------------------------------------------------
+-- Tabela: locais_estoque
+-- Cadastro próprio dos locais usados no campo "Localização" do Estoque
+-- (dropdown no cadastro do item, com opção de adicionar um local novo
+-- ali mesmo, e filtro na listagem) — gerenciável em Configurações >
+-- Locais de Estoque, igual a Categorias de Estoque.
+-- ---------------------------------------------------------------------
+CREATE TABLE locais_estoque (
+    id          INT AUTO_INCREMENT PRIMARY KEY,
+    nome        VARCHAR(120) NOT NULL UNIQUE,
+    criado_em   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+-- ---------------------------------------------------------------------
 -- Tabela: categorias_equipamento
 -- ---------------------------------------------------------------------
 -- Tela própria em Configurações (independente de categorias_estoque),
@@ -296,7 +309,7 @@ CREATE TABLE estoque (
     modelo              VARCHAR(80) NULL,
     quantidade          INT NOT NULL DEFAULT 0,
     quantidade_minima   INT NOT NULL DEFAULT 0,
-    localizacao         VARCHAR(120) NULL,
+    local_id            INT NULL,
     observacoes         TEXT NULL,
 
     -- Campos extras (só preenchidos quando a categoria do item habilita o
@@ -320,7 +333,7 @@ CREATE TABLE estoque (
     funcao_servidor          VARCHAR(100) NULL,
     servidor_status          ENUM('Ativo','Inativo') NULL,
     servidor_observacoes     TEXT NULL,
-    -- Localização e Uso (a "Localização" em si já é o campo padrão acima)
+    -- Localização e Uso (o "Local" em si já é o campo padrão acima, local_id)
     status                   ENUM('Em uso','Disponível','Em manutenção','Com defeito','Descartado') NULL,
     usuario_responsavel      VARCHAR(120) NULL,
     rede_id                  INT NULL,
@@ -338,6 +351,8 @@ CREATE TABLE estoque (
         FOREIGN KEY (categoria_id) REFERENCES categorias_estoque(id),
     CONSTRAINT fk_estoque_rede
         FOREIGN KEY (rede_id) REFERENCES redes(id) ON DELETE SET NULL,
+    CONSTRAINT fk_estoque_local
+        FOREIGN KEY (local_id) REFERENCES locais_estoque(id) ON DELETE SET NULL,
     CONSTRAINT chk_estoque_qtd_nao_negativa CHECK (quantidade >= 0)
 ) ENGINE=InnoDB;
 

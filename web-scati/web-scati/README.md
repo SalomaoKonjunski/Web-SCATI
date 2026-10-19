@@ -635,7 +635,19 @@ web-scati/
   cadastradas em cada item (com um ícone, quando preenchida) — o texto
   completo aparece ao passar o mouse. A linha inteira do item também é
   clicável (como em Equipamentos) para abrir seu cadastro completo, onde
-  as observações ficam visíveis no campo correspondente.
+  as observações ficam visíveis no campo correspondente. O campo
+  **Localização** é um dropdown (tabela `locais_estoque`, gerenciável em
+  Configurações > Locais de Estoque, igual a Categorias de Estoque) em vez
+  de texto livre — evita o mesmo local cadastrado de formas diferentes.
+  Se o local que você precisa ainda não existe, a própria opção
+  **"+ Novo local..."** no final do dropdown revela um campo pra digitar o
+  nome e salvar na hora, sem sair da tela — a nova opção já aparece
+  selecionada no dropdown assim que salva. A listagem de Estoque tem um
+  filtro por **Local** (ao lado do filtro por Categoria), e o atalho
+  "Cadastrar e Vincular" na ficha do equipamento continua com o campo de
+  localização em texto livre, mas por trás reaproveita um local já
+  cadastrado com o mesmo nome ou cria um novo automaticamente — sem exigir
+  escolher no dropdown ali.
 - **Itens Vinculados**: aba na ficha do equipamento para vincular itens já
   cadastrados no Estoque (periféricos, cabos, etc.) diretamente a ele, sem
   duplicar o cadastro. Cada vínculo consome 1 unidade da quantidade
@@ -904,6 +916,13 @@ web-scati/
     escolher a **cor** dela — 12 opções prontas ou, pelo seletor
     "Outra cor...", qualquer cor livre — para destacá-la em listas e
     menus.
+  - **Locais de Estoque**: CRUD simples (só nome) dos locais usados no
+    campo "Localização" do Estoque — além de gerenciável aqui, também dá
+    pra criar um local novo direto pela opção "+ Novo local..." no
+    próprio dropdown do cadastro de item, sem precisar vir até esta tela.
+    Um local com itens de estoque usando ele pode ser excluído
+    normalmente — os itens ficam sem localização definida (`local_id`
+    nulo), não bloqueiam a exclusão.
   - **Categorias de Equipamentos**: CRUD completo dos tipos disponíveis
     no campo "Tipo" do cadastro de Equipamentos — antes era uma lista
     fixa no código (Computador, Notebook, Impressora, Monitor, Switch,

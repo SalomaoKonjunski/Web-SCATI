@@ -42,6 +42,83 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
+    // Cadastro de Estoque: campo "Localização" — escolher "+ Novo local..."
+    // no dropdown revela um campo pra digitar o nome e salvar na hora (via
+    // modules/locais_estoque/criar_rapido.php), sem sair da página. Ao
+    // salvar, a nova opção entra no próprio <select> e já fica selecionada.
+    const selectLocalEstoque = document.getElementById('selectLocalEstoque');
+    if (selectLocalEstoque) {
+        const wrap = document.getElementById('novoLocalEstoqueWrap');
+        const inputNome = document.getElementById('novoLocalEstoqueNome');
+        const btnSalvar = document.getElementById('novoLocalEstoqueSalvar');
+        const btnCancelar = document.getElementById('novoLocalEstoqueCancelar');
+        const erroDiv = document.getElementById('novoLocalEstoqueErro');
+        let valorAnterior = selectLocalEstoque.value === 'novo' ? '' : selectLocalEstoque.value;
+
+        function fecharNovoLocal() {
+            wrap.classList.add('d-none');
+            erroDiv.classList.add('d-none');
+            inputNome.value = '';
+        }
+
+        selectLocalEstoque.addEventListener('change', function () {
+            if (selectLocalEstoque.value === 'novo') {
+                wrap.classList.remove('d-none');
+                inputNome.focus();
+            } else {
+                valorAnterior = selectLocalEstoque.value;
+                fecharNovoLocal();
+            }
+        });
+
+        btnCancelar.addEventListener('click', function () {
+            selectLocalEstoque.value = valorAnterior;
+            fecharNovoLocal();
+        });
+
+        btnSalvar.addEventListener('click', function () {
+            const nome = inputNome.value.trim();
+            erroDiv.classList.add('d-none');
+            if (nome === '') {
+                erroDiv.textContent = 'Digite um nome pro local.';
+                erroDiv.classList.remove('d-none');
+                return;
+            }
+            btnSalvar.disabled = true;
+            fetch('../locais_estoque/criar_rapido.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                credentials: 'same-origin',
+                body: 'nome=' + encodeURIComponent(nome),
+            })
+                .then(function (resposta) { return resposta.json().then(function (dados) { return { ok: resposta.ok, dados: dados }; }); })
+                .then(function (resultado) {
+                    btnSalvar.disabled = false;
+                    if (!resultado.ok) {
+                        erroDiv.textContent = resultado.dados.erro || 'Não foi possível salvar o local.';
+                        erroDiv.classList.remove('d-none');
+                        return;
+                    }
+                    // Já existe uma opção com esse id (reaproveitou um local existente)?
+                    let opcao = selectLocalEstoque.querySelector('option[value="' + resultado.dados.id + '"]');
+                    if (!opcao) {
+                        opcao = document.createElement('option');
+                        opcao.value = resultado.dados.id;
+                        selectLocalEstoque.querySelector('option[value="novo"]').insertAdjacentElement('beforebegin', opcao);
+                    }
+                    opcao.textContent = resultado.dados.nome;
+                    selectLocalEstoque.value = String(resultado.dados.id);
+                    valorAnterior = selectLocalEstoque.value;
+                    fecharNovoLocal();
+                })
+                .catch(function () {
+                    btnSalvar.disabled = false;
+                    erroDiv.textContent = 'Erro de conexão — tente de novo.';
+                    erroDiv.classList.remove('d-none');
+                });
+        });
+    }
+
     // Envia automaticamente formulários marcados com .js-auto-submit assim que
     // um campo (select/input) dentro deles muda de valor (ex: trocar o status
     // de um chamado direto na listagem, sem precisar de um botão "Salvar").

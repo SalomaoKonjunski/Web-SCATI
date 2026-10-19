@@ -10,13 +10,15 @@ $pageTitle = 'Estoque';
 
 $busca = trim($_GET['busca'] ?? '');
 $filtroCategoria = $_GET['categoria_id'] ?? '';
+$filtroLocal = $_GET['local_id'] ?? '';
 $somenteAbaixoMinimo = isset($_GET['abaixo_minimo']);
 
-$sql = "SELECT es.*, c.nome AS categoria_nome, c.cor AS categoria_cor,
+$sql = "SELECT es.*, c.nome AS categoria_nome, c.cor AS categoria_cor, lo.nome AS local_nome,
                COUNT(iv.id) AS qtd_vinculada,
                GROUP_CONCAT(DISTINCT COALESCE(eq.patrimonio, 'Indefinido') ORDER BY eq.patrimonio SEPARATOR ', ') AS equipamentos_vinculados
         FROM estoque es
         JOIN categorias_estoque c ON c.id = es.categoria_id
+        LEFT JOIN locais_estoque lo ON lo.id = es.local_id
         LEFT JOIN itens_vinculados iv ON iv.estoque_id = es.id
         LEFT JOIN equipamentos eq ON eq.id = iv.equipamento_id
         WHERE 1=1";
@@ -31,6 +33,10 @@ if ($busca !== '') {
 if ($filtroCategoria !== '') {
     $sql .= " AND es.categoria_id = :categoria_id";
     $params['categoria_id'] = $filtroCategoria;
+}
+if ($filtroLocal !== '') {
+    $sql .= " AND es.local_id = :local_id";
+    $params['local_id'] = $filtroLocal;
 }
 if ($somenteAbaixoMinimo) {
     $sql .= " AND es.quantidade < es.quantidade_minima";
@@ -48,6 +54,7 @@ $itensNaoVinculados = array_values(array_filter($itens, fn($item) => (int) $item
 $itensVinculados = array_values(array_filter($itens, fn($item) => (int) $item['qtd_vinculada'] > 0));
 
 $categorias = $pdo->query('SELECT id, nome FROM categorias_estoque ORDER BY ordem ASC, nome ASC')->fetchAll();
+$locaisFiltro = $pdo->query('SELECT id, nome FROM locais_estoque ORDER BY nome ASC')->fetchAll();
 
 include __DIR__ . '/../../includes/header.php';
 ?>
@@ -60,7 +67,7 @@ include __DIR__ . '/../../includes/header.php';
 <div class="card mb-3">
     <div class="card-body">
         <form method="get" class="row g-2 align-items-end">
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <label class="form-label small text-muted mb-1">Pesquisar</label>
                 <input type="text" name="busca" class="form-control" placeholder="Nome, marca ou modelo..." value="<?= e($busca) ?>">
             </div>
@@ -73,10 +80,19 @@ include __DIR__ . '/../../includes/header.php';
                     <?php endforeach; ?>
                 </select>
             </div>
-            <div class="col-md-3 d-flex align-items-center">
+            <div class="col-md-2">
+                <label class="form-label small text-muted mb-1">Local</label>
+                <select name="local_id" class="form-select">
+                    <option value="">Todos</option>
+                    <?php foreach ($locaisFiltro as $localOpt): ?>
+                        <option value="<?= (int) $localOpt['id'] ?>" <?= (string) $filtroLocal === (string) $localOpt['id'] ? 'selected' : '' ?>><?= e($localOpt['nome']) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="col-md-2 d-flex align-items-center">
                 <div class="form-check mt-4">
                     <input class="form-check-input" type="checkbox" name="abaixo_minimo" id="abaixoMinimo" value="1" <?= $somenteAbaixoMinimo ? 'checked' : '' ?>>
-                    <label class="form-check-label" for="abaixoMinimo">Somente abaixo do mínimo</label>
+                    <label class="form-check-label" for="abaixoMinimo">Abaixo do mínimo</label>
                 </div>
             </div>
             <div class="col-md-2 d-flex gap-2">
@@ -143,7 +159,7 @@ include __DIR__ . '/../../includes/header.php';
                                     </form>
                                 </td>
                                 <td class="text-center text-muted"><?= (int) $item['quantidade_minima'] ?></td>
-                                <td><?= e($item['localizacao']) ?: '-' ?></td>
+                                <td><?= e($item['local_nome']) ?: '-' ?></td>
                                 <td>
                                     <?php if (!empty($item['observacoes'])): ?>
                                         <div class="small text-muted text-truncate" style="max-width: 220px;" title="<?= e($item['observacoes']) ?>">
@@ -197,7 +213,7 @@ include __DIR__ . '/../../includes/header.php';
                                 <td><?= badgeCor($item['categoria_nome'], $item['categoria_cor']) ?></td>
                                 <td><?= e(trim(($item['marca'] ?? '') . ' ' . ($item['modelo'] ?? ''))) ?: '-' ?></td>
                                 <td class="text-center fw-semibold"><?= (int) $item['qtd_vinculada'] ?></td>
-                                <td><?= e($item['localizacao']) ?: '-' ?></td>
+                                <td><?= e($item['local_nome']) ?: '-' ?></td>
                                 <td>
                                     <span class="badge bg-primary"><?= (int) $item['qtd_vinculada'] ?> unidade(s)</span>
                                     <div class="small text-muted mt-1"><?= e($item['equipamentos_vinculados']) ?></div>
