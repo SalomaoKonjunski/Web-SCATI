@@ -553,6 +553,23 @@ CREATE TABLE transferencia_itens (
         FOREIGN KEY (equipamento_id) REFERENCES equipamentos(id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
+-- Arquivos (PDF do formulário físico de transferência, fotos, notas
+-- fiscais, etc.) anexados a um registro de Transferência — mesmo padrão
+-- de anexos_equipamentos, salvos em uploads/anexos_transferencias/.
+CREATE TABLE anexos_transferencias (
+    id                  INT AUTO_INCREMENT PRIMARY KEY,
+    transferencia_id    INT NOT NULL,
+    nome_original       VARCHAR(255) NOT NULL,
+    nome_arquivo        VARCHAR(255) NOT NULL,
+    tipo_mime           VARCHAR(100) NULL,
+    tamanho             INT NOT NULL,
+    descricao           VARCHAR(255) NULL,
+    criado_em           DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_anexo_transferencia
+        FOREIGN KEY (transferencia_id) REFERENCES transferencias(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
 -- ---------------------------------------------------------------------
 -- Tabela: observacoes_equipamentos (registro manual, cronológico)
 -- ---------------------------------------------------------------------
@@ -1010,3 +1027,4 @@ CREATE INDEX idx_anexo_equipamento ON anexos_equipamentos(equipamento_id);
 CREATE INDEX idx_transferencia_responsavel ON transferencias(responsavel_id);
 CREATE INDEX idx_transferencia_item_transferencia ON transferencia_itens(transferencia_id);
 CREATE INDEX idx_transferencia_item_equipamento ON transferencia_itens(equipamento_id);
+CREATE INDEX idx_anexo_transferencia ON anexos_transferencias(transferencia_id);
