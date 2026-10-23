@@ -516,6 +516,44 @@ CREATE TABLE historico_estoque (
 ) ENGINE=InnoDB;
 
 -- ---------------------------------------------------------------------
+-- Tabela: transferencias (formulário de transferência de equipamentos,
+-- com Origem/Destino/Responsável/Data obrigatórios) e seus itens.
+-- responsavel_nome fica gravado na própria linha (como em
+-- historico_equipamentos.usuario_nome) para o registro continuar
+-- legível mesmo se o usuário responsável for excluído depois.
+-- ---------------------------------------------------------------------
+CREATE TABLE transferencias (
+    id                  INT AUTO_INCREMENT PRIMARY KEY,
+    origem              VARCHAR(120) NOT NULL,
+    destino             VARCHAR(120) NOT NULL,
+    responsavel_id      INT NULL,
+    responsavel_nome    VARCHAR(50) NOT NULL,
+    data_transferencia  DATE NOT NULL,
+    observacoes         TEXT NULL,
+    criado_em           DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_transferencia_responsavel
+        FOREIGN KEY (responsavel_id) REFERENCES usuarios(id) ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+-- equipamento_id fica NULL se o equipamento for excluído depois (ON
+-- DELETE SET NULL), mas o nome gravado na própria linha mantém o
+-- histórico da transferência legível. equipamento_novo marca os itens
+-- que foram cadastrados na hora (não existiam antes da transferência).
+CREATE TABLE transferencia_itens (
+    id                  INT AUTO_INCREMENT PRIMARY KEY,
+    transferencia_id    INT NOT NULL,
+    equipamento_id      INT NULL,
+    equipamento_nome    VARCHAR(120) NOT NULL,
+    equipamento_novo    TINYINT(1) NOT NULL DEFAULT 0,
+
+    CONSTRAINT fk_transferencia_item_transferencia
+        FOREIGN KEY (transferencia_id) REFERENCES transferencias(id) ON DELETE CASCADE,
+    CONSTRAINT fk_transferencia_item_equipamento
+        FOREIGN KEY (equipamento_id) REFERENCES equipamentos(id) ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+-- ---------------------------------------------------------------------
 -- Tabela: observacoes_equipamentos (registro manual, cronológico)
 -- ---------------------------------------------------------------------
 CREATE TABLE observacoes_equipamentos (
@@ -969,3 +1007,6 @@ CREATE INDEX idx_chamado_status ON chamados(status);
 CREATE INDEX idx_chamado_prioridade ON chamados(prioridade);
 CREATE INDEX idx_chamado_responsavel ON chamados(responsavel_id);
 CREATE INDEX idx_anexo_equipamento ON anexos_equipamentos(equipamento_id);
+CREATE INDEX idx_transferencia_responsavel ON transferencias(responsavel_id);
+CREATE INDEX idx_transferencia_item_transferencia ON transferencia_itens(transferencia_id);
+CREATE INDEX idx_transferencia_item_equipamento ON transferencia_itens(equipamento_id);

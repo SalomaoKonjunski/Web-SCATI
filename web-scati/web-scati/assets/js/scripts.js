@@ -1036,4 +1036,122 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
     }
+
+    // Nova Transferência (modules/transferencias/form.php): tabela de
+    // itens com linhas adicionadas/removidas dinamicamente. Cada linha
+    // usa um índice próprio (itens[N][campo]) em vez de arrays paralelos
+    // (itens_campo[]) — assim nenhum campo depende da posição dos outros
+    // pra alinhar no PHP, mesmo misturando linhas "Já cadastrado" e
+    // "Novo equipamento" ou removendo uma linha do meio.
+    const corpoItensTransferencia = document.getElementById('corpoItensTransferencia');
+    if (corpoItensTransferencia) {
+        const template = document.getElementById('templateItemTransferencia');
+        let proximoIndice = 0;
+
+        function alternarModoLinha(linha) {
+            const modo = linha.querySelector('.item-modo-select').value;
+            linha.querySelector('.item-equipamento-select').classList.toggle('d-none', modo === 'novo');
+            linha.querySelector('.item-novo-wrap').classList.toggle('d-none', modo !== 'novo');
+        }
+
+        function adicionarLinhaItem(valores) {
+            valores = valores || {};
+            const indice = proximoIndice++;
+            const linha = template.content.firstElementChild.cloneNode(true);
+
+            const selectModo = linha.querySelector('.item-modo-select');
+            const selectEquipamento = linha.querySelector('.item-equipamento-select');
+            const selectNovoTipo = linha.querySelector('.item-novo-wrap select');
+            const inputNovoNome = linha.querySelector('.item-novo-wrap input');
+            const inputPatrimonio = linha.querySelector('td:nth-child(3) input');
+
+            selectModo.name = 'itens[' + indice + '][modo]';
+            selectEquipamento.name = 'itens[' + indice + '][equipamento_id]';
+            selectNovoTipo.name = 'itens[' + indice + '][novo_tipo]';
+            inputNovoNome.name = 'itens[' + indice + '][novo_nome]';
+            inputPatrimonio.name = 'itens[' + indice + '][patrimonio]';
+
+            if (valores.modo) selectModo.value = valores.modo;
+            if (valores.equipamento_id) selectEquipamento.value = String(valores.equipamento_id);
+            if (valores.novo_tipo) selectNovoTipo.value = valores.novo_tipo;
+            if (valores.novo_nome) inputNovoNome.value = valores.novo_nome;
+            if (valores.patrimonio) inputPatrimonio.value = valores.patrimonio;
+
+            selectModo.addEventListener('change', function () { alternarModoLinha(linha); });
+            linha.querySelector('.item-remover-linha').addEventListener('click', function () {
+                linha.remove();
+            });
+
+            corpoItensTransferencia.appendChild(linha);
+            alternarModoLinha(linha);
+        }
+
+        document.getElementById('btnAdicionarItemTransferencia').addEventListener('click', function () {
+            adicionarLinhaItem();
+        });
+
+        // Reexibe as linhas enviadas se o formulário voltou com erro de
+        // validação (em vez de recomeçar do zero); senão começa com 1 linha.
+        const itensPostados = window.SCATI_ITENS_TRANSFERENCIA_POSTADOS || [];
+        if (itensPostados.length > 0) {
+            itensPostados.forEach(function (item) { adicionarLinhaItem(item); });
+        } else {
+            adicionarLinhaItem();
+        }
+    }
+
+    // Nova Transferência: campo "Destino" — "+ Novo local..." no dropdown
+    // revela um campo pra digitar o nome e adicionar a opção na hora.
+    // Diferente do Estoque, aqui não existe uma tabela por trás (é texto
+    // livre, igual já era o campo "Localização" do equipamento), então a
+    // opção nova só é inserida no próprio <select> no navegador, sem
+    // nenhuma requisição ao servidor.
+    const selectDestino = document.getElementById('selectDestino');
+    if (selectDestino) {
+        const wrap = document.getElementById('novoDestinoWrap');
+        const inputNome = document.getElementById('novoDestinoNome');
+        const btnAdicionar = document.getElementById('novoDestinoAdicionar');
+        const btnCancelar = document.getElementById('novoDestinoCancelar');
+        let valorAnterior = selectDestino.value === 'novo' ? '' : selectDestino.value;
+
+        function fecharNovoDestino() {
+            wrap.classList.add('d-none');
+            inputNome.value = '';
+        }
+
+        selectDestino.addEventListener('change', function () {
+            if (selectDestino.value === 'novo') {
+                wrap.classList.remove('d-none');
+                inputNome.focus();
+            } else {
+                valorAnterior = selectDestino.value;
+                fecharNovoDestino();
+            }
+        });
+
+        btnCancelar.addEventListener('click', function () {
+            selectDestino.value = valorAnterior;
+            fecharNovoDestino();
+        });
+
+        btnAdicionar.addEventListener('click', function () {
+            const nome = inputNome.value.trim();
+            if (nome === '') {
+                inputNome.focus();
+                return;
+            }
+            let opcao = Array.from(selectDestino.options).find(function (o) {
+                return o.value.toLowerCase() === nome.toLowerCase();
+            });
+            if (!opcao) {
+                opcao = document.createElement('option');
+                opcao.value = nome;
+                opcao.textContent = nome;
+                selectDestino.querySelector('option[value="novo"]').insertAdjacentElement('beforebegin', opcao);
+            }
+            selectDestino.value = opcao.value;
+            valorAnterior = opcao.value;
+            fecharNovoDestino();
+        });
+    }
 });

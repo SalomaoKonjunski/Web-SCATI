@@ -56,6 +56,13 @@ $divisorConfigAplicado = false;
             </a>
         </li>
         <?php endif; ?>
+        <?php if (temPermissao('transferencias', 'ver')): ?>
+        <li class="nav-item">
+            <a class="nav-link <?= isActive('/modules/transferencias/', $currentPath) ?>" href="<?= BASE_URL ?>/modules/transferencias/index.php">
+                <i class="bi bi-truck"></i> Transferências
+            </a>
+        </li>
+        <?php endif; ?>
         <?php if (temPermissao('redes', 'ver')): ?>
         <li class="nav-item">
             <a class="nav-link <?= isActive('/modules/redes/', $currentPath) ?>" href="<?= BASE_URL ?>/modules/redes/index.php">

@@ -995,6 +995,7 @@ function modulosSistema(): array
         'equipamentos'  => ['label' => 'Equipamentos', 'icone' => 'bi-pc-display'],
         'impressoras'   => ['label' => 'Impressoras', 'icone' => 'bi-printer'],
         'estoque'       => ['label' => 'Estoque', 'icone' => 'bi-box-seam'],
+        'transferencias' => ['label' => 'Transferências', 'icone' => 'bi-truck'],
         'redes'         => ['label' => 'Redes', 'icone' => 'bi-diagram-3'],
         'licencas'      => ['label' => 'Licenças', 'icone' => 'bi-key'],
         'relatorios'    => ['label' => 'Relatórios', 'icone' => 'bi-bar-chart-line'],

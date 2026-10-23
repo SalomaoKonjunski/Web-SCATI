@@ -648,6 +648,23 @@ web-scati/
   localização em texto livre, mas por trás reaproveita um local já
   cadastrado com o mesmo nome ou cria um novo automaticamente — sem exigir
   escolher no dropdown ali.
+- **Transferências**: módulo próprio para registrar o recebimento/
+  movimentação de equipamentos (ex.: um formulário de transferência vindo
+  de uma obra) num só lugar. O cabeçalho exige **Origem**, **Destino**,
+  **Responsável** e **Data** — o Destino é um dropdown com os locais já
+  usados em Equipamentos, mais a opção **"+ Novo local..."** pra digitar um
+  novo nome na hora (é texto livre, igual já era o campo "Localização" do
+  equipamento — não duplica a tabela `locais_estoque`, que é exclusiva do
+  Estoque). Abaixo do cabeçalho, uma tabela de itens permite adicionar
+  quantas linhas forem necessárias, cada uma marcada como **"Já
+  cadastrado"** (escolhe um equipamento existente numa lista) ou **"+ Novo
+  equipamento"** (cadastra na hora, só com Tipo e Nome — Patrimônio é
+  opcional). Ao confirmar, todos os equipamentos da transferência têm sua
+  Localização atualizada para o Destino informado (os novos já nascem
+  assim) e recebem um registro no histórico com Origem, Destino e
+  Responsável. A listagem (com filtro por Origem/Destino e por
+  Responsável) mostra a contagem de itens de cada transferência, e a tela
+  "Ver" lista cada item com link direto pra ficha do equipamento.
 - **Itens Vinculados**: aba na ficha do equipamento para vincular itens já
   cadastrados no Estoque (periféricos, cabos, etc.) diretamente a ele, sem
   duplicar o cadastro. Cada vínculo consome 1 unidade da quantidade
