@@ -1050,8 +1050,17 @@ document.addEventListener('DOMContentLoaded', function () {
 
         function alternarModoLinha(linha) {
             const modo = linha.querySelector('.item-modo-select').value;
-            linha.querySelector('.item-equipamento-select').classList.toggle('d-none', modo === 'novo');
-            linha.querySelector('.item-novo-wrap').classList.toggle('d-none', modo !== 'novo');
+            const ehNovo = modo === 'novo';
+            linha.querySelector('.item-equipamento-select').classList.toggle('d-none', ehNovo);
+            linha.querySelector('.item-novo-wrap').classList.toggle('d-none', !ehNovo);
+            // Quantidade só faz sentido pra "+ Novo equipamento" — pra um item
+            // "Já cadastrado" você está vinculando uma unidade específica que já
+            // existe, não criando várias de uma vez.
+            const inputQuantidade = linha.querySelector('.item-quantidade-input');
+            inputQuantidade.disabled = !ehNovo;
+            if (!ehNovo) {
+                inputQuantidade.value = '1';
+            }
         }
 
         function adicionarLinhaItem(valores) {
@@ -1063,18 +1072,21 @@ document.addEventListener('DOMContentLoaded', function () {
             const selectEquipamento = linha.querySelector('.item-equipamento-select');
             const selectNovoTipo = linha.querySelector('.item-novo-wrap select');
             const inputNovoNome = linha.querySelector('.item-novo-wrap input');
-            const inputPatrimonio = linha.querySelector('td:nth-child(3) input');
+            const inputQuantidade = linha.querySelector('.item-quantidade-input');
+            const inputPatrimonio = linha.querySelector('.item-patrimonio-input');
 
             selectModo.name = 'itens[' + indice + '][modo]';
             selectEquipamento.name = 'itens[' + indice + '][equipamento_id]';
             selectNovoTipo.name = 'itens[' + indice + '][novo_tipo]';
             inputNovoNome.name = 'itens[' + indice + '][novo_nome]';
+            inputQuantidade.name = 'itens[' + indice + '][quantidade]';
             inputPatrimonio.name = 'itens[' + indice + '][patrimonio]';
 
             if (valores.modo) selectModo.value = valores.modo;
             if (valores.equipamento_id) selectEquipamento.value = String(valores.equipamento_id);
             if (valores.novo_tipo) selectNovoTipo.value = valores.novo_tipo;
             if (valores.novo_nome) inputNovoNome.value = valores.novo_nome;
+            if (valores.quantidade) inputQuantidade.value = String(valores.quantidade);
             if (valores.patrimonio) inputPatrimonio.value = valores.patrimonio;
 
             selectModo.addEventListener('change', function () { alternarModoLinha(linha); });

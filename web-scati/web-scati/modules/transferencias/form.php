@@ -65,6 +65,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $erros[] = 'Tipo inválido para o novo equipamento "' . $nome . '".';
                 continue;
             }
+            $quantidade = (int) ($item['quantidade'] ?? 1);
+            if ($quantidade < 1) {
+                $quantidade = 1;
+            }
+            if ($quantidade > 999) {
+                $erros[] = 'A quantidade do item "' . $nome . '" não pode passar de 999 de uma vez.';
+                continue;
+            }
+            if ($quantidade > 1 && $patrimonio !== '') {
+                $erros[] = 'Informe o Patrimônio apenas quando a quantidade for 1 (item "' . $nome . '") — cada equipamento tem um patrimônio único.';
+                continue;
+            }
             if ($patrimonio !== '') {
                 $stmtCheck = $pdo->prepare('SELECT id FROM equipamentos WHERE patrimonio = :p');
                 $stmtCheck->execute(['p' => $patrimonio]);
@@ -73,7 +85,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     continue;
                 }
             }
-            $itensValidados[] = ['modo' => 'novo', 'tipo' => $tipo, 'nome' => $nome, 'patrimonio' => $patrimonio ?: null];
+            $itensValidados[] = ['modo' => 'novo', 'tipo' => $tipo, 'nome' => $nome, 'patrimonio' => $patrimonio ?: null, 'quantidade' => $quantidade];
         } else {
             $equipamentoId = (int) ($item['equipamento_id'] ?? 0);
             if ($equipamentoId <= 0) {
@@ -106,45 +118,61 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             foreach ($itensValidados as $it) {
                 if ($it['modo'] === 'novo') {
-                    $pdo->prepare(
-                        'INSERT INTO equipamentos (nome, patrimonio, tipo, status, localizacao)
-                         VALUES (:nome, :patrimonio, :tipo, :status, :localizacao)'
-                    )->execute([
-                        'nome' => $it['nome'],
-                        'patrimonio' => $it['patrimonio'],
-                        'tipo' => $it['tipo'],
-                        'status' => 'Em uso',
-                        'localizacao' => $dados['destino'],
-                    ]);
-                    $equipamentoId = (int) $pdo->lastInsertId();
-                    $equipamentoNome = $it['nome'];
-                    $ehNovo = 1;
-                    registrarHistorico($equipamentoId, 'Transferência',
-                        'Recebido por transferência de "' . $dados['origem'] . '" para "' . $dados['destino'] . '". Responsável: ' . $responsavelNome . '.');
-                } else {
-                    $equipamentoId = $it['equipamento_id'];
-                    $stmtEq = $pdo->prepare('SELECT nome, patrimonio FROM equipamentos WHERE id = :id');
-                    $stmtEq->execute(['id' => $equipamentoId]);
-                    $eq = $stmtEq->fetch();
-                    if (!$eq) {
-                        continue;
+                    // Quantidade > 1 cria várias unidades do mesmo item de uma vez
+                    // (ex.: 5 "Monitor LG 24"), cada uma com seu próprio cadastro
+                    // em equipamentos — o nome ganha "(unidade N/total)" só quando
+                    // há mais de uma, pra não ficarem indistinguíveis na listagem.
+                    for ($unidade = 1; $unidade <= $it['quantidade']; $unidade++) {
+                        $nomeUnidade = $it['quantidade'] > 1
+                            ? $it['nome'] . ' (unidade ' . $unidade . '/' . $it['quantidade'] . ')'
+                            : $it['nome'];
+
+                        $pdo->prepare(
+                            'INSERT INTO equipamentos (nome, patrimonio, tipo, status, localizacao)
+                             VALUES (:nome, :patrimonio, :tipo, :status, :localizacao)'
+                        )->execute([
+                            'nome' => $nomeUnidade,
+                            'patrimonio' => $it['patrimonio'],
+                            'tipo' => $it['tipo'],
+                            'status' => 'Em uso',
+                            'localizacao' => $dados['destino'],
+                        ]);
+                        $equipamentoId = (int) $pdo->lastInsertId();
+                        registrarHistorico($equipamentoId, 'Transferência',
+                            'Recebido por transferência de "' . $dados['origem'] . '" para "' . $dados['destino'] . '". Responsável: ' . $responsavelNome . '.');
+
+                        $pdo->prepare(
+                            'INSERT INTO transferencia_itens (transferencia_id, equipamento_id, equipamento_nome, equipamento_novo)
+                             VALUES (:tid, :eid, :nome, 1)'
+                        )->execute([
+                            'tid' => $transferenciaId,
+                            'eid' => $equipamentoId,
+                            'nome' => $nomeUnidade,
+                        ]);
                     }
-                    $equipamentoNome = nomeEquipamento($eq['nome'], $eq['patrimonio']);
-                    $ehNovo = 0;
-                    $pdo->prepare('UPDATE equipamentos SET localizacao = :destino WHERE id = :id')
-                        ->execute(['destino' => $dados['destino'], 'id' => $equipamentoId]);
-                    registrarHistorico($equipamentoId, 'Transferência',
-                        'Transferido de "' . $dados['origem'] . '" para "' . $dados['destino'] . '". Responsável: ' . $responsavelNome . '.');
+                    continue;
                 }
+
+                $equipamentoId = $it['equipamento_id'];
+                $stmtEq = $pdo->prepare('SELECT nome, patrimonio FROM equipamentos WHERE id = :id');
+                $stmtEq->execute(['id' => $equipamentoId]);
+                $eq = $stmtEq->fetch();
+                if (!$eq) {
+                    continue;
+                }
+                $equipamentoNome = nomeEquipamento($eq['nome'], $eq['patrimonio']);
+                $pdo->prepare('UPDATE equipamentos SET localizacao = :destino WHERE id = :id')
+                    ->execute(['destino' => $dados['destino'], 'id' => $equipamentoId]);
+                registrarHistorico($equipamentoId, 'Transferência',
+                    'Transferido de "' . $dados['origem'] . '" para "' . $dados['destino'] . '". Responsável: ' . $responsavelNome . '.');
 
                 $pdo->prepare(
                     'INSERT INTO transferencia_itens (transferencia_id, equipamento_id, equipamento_nome, equipamento_novo)
-                     VALUES (:tid, :eid, :nome, :novo)'
+                     VALUES (:tid, :eid, :nome, 0)'
                 )->execute([
                     'tid' => $transferenciaId,
                     'eid' => $equipamentoId,
                     'nome' => $equipamentoNome,
-                    'novo' => $ehNovo,
                 ]);
             }
 
@@ -239,9 +267,10 @@ include __DIR__ . '/../../includes/header.php';
             <table class="table mb-0 align-middle">
                 <thead class="table-light">
                     <tr>
-                        <th style="width:18%">Tipo de item</th>
+                        <th style="width:16%">Tipo de item</th>
                         <th>Equipamento</th>
-                        <th style="width:16%">Patrimônio</th>
+                        <th style="width:10%">Quantidade</th>
+                        <th style="width:14%">Patrimônio</th>
                         <th style="width:5%"></th>
                     </tr>
                 </thead>
@@ -285,7 +314,10 @@ include __DIR__ . '/../../includes/header.php';
             </div>
         </td>
         <td>
-            <input type="text" class="form-control form-control-sm" name="" placeholder="Opcional">
+            <input type="number" min="1" max="999" value="1" class="form-control form-control-sm item-quantidade-input" name="" disabled>
+        </td>
+        <td>
+            <input type="text" class="form-control form-control-sm item-patrimonio-input" name="" placeholder="Opcional">
         </td>
         <td>
             <button type="button" class="btn btn-sm btn-outline-danger item-remover-linha"><i class="bi bi-trash"></i></button>

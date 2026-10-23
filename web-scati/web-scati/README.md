@@ -659,7 +659,14 @@ web-scati/
   quantas linhas forem necessárias, cada uma marcada como **"Já
   cadastrado"** (escolhe um equipamento existente numa lista) ou **"+ Novo
   equipamento"** (cadastra na hora, só com Tipo e Nome — Patrimônio é
-  opcional). Ao confirmar, todos os equipamentos da transferência têm sua
+  opcional). Um item "+ Novo equipamento" também tem um campo
+  **Quantidade**: informando mais de 1 (ex.: 4 monitores iguais vindos da
+  mesma obra), o sistema cria um cadastro em `equipamentos` para cada
+  unidade de uma só vez, em vez de precisar adicionar uma linha pra cada —
+  o nome de cada unidade recebe "(unidade N/total)" pra não ficarem
+  indistinguíveis na listagem, e o Patrimônio só pode ser informado
+  quando a quantidade for 1 (cada equipamento tem patrimônio único). Ao
+  confirmar, todos os equipamentos da transferência têm sua
   Localização atualizada para o Destino informado (os novos já nascem
   assim) e recebem um registro no histórico com Origem, Destino e
   Responsável. A listagem (com filtro por Origem/Destino e por
