@@ -542,7 +542,10 @@ web-scati/
   O filtro **Tipo** aceita marcar mais de uma opção ao mesmo tempo (ex.:
   Notebook + Computador) — um dropdown com checkbox por tipo, com atalhos
   "Marcar todos"/"Desmarcar todos" e um botão que mostra o tipo escolhido
-  (ou "N selecionados", com mais de um marcado). Ficha individual com
+  (ou "N selecionados", com mais de um marcado). Sem nenhuma coluna
+  escolhida no cabeçalho, a listagem vem agrupada por **Tipo** (e por Nome
+  dentro de cada tipo) — clicar em qualquer cabeçalho ordenável continua
+  reordenando normalmente. Ficha individual com
   abas de Dados Gerais, Hardware, Licenciamento,
   Financeiro, Histórico e Observações. Todo equipamento tem um campo
   **Nome do Equipamento** (obrigatório, ex.: "Notebook do Financeiro"),

@@ -76,7 +76,8 @@ if ($filtroRede !== '') {
 if ($ordenarPor !== '') {
     $sql .= ' ORDER BY ' . $colunasOrdenaveis[$ordenarPor] . ' ' . strtoupper($direcao) . ', e.nome ASC';
 } else {
-    $sql .= ' ORDER BY e.nome ASC, e.patrimonio ASC';
+    // Padrão: agrupado por Tipo (ao invés de por Nome), e por Nome dentro de cada Tipo.
+    $sql .= ' ORDER BY e.tipo ASC, e.nome ASC, e.patrimonio ASC';
 }
 
 $stmt = $pdo->prepare($sql);
