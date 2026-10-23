@@ -664,7 +664,11 @@ web-scati/
   assim) e recebem um registro no histórico com Origem, Destino e
   Responsável. A listagem (com filtro por Origem/Destino e por
   Responsável) mostra a contagem de itens de cada transferência, e a tela
-  "Ver" lista cada item com link direto pra ficha do equipamento.
+  "Ver" lista cada item com link direto pra ficha do equipamento. Na
+  mesma tela "Ver", uma seção **Anexos** permite enviar arquivos pra
+  aquela transferência (PDF do formulário físico, fotos, notas fiscais
+  etc.) — mesmo padrão de upload/download/exclusão já usado na ficha do
+  Equipamento, com limite de 10 MB por arquivo.
 - **Itens Vinculados**: aba na ficha do equipamento para vincular itens já
   cadastrados no Estoque (periféricos, cabos, etc.) diretamente a ele, sem
   duplicar o cadastro. Cada vínculo consome 1 unidade da quantidade
