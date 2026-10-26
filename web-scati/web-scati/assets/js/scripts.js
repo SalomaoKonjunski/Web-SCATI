@@ -1112,58 +1112,92 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    // Nova Transferência: campo "Destino" — "+ Novo local..." no dropdown
-    // revela um campo pra digitar o nome e adicionar a opção na hora.
-    // Diferente do Estoque, aqui não existe uma tabela por trás (é texto
-    // livre, igual já era o campo "Localização" do equipamento), então a
-    // opção nova só é inserida no próprio <select> no navegador, sem
-    // nenhuma requisição ao servidor.
-    const selectDestino = document.getElementById('selectDestino');
-    if (selectDestino) {
-        const wrap = document.getElementById('novoDestinoWrap');
-        const inputNome = document.getElementById('novoDestinoNome');
-        const btnAdicionar = document.getElementById('novoDestinoAdicionar');
-        const btnCancelar = document.getElementById('novoDestinoCancelar');
-        let valorAnterior = selectDestino.value === 'novo' ? '' : selectDestino.value;
+    // Nova Transferência: campos "Origem" e "Destino" — "+ Novo local..."
+    // no dropdown revela um campo pra digitar o nome e salvar na hora,
+    // reaproveitando o mesmo cadastro de Locais de Estoque (único registro
+    // de locais do sistema) e o mesmo endpoint de criação rápida já usado
+    // lá. A diferença é que aqui o valor enviado no formulário é o NOME do
+    // local (origem/destino são colunas de texto em transferencias), não o
+    // id — por isso a opção nova usa resultado.dados.nome, não .id.
+    function inicializarSelectLocalTransferencia(idSelect, idWrap, idInput, idSalvar, idCancelar, idErro) {
+        const select = document.getElementById(idSelect);
+        if (!select) return;
+        const wrap = document.getElementById(idWrap);
+        const inputNome = document.getElementById(idInput);
+        const btnSalvar = document.getElementById(idSalvar);
+        const btnCancelar = document.getElementById(idCancelar);
+        const erroDiv = document.getElementById(idErro);
+        let valorAnterior = select.value === 'novo' ? '' : select.value;
 
-        function fecharNovoDestino() {
+        function fecharNovoLocal() {
             wrap.classList.add('d-none');
+            erroDiv.classList.add('d-none');
             inputNome.value = '';
         }
 
-        selectDestino.addEventListener('change', function () {
-            if (selectDestino.value === 'novo') {
+        select.addEventListener('change', function () {
+            if (select.value === 'novo') {
                 wrap.classList.remove('d-none');
                 inputNome.focus();
             } else {
-                valorAnterior = selectDestino.value;
-                fecharNovoDestino();
+                valorAnterior = select.value;
+                fecharNovoLocal();
             }
         });
 
         btnCancelar.addEventListener('click', function () {
-            selectDestino.value = valorAnterior;
-            fecharNovoDestino();
+            select.value = valorAnterior;
+            fecharNovoLocal();
         });
 
-        btnAdicionar.addEventListener('click', function () {
+        btnSalvar.addEventListener('click', function () {
             const nome = inputNome.value.trim();
+            erroDiv.classList.add('d-none');
             if (nome === '') {
-                inputNome.focus();
+                erroDiv.textContent = 'Digite um nome pro local.';
+                erroDiv.classList.remove('d-none');
                 return;
             }
-            let opcao = Array.from(selectDestino.options).find(function (o) {
-                return o.value.toLowerCase() === nome.toLowerCase();
-            });
-            if (!opcao) {
-                opcao = document.createElement('option');
-                opcao.value = nome;
-                opcao.textContent = nome;
-                selectDestino.querySelector('option[value="novo"]').insertAdjacentElement('beforebegin', opcao);
-            }
-            selectDestino.value = opcao.value;
-            valorAnterior = opcao.value;
-            fecharNovoDestino();
+            btnSalvar.disabled = true;
+            fetch('../locais_estoque/criar_rapido.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                credentials: 'same-origin',
+                body: 'nome=' + encodeURIComponent(nome),
+            })
+                .then(function (resposta) { return resposta.json().then(function (dados) { return { ok: resposta.ok, dados: dados }; }); })
+                .then(function (resultado) {
+                    btnSalvar.disabled = false;
+                    if (!resultado.ok) {
+                        erroDiv.textContent = resultado.dados.erro || 'Não foi possível salvar o local.';
+                        erroDiv.classList.remove('d-none');
+                        return;
+                    }
+                    // Insere a opção nova em Origem E Destino (não só no campo que
+                    // criou) — é um local recém-cadastrado, deve valer pros dois.
+                    const nomeNovo = resultado.dados.nome;
+                    document.querySelectorAll('#selectOrigem, #selectDestino').forEach(function (outroSelect) {
+                        let opcaoOutro = Array.from(outroSelect.options).find(function (o) { return o.value === nomeNovo; });
+                        if (!opcaoOutro) {
+                            opcaoOutro = document.createElement('option');
+                            opcaoOutro.value = nomeNovo;
+                            opcaoOutro.textContent = nomeNovo;
+                            const sentinela = outroSelect.querySelector('option[value="novo"]');
+                            if (sentinela) sentinela.insertAdjacentElement('beforebegin', opcaoOutro);
+                        }
+                    });
+                    select.value = nomeNovo;
+                    valorAnterior = select.value;
+                    fecharNovoLocal();
+                })
+                .catch(function () {
+                    btnSalvar.disabled = false;
+                    erroDiv.textContent = 'Erro de conexão — tente de novo.';
+                    erroDiv.classList.remove('d-none');
+                });
         });
     }
+
+    inicializarSelectLocalTransferencia('selectOrigem', 'novoOrigemWrap', 'novoOrigemNome', 'novoOrigemSalvar', 'novoOrigemCancelar', 'novoOrigemErro');
+    inicializarSelectLocalTransferencia('selectDestino', 'novoDestinoWrap', 'novoDestinoNome', 'novoDestinoSalvar', 'novoDestinoCancelar', 'novoDestinoErro');
 });

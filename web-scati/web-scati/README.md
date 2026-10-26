@@ -654,11 +654,15 @@ web-scati/
 - **Transferências**: módulo próprio para registrar o recebimento/
   movimentação de equipamentos (ex.: um formulário de transferência vindo
   de uma obra) num só lugar. O cabeçalho exige **Origem**, **Destino**,
-  **Responsável** e **Data** — o Destino é um dropdown com os locais já
-  usados em Equipamentos, mais a opção **"+ Novo local..."** pra digitar um
-  novo nome na hora (é texto livre, igual já era o campo "Localização" do
-  equipamento — não duplica a tabela `locais_estoque`, que é exclusiva do
-  Estoque). Abaixo do cabeçalho, uma tabela de itens permite adicionar
+  **Responsável** e **Data** — Origem e Destino são dropdowns com os locais
+  já cadastrados (reaproveitam o mesmo cadastro de **Locais de Estoque**,
+  que passa a ser o registro único de locais do sistema), mais a opção
+  **"+ Novo local..."** pra cadastrar um nome novo na hora sem sair da
+  tela — a novidade já aparece disponível nos dois campos (Origem e
+  Destino) e também no cadastro de Estoque. Na primeira vez que a tela é
+  aberta, qualquer local que já estivesse em uso em algum Equipamento (mas
+  ainda não em Locais de Estoque) é automaticamente cadastrado lá, pra não
+  "desaparecer" do dropdown. Abaixo do cabeçalho, uma tabela de itens permite adicionar
   quantas linhas forem necessárias, cada uma marcada como **"Já
   cadastrado"** (escolhe um equipamento existente numa lista) ou **"+ Novo
   equipamento"** (cadastra na hora, só com Tipo e Nome — Patrimônio é
@@ -947,10 +951,12 @@ web-scati/
     escolher a **cor** dela — 12 opções prontas ou, pelo seletor
     "Outra cor...", qualquer cor livre — para destacá-la em listas e
     menus.
-  - **Locais de Estoque**: CRUD simples (só nome) dos locais usados no
-    campo "Localização" do Estoque — além de gerenciável aqui, também dá
-    pra criar um local novo direto pela opção "+ Novo local..." no
-    próprio dropdown do cadastro de item, sem precisar vir até esta tela.
+  - **Locais de Estoque**: CRUD simples (só nome) dos locais — é o
+    registro único de locais do sistema, usado tanto no campo
+    "Localização" do Estoque quanto nos campos Origem/Destino de
+    Transferências. Além de gerenciável aqui, também dá pra criar um
+    local novo direto pela opção "+ Novo local..." nos próprios
+    dropdowns desses cadastros, sem precisar vir até esta tela.
     Um local com itens de estoque usando ele pode ser excluído
     normalmente — os itens ficam sem localização definida (`local_id`
     nulo), não bloqueiam a exclusão.

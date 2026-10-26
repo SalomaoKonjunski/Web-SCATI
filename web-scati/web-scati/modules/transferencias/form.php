@@ -7,6 +7,18 @@ exigirPermissao('transferencias', 'alterar');
 
 $pdo = db();
 
+// Unifica os locais já usados em Equipamentos com o cadastro de Locais de
+// Estoque (único registro de "locais" do sistema) — garante que nenhum
+// local já em uso em algum equipamento fique de fora do dropdown de
+// Origem/Destino. Idempotente: INSERT IGNORE não duplica nada nas vezes
+// seguintes.
+$pdo->exec(
+    "INSERT IGNORE INTO locais_estoque (nome)
+     SELECT DISTINCT TRIM(localizacao) FROM equipamentos
+     WHERE localizacao IS NOT NULL AND TRIM(localizacao) <> ''"
+);
+$locaisCadastrados = locaisEstoqueNomes();
+
 $dados = [
     'origem' => '', 'destino' => '', 'responsavel_id' => '',
     'data_transferencia' => date('Y-m-d'), 'observacoes' => '',
@@ -23,9 +35,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($dados['origem'] === '') {
         $erros[] = 'O campo Origem é obrigatório.';
+    } elseif (!in_array($dados['origem'], $locaisCadastrados, true)) {
+        $erros[] = 'Origem inválida — escolha um local cadastrado.';
     }
     if ($dados['destino'] === '') {
         $erros[] = 'O campo Destino é obrigatório.';
+    } elseif (!in_array($dados['destino'], $locaisCadastrados, true)) {
+        $erros[] = 'Destino inválido — escolha um local cadastrado.';
     }
     $responsavelId = $dados['responsavel_id'] !== '' ? (int) $dados['responsavel_id'] : null;
     $responsavelNome = null;
@@ -190,9 +206,6 @@ $usuarios = $pdo->query('SELECT id, usuario FROM usuarios ORDER BY usuario')->fe
 $equipamentosDisponiveis = $pdo->query(
     "SELECT id, nome, patrimonio, tipo FROM equipamentos ORDER BY nome ASC"
 )->fetchAll();
-$destinosExistentes = $pdo->query(
-    "SELECT DISTINCT localizacao FROM equipamentos WHERE localizacao IS NOT NULL AND TRIM(localizacao) <> '' ORDER BY localizacao ASC"
-)->fetchAll(PDO::FETCH_COLUMN);
 $tipos = tiposEquipamento();
 
 $pageTitle = 'Nova Transferência';
@@ -217,25 +230,35 @@ include __DIR__ . '/../../includes/header.php';
             <div class="row g-3">
                 <div class="col-md-4">
                     <label class="form-label">Origem <span class="text-danger">*</span></label>
-                    <input type="text" name="origem" class="form-control" value="<?= e($dados['origem']) ?>" placeholder="Ex.: Obra Jardim das Flores" required>
+                    <select id="selectOrigem" name="origem" class="form-select" required>
+                        <option value="">Selecione...</option>
+                        <?php foreach ($locaisCadastrados as $local): ?>
+                            <option value="<?= e($local) ?>" <?= $dados['origem'] === $local ? 'selected' : '' ?>><?= e($local) ?></option>
+                        <?php endforeach; ?>
+                        <option value="novo">+ Novo local...</option>
+                    </select>
+                    <div class="input-group input-group-sm mt-2 d-none" id="novoOrigemWrap">
+                        <input type="text" class="form-control" id="novoOrigemNome" placeholder="Nome do novo local">
+                        <button type="button" class="btn btn-primary" id="novoOrigemSalvar"><i class="bi bi-check-lg"></i> Salvar</button>
+                        <button type="button" class="btn btn-outline-secondary" id="novoOrigemCancelar"><i class="bi bi-x-lg"></i></button>
+                    </div>
+                    <div class="form-text text-danger d-none" id="novoOrigemErro"></div>
                 </div>
                 <div class="col-md-4">
                     <label class="form-label">Destino <span class="text-danger">*</span></label>
                     <select id="selectDestino" name="destino" class="form-select" required>
                         <option value="">Selecione...</option>
-                        <?php foreach ($destinosExistentes as $local): ?>
+                        <?php foreach ($locaisCadastrados as $local): ?>
                             <option value="<?= e($local) ?>" <?= $dados['destino'] === $local ? 'selected' : '' ?>><?= e($local) ?></option>
                         <?php endforeach; ?>
-                        <?php if ($dados['destino'] !== '' && !in_array($dados['destino'], $destinosExistentes, true)): ?>
-                            <option value="<?= e($dados['destino']) ?>" selected><?= e($dados['destino']) ?></option>
-                        <?php endif; ?>
                         <option value="novo">+ Novo local...</option>
                     </select>
-                    <div id="novoDestinoWrap" class="d-none mt-2 d-flex gap-2">
-                        <input type="text" id="novoDestinoNome" class="form-control form-control-sm" placeholder="Nome do novo local">
-                        <button type="button" id="novoDestinoAdicionar" class="btn btn-sm btn-primary text-nowrap">Adicionar</button>
-                        <button type="button" id="novoDestinoCancelar" class="btn btn-sm btn-outline-secondary text-nowrap">Cancelar</button>
+                    <div class="input-group input-group-sm mt-2 d-none" id="novoDestinoWrap">
+                        <input type="text" class="form-control" id="novoDestinoNome" placeholder="Nome do novo local">
+                        <button type="button" class="btn btn-primary" id="novoDestinoSalvar"><i class="bi bi-check-lg"></i> Salvar</button>
+                        <button type="button" class="btn btn-outline-secondary" id="novoDestinoCancelar"><i class="bi bi-x-lg"></i></button>
                     </div>
+                    <div class="form-text text-danger d-none" id="novoDestinoErro"></div>
                 </div>
                 <div class="col-md-4">
                     <label class="form-label">Data da Transferência <span class="text-danger">*</span></label>

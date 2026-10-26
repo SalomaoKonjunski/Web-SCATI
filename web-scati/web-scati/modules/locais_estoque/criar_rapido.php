@@ -3,9 +3,18 @@ declare(strict_types=1);
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../includes/functions.php';
 require_once __DIR__ . '/../../includes/auth.php';
-exigirPermissao('estoque', 'alterar');
+exigirLogin();
 
 header('Content-Type: application/json; charset=utf-8');
+
+// Endpoint compartilhado: o dropdown "+ Novo local..." é usado tanto no
+// cadastro de Estoque quanto no de Transferências — basta ter permissão
+// de alterar em qualquer um dos dois módulos que o consomem.
+if (!temPermissao('estoque', 'alterar') && !temPermissao('transferencias', 'alterar')) {
+    http_response_code(403);
+    echo json_encode(['erro' => 'Sem permissão para cadastrar locais.']);
+    exit;
+}
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
