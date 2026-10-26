@@ -1044,6 +1044,10 @@ document.addEventListener('DOMContentLoaded', function () {
     // pra alinhar no PHP, mesmo misturando linhas "Já cadastrado" e
     // "Novo equipamento" ou removendo uma linha do meio.
     const corpoItensTransferencia = document.getElementById('corpoItensTransferencia');
+    // Exposta fora deste bloco (window.scatiAdicionarItemTransferencia) pra o
+    // painel "Itens disponíveis em <Origem>" conseguir adicionar linhas
+    // direto, sem duplicar a lógica de criação/nomeação de cada campo.
+    window.scatiAdicionarItemTransferencia = null;
     if (corpoItensTransferencia) {
         const template = document.getElementById('templateItemTransferencia');
         let proximoIndice = 0;
@@ -1051,15 +1055,33 @@ document.addEventListener('DOMContentLoaded', function () {
         function alternarModoLinha(linha) {
             const modo = linha.querySelector('.item-modo-select').value;
             const ehNovo = modo === 'novo';
-            linha.querySelector('.item-equipamento-select').classList.toggle('d-none', ehNovo);
+            const ehEstoque = modo === 'estoque';
+            linha.querySelector('.item-equipamento-select').classList.toggle('d-none', ehNovo || ehEstoque);
             linha.querySelector('.item-novo-wrap').classList.toggle('d-none', !ehNovo);
-            // Quantidade só faz sentido pra "+ Novo equipamento" — pra um item
-            // "Já cadastrado" você está vinculando uma unidade específica que já
-            // existe, não criando várias de uma vez.
+            linha.querySelector('.item-estoque-select').classList.toggle('d-none', !ehEstoque);
+            linha.querySelector('.item-patrimonio-input').classList.toggle('d-none', ehEstoque);
+            // Quantidade só é editável pra "+ Novo equipamento" (quantas
+            // unidades criar) e "Item de Estoque" (quantas unidades mover) —
+            // pra um equipamento "Já cadastrado" é sempre 1 (uma unidade
+            // específica que já existe).
             const inputQuantidade = linha.querySelector('.item-quantidade-input');
-            inputQuantidade.disabled = !ehNovo;
-            if (!ehNovo) {
+            inputQuantidade.disabled = !ehNovo && !ehEstoque;
+            if (!ehNovo && !ehEstoque) {
                 inputQuantidade.value = '1';
+                inputQuantidade.removeAttribute('max');
+            } else if (ehNovo) {
+                inputQuantidade.max = '999';
+            }
+        }
+
+        function atualizarLimiteQuantidadeEstoque(linha, forcarValorMaximo) {
+            const selectEstoque = linha.querySelector('.item-estoque-select');
+            const inputQuantidade = linha.querySelector('.item-quantidade-input');
+            const opcao = selectEstoque.options[selectEstoque.selectedIndex];
+            const disponivel = opcao ? parseInt(opcao.dataset.quantidade || '0', 10) : 0;
+            inputQuantidade.max = String(disponivel || 1);
+            if (forcarValorMaximo && disponivel > 0) {
+                inputQuantidade.value = String(disponivel);
             }
         }
 
@@ -1072,6 +1094,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const selectEquipamento = linha.querySelector('.item-equipamento-select');
             const selectNovoTipo = linha.querySelector('.item-novo-wrap select');
             const inputNovoNome = linha.querySelector('.item-novo-wrap input');
+            const selectEstoque = linha.querySelector('.item-estoque-select');
             const inputQuantidade = linha.querySelector('.item-quantidade-input');
             const inputPatrimonio = linha.querySelector('.item-patrimonio-input');
 
@@ -1079,6 +1102,7 @@ document.addEventListener('DOMContentLoaded', function () {
             selectEquipamento.name = 'itens[' + indice + '][equipamento_id]';
             selectNovoTipo.name = 'itens[' + indice + '][novo_tipo]';
             inputNovoNome.name = 'itens[' + indice + '][novo_nome]';
+            selectEstoque.name = 'itens[' + indice + '][estoque_id]';
             inputQuantidade.name = 'itens[' + indice + '][quantidade]';
             inputPatrimonio.name = 'itens[' + indice + '][patrimonio]';
 
@@ -1086,17 +1110,27 @@ document.addEventListener('DOMContentLoaded', function () {
             if (valores.equipamento_id) selectEquipamento.value = String(valores.equipamento_id);
             if (valores.novo_tipo) selectNovoTipo.value = valores.novo_tipo;
             if (valores.novo_nome) inputNovoNome.value = valores.novo_nome;
+            if (valores.estoque_id) selectEstoque.value = String(valores.estoque_id);
             if (valores.quantidade) inputQuantidade.value = String(valores.quantidade);
             if (valores.patrimonio) inputPatrimonio.value = valores.patrimonio;
 
             selectModo.addEventListener('change', function () { alternarModoLinha(linha); });
+            selectEstoque.addEventListener('change', function () { atualizarLimiteQuantidadeEstoque(linha, true); });
             linha.querySelector('.item-remover-linha').addEventListener('click', function () {
                 linha.remove();
             });
 
             corpoItensTransferencia.appendChild(linha);
             alternarModoLinha(linha);
+            if (valores.modo === 'estoque' && valores.estoque_id) {
+                // Se a quantidade já veio definida (do painel por local, ou ao
+                // reexibir o formulário após um erro), só ajusta o "max"; senão
+                // preenche com o total disponível daquele item.
+                atualizarLimiteQuantidadeEstoque(linha, !valores.quantidade);
+            }
         }
+
+        window.scatiAdicionarItemTransferencia = adicionarLinhaItem;
 
         document.getElementById('btnAdicionarItemTransferencia').addEventListener('click', function () {
             adicionarLinhaItem();
@@ -1200,4 +1234,102 @@ document.addEventListener('DOMContentLoaded', function () {
 
     inicializarSelectLocalTransferencia('selectOrigem', 'novoOrigemWrap', 'novoOrigemNome', 'novoOrigemSalvar', 'novoOrigemCancelar', 'novoOrigemErro');
     inicializarSelectLocalTransferencia('selectDestino', 'novoDestinoWrap', 'novoDestinoNome', 'novoDestinoSalvar', 'novoDestinoCancelar', 'novoDestinoErro');
+
+    // Nova Transferência: ao escolher a Origem, busca o que já está
+    // cadastrado naquele local (modules/transferencias/itens_local.php) e
+    // mostra num painel com checkbox + quantidade — pra adicionar de uma
+    // vez em vez de configurar cada linha manualmente (ex.: "tudo que está
+    // na Gaveta TI"). Itens de Estoque e Equipamentos aparecem separados,
+    // porque um tem quantidade (pode mover só parte) e o outro não.
+    const painelItensLocal = document.getElementById('painelItensLocal');
+    const selectOrigemParaPainel = document.getElementById('selectOrigem');
+    if (painelItensLocal && selectOrigemParaPainel) {
+        function escaparHtml(texto) {
+            const div = document.createElement('div');
+            div.textContent = texto;
+            return div.innerHTML;
+        }
+
+        function renderizarPainelItensLocal(local, dados) {
+            const temEstoque = dados.estoque.length > 0;
+            const temEquipamentos = dados.equipamentos.length > 0;
+            if (!temEstoque && !temEquipamentos) {
+                painelItensLocal.classList.add('d-none');
+                painelItensLocal.innerHTML = '';
+                return;
+            }
+
+            const linhasEstoque = temEstoque
+                ? dados.estoque.map(function (item) {
+                    const label = [item.nome, item.marca, item.modelo].filter(Boolean).join(' ');
+                    return '<label class="list-group-item d-flex align-items-center gap-2">'
+                        + '<input type="checkbox" class="form-check-input flex-shrink-0 painel-check-estoque" data-id="' + item.id + '">'
+                        + '<span class="flex-grow-1">' + escaparHtml(label) + '</span>'
+                        + '<span class="input-group input-group-sm" style="width:110px">'
+                        + '<input type="number" class="form-control painel-qtd-estoque" data-id="' + item.id + '" min="1" max="' + item.quantidade + '" value="' + item.quantidade + '">'
+                        + '<span class="input-group-text">/ ' + item.quantidade + '</span>'
+                        + '</span></label>';
+                }).join('')
+                : '<p class="text-muted small mb-0 fst-italic">Nenhum item de estoque nesse local.</p>';
+
+            const linhasEquipamentos = temEquipamentos
+                ? dados.equipamentos.map(function (eq) {
+                    const label = (eq.nome || eq.patrimonio || 'Indefinido') + ' (' + eq.tipo + ')';
+                    return '<label class="list-group-item d-flex align-items-center gap-2">'
+                        + '<input type="checkbox" class="form-check-input flex-shrink-0 painel-check-equipamento" data-id="' + eq.id + '">'
+                        + '<span class="flex-grow-1">' + escaparHtml(label) + '</span>'
+                        + '</label>';
+                }).join('')
+                : '<p class="text-muted small mb-0 fst-italic">Nenhum equipamento nesse local.</p>';
+
+            painelItensLocal.innerHTML =
+                '<div class="card mb-3 border-primary">'
+                + '<div class="card-header bg-primary-subtle d-flex justify-content-between align-items-center flex-wrap gap-2">'
+                + '<strong><i class="bi bi-geo-alt me-1"></i> Itens disponíveis em "' + escaparHtml(local) + '"</strong>'
+                + '<button type="button" id="btnAdicionarSelecionadosLocal" class="btn btn-sm btn-primary">Adicionar selecionados</button>'
+                + '</div>'
+                + '<div class="card-body">'
+                + '<div class="row">'
+                + '<div class="col-md-6">'
+                + '<h6 class="text-muted small text-uppercase mb-2"><i class="bi bi-box-seam me-1"></i> Itens de Estoque</h6>'
+                + '<div class="list-group mb-0">' + linhasEstoque + '</div>'
+                + '</div>'
+                + '<div class="col-md-6">'
+                + '<h6 class="text-muted small text-uppercase mb-2"><i class="bi bi-pc-display me-1"></i> Equipamentos</h6>'
+                + '<div class="list-group mb-0">' + linhasEquipamentos + '</div>'
+                + '</div>'
+                + '</div>'
+                + '</div>'
+                + '</div>';
+            painelItensLocal.classList.remove('d-none');
+
+            document.getElementById('btnAdicionarSelecionadosLocal').addEventListener('click', function () {
+                if (!window.scatiAdicionarItemTransferencia) return;
+                painelItensLocal.querySelectorAll('.painel-check-estoque:checked').forEach(function (checkbox) {
+                    const id = checkbox.dataset.id;
+                    const inputQtd = painelItensLocal.querySelector('.painel-qtd-estoque[data-id="' + id + '"]');
+                    const qtd = inputQtd ? (parseInt(inputQtd.value, 10) || 1) : 1;
+                    window.scatiAdicionarItemTransferencia({ modo: 'estoque', estoque_id: id, quantidade: qtd });
+                });
+                painelItensLocal.querySelectorAll('.painel-check-equipamento:checked').forEach(function (checkbox) {
+                    window.scatiAdicionarItemTransferencia({ modo: 'existente', equipamento_id: checkbox.dataset.id });
+                });
+                // Desmarca tudo depois de adicionar, pra não adicionar de novo por engano clicando outra vez.
+                painelItensLocal.querySelectorAll('input[type="checkbox"]:checked').forEach(function (cb) { cb.checked = false; });
+            });
+        }
+
+        selectOrigemParaPainel.addEventListener('change', function () {
+            const local = selectOrigemParaPainel.value;
+            if (local === '' || local === 'novo') {
+                painelItensLocal.classList.add('d-none');
+                painelItensLocal.innerHTML = '';
+                return;
+            }
+            fetch('itens_local.php?local=' + encodeURIComponent(local), { credentials: 'same-origin' })
+                .then(function (resp) { return resp.ok ? resp.json() : { estoque: [], equipamentos: [] }; })
+                .then(function (dados) { renderizarPainelItensLocal(local, dados); })
+                .catch(function () { /* falha de rede - só não mostra o painel */ });
+        });
+    }
 });

@@ -540,17 +540,27 @@ CREATE TABLE transferencias (
 -- DELETE SET NULL), mas o nome gravado na própria linha mantém o
 -- histórico da transferência legível. equipamento_novo marca os itens
 -- que foram cadastrados na hora (não existiam antes da transferência).
+-- tipo_item diz se a linha é um Equipamento ou um Item de Estoque — só a
+-- FK do tipo correspondente (equipamento_id ou estoque_id) é preenchida.
+-- quantidade é sempre 1 pra Equipamento (unidade única) e pode ser > 1
+-- pra Estoque (ex.: transferiu 4 de um item que tinha 10 no local de
+-- origem).
 CREATE TABLE transferencia_itens (
     id                  INT AUTO_INCREMENT PRIMARY KEY,
     transferencia_id    INT NOT NULL,
+    tipo_item           ENUM('equipamento','estoque') NOT NULL DEFAULT 'equipamento',
     equipamento_id      INT NULL,
-    equipamento_nome    VARCHAR(120) NOT NULL,
+    estoque_id          INT NULL,
+    item_nome           VARCHAR(120) NOT NULL,
     equipamento_novo    TINYINT(1) NOT NULL DEFAULT 0,
+    quantidade          INT NOT NULL DEFAULT 1,
 
     CONSTRAINT fk_transferencia_item_transferencia
         FOREIGN KEY (transferencia_id) REFERENCES transferencias(id) ON DELETE CASCADE,
     CONSTRAINT fk_transferencia_item_equipamento
-        FOREIGN KEY (equipamento_id) REFERENCES equipamentos(id) ON DELETE SET NULL
+        FOREIGN KEY (equipamento_id) REFERENCES equipamentos(id) ON DELETE SET NULL,
+    CONSTRAINT fk_transferencia_item_estoque
+        FOREIGN KEY (estoque_id) REFERENCES estoque(id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
 -- Arquivos (PDF do formulário físico de transferência, fotos, notas
@@ -1027,4 +1037,5 @@ CREATE INDEX idx_anexo_equipamento ON anexos_equipamentos(equipamento_id);
 CREATE INDEX idx_transferencia_responsavel ON transferencias(responsavel_id);
 CREATE INDEX idx_transferencia_item_transferencia ON transferencia_itens(transferencia_id);
 CREATE INDEX idx_transferencia_item_equipamento ON transferencia_itens(equipamento_id);
+CREATE INDEX idx_transferencia_item_estoque ON transferencia_itens(estoque_id);
 CREATE INDEX idx_anexo_transferencia ON anexos_transferencias(transferencia_id);

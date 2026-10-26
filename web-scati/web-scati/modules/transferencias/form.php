@@ -64,6 +64,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // selecionado e nenhum nome digitado) são ignoradas silenciosamente —
     // é normal sobrar uma linha vazia ao remover/adicionar itens no JS.
     $itensValidados = [];
+    $quantidadeSolicitadaPorEstoque = []; // soma por estoque_id, pra pegar o caso de 2 linhas do mesmo item
     foreach ($itensPost as $item) {
         $modo = $item['modo'] ?? 'existente';
         if ($modo === 'novo') {
@@ -102,12 +103,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
             $itensValidados[] = ['modo' => 'novo', 'tipo' => $tipo, 'nome' => $nome, 'patrimonio' => $patrimonio ?: null, 'quantidade' => $quantidade];
+        } elseif ($modo === 'estoque') {
+            $estoqueId = (int) ($item['estoque_id'] ?? 0);
+            $quantidade = (int) ($item['quantidade'] ?? 0);
+            if ($estoqueId <= 0) {
+                continue;
+            }
+            if ($quantidade < 1) {
+                $erros[] = 'Informe uma quantidade válida para o item de estoque selecionado.';
+                continue;
+            }
+            $quantidadeSolicitadaPorEstoque[$estoqueId] = ($quantidadeSolicitadaPorEstoque[$estoqueId] ?? 0) + $quantidade;
+            $itensValidados[] = ['modo' => 'estoque', 'estoque_id' => $estoqueId, 'quantidade' => $quantidade];
         } else {
             $equipamentoId = (int) ($item['equipamento_id'] ?? 0);
             if ($equipamentoId <= 0) {
                 continue;
             }
             $itensValidados[] = ['modo' => 'existente', 'equipamento_id' => $equipamentoId];
+        }
+    }
+    // Confere o total pedido de cada item de estoque (somando todas as
+    // linhas que apontam pro mesmo item) contra a quantidade disponível —
+    // uma linha isolada pode parecer válida, mas a soma de duas linhas do
+    // mesmo item pode passar do que existe no local de origem.
+    foreach ($quantidadeSolicitadaPorEstoque as $estoqueId => $quantidadeTotal) {
+        $stmtEstoqueCheck = $pdo->prepare('SELECT nome, quantidade FROM estoque WHERE id = :id');
+        $stmtEstoqueCheck->execute(['id' => $estoqueId]);
+        $estoqueCheck = $stmtEstoqueCheck->fetch();
+        if (!$estoqueCheck) {
+            $erros[] = 'Um dos itens de estoque selecionados não foi encontrado.';
+            continue;
+        }
+        if ($quantidadeTotal > (int) $estoqueCheck['quantidade']) {
+            $erros[] = 'Quantidade solicitada de "' . $estoqueCheck['nome'] . '" (' . $quantidadeTotal . ') é maior que a disponível (' . (int) $estoqueCheck['quantidade'] . ').';
         }
     }
     if (empty($itensValidados)) {
@@ -158,7 +187,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             'Recebido por transferência de "' . $dados['origem'] . '" para "' . $dados['destino'] . '". Responsável: ' . $responsavelNome . '.');
 
                         $pdo->prepare(
-                            'INSERT INTO transferencia_itens (transferencia_id, equipamento_id, equipamento_nome, equipamento_novo)
+                            'INSERT INTO transferencia_itens (transferencia_id, equipamento_id, item_nome, equipamento_novo)
                              VALUES (:tid, :eid, :nome, 1)'
                         )->execute([
                             'tid' => $transferenciaId,
@@ -166,6 +195,81 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             'nome' => $nomeUnidade,
                         ]);
                     }
+                    continue;
+                }
+
+                if ($it['modo'] === 'estoque') {
+                    $stmtEs = $pdo->prepare('SELECT nome, categoria_id, marca, modelo, quantidade FROM estoque WHERE id = :id');
+                    $stmtEs->execute(['id' => $it['estoque_id']]);
+                    $es = $stmtEs->fetch();
+                    if (!$es) {
+                        continue;
+                    }
+                    $quantidadeTransferida = $it['quantidade'];
+                    $quantidadeRestante = (int) $es['quantidade'] - $quantidadeTransferida;
+
+                    $stmtLocalDestino = $pdo->prepare('SELECT id FROM locais_estoque WHERE nome = :nome');
+                    $stmtLocalDestino->execute(['nome' => $dados['destino']]);
+                    $destinoLocalId = (int) $stmtLocalDestino->fetchColumn();
+
+                    if ($quantidadeRestante <= 0) {
+                        // Transferiu a quantidade inteira — só muda o local do próprio item.
+                        $pdo->prepare('UPDATE estoque SET local_id = :local_id WHERE id = :id')
+                            ->execute(['local_id' => $destinoLocalId, 'id' => $it['estoque_id']]);
+                        $estoqueIdFinal = $it['estoque_id'];
+                    } else {
+                        // Transferiu só parte — reduz a origem e soma num item igual
+                        // já existente no destino (ou cria um novo lá), mesma regra
+                        // de "não duplicar item igual" usada no cadastro de Estoque.
+                        $pdo->prepare('UPDATE estoque SET quantidade = :q WHERE id = :id')
+                            ->execute(['q' => $quantidadeRestante, 'id' => $it['estoque_id']]);
+
+                        $stmtIgual = $pdo->prepare(
+                            "SELECT id FROM estoque
+                             WHERE LOWER(TRIM(nome)) = LOWER(TRIM(:nome))
+                               AND LOWER(TRIM(COALESCE(marca, ''))) = LOWER(TRIM(COALESCE(:marca, '')))
+                               AND LOWER(TRIM(COALESCE(modelo, ''))) = LOWER(TRIM(COALESCE(:modelo, '')))
+                               AND local_id = :local_id
+                             LIMIT 1"
+                        );
+                        $stmtIgual->execute([
+                            'nome' => $es['nome'], 'marca' => $es['marca'], 'modelo' => $es['modelo'], 'local_id' => $destinoLocalId,
+                        ]);
+                        $igualId = $stmtIgual->fetchColumn();
+
+                        if ($igualId) {
+                            $pdo->prepare('UPDATE estoque SET quantidade = quantidade + :q WHERE id = :id')
+                                ->execute(['q' => $quantidadeTransferida, 'id' => $igualId]);
+                            $estoqueIdFinal = (int) $igualId;
+                        } else {
+                            $pdo->prepare(
+                                'INSERT INTO estoque (nome, categoria_id, marca, modelo, quantidade, local_id)
+                                 VALUES (:nome, :categoria_id, :marca, :modelo, :quantidade, :local_id)'
+                            )->execute([
+                                'nome' => $es['nome'], 'categoria_id' => $es['categoria_id'], 'marca' => $es['marca'],
+                                'modelo' => $es['modelo'], 'quantidade' => $quantidadeTransferida, 'local_id' => $destinoLocalId,
+                            ]);
+                            $estoqueIdFinal = (int) $pdo->lastInsertId();
+                        }
+                    }
+
+                    $stmtCat = $pdo->prepare('SELECT nome FROM categorias_estoque WHERE id = :id');
+                    $stmtCat->execute(['id' => $es['categoria_id']]);
+                    $categoriaNome = $stmtCat->fetchColumn() ?: null;
+                    $itemNomeEstoque = trim($es['nome'] . ' ' . ($es['marca'] ?? '') . ' ' . ($es['modelo'] ?? ''));
+
+                    registrarHistoricoEstoque($estoqueIdFinal, $es['nome'], $categoriaNome, 'Transferência',
+                        'Transferido(s) ' . $quantidadeTransferida . ' unidade(s) de "' . $dados['origem'] . '" para "' . $dados['destino'] . '". Responsável: ' . $responsavelNome . '.');
+
+                    $pdo->prepare(
+                        "INSERT INTO transferencia_itens (transferencia_id, tipo_item, estoque_id, item_nome, quantidade)
+                         VALUES (:tid, 'estoque', :eid, :nome, :qtd)"
+                    )->execute([
+                        'tid' => $transferenciaId,
+                        'eid' => $estoqueIdFinal,
+                        'nome' => $itemNomeEstoque,
+                        'qtd' => $quantidadeTransferida,
+                    ]);
                     continue;
                 }
 
@@ -183,7 +287,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'Transferido de "' . $dados['origem'] . '" para "' . $dados['destino'] . '". Responsável: ' . $responsavelNome . '.');
 
                 $pdo->prepare(
-                    'INSERT INTO transferencia_itens (transferencia_id, equipamento_id, equipamento_nome, equipamento_novo)
+                    'INSERT INTO transferencia_itens (transferencia_id, equipamento_id, item_nome, equipamento_novo)
                      VALUES (:tid, :eid, :nome, 0)'
                 )->execute([
                     'tid' => $transferenciaId,
@@ -205,6 +309,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $usuarios = $pdo->query('SELECT id, usuario FROM usuarios ORDER BY usuario')->fetchAll();
 $equipamentosDisponiveis = $pdo->query(
     "SELECT id, nome, patrimonio, tipo FROM equipamentos ORDER BY nome ASC"
+)->fetchAll();
+$estoquesDisponiveis = $pdo->query(
+    "SELECT es.id, es.nome, es.marca, es.modelo, es.quantidade, lo.nome AS local_nome
+     FROM estoque es LEFT JOIN locais_estoque lo ON lo.id = es.local_id
+     WHERE es.quantidade > 0
+     ORDER BY es.nome ASC"
 )->fetchAll();
 $tipos = tiposEquipamento();
 
@@ -281,6 +391,8 @@ include __DIR__ . '/../../includes/header.php';
         </div>
     </div>
 
+    <div id="painelItensLocal" class="d-none"></div>
+
     <div class="card">
         <div class="card-header bg-light d-flex justify-content-between align-items-center">
             <strong>Itens da Transferência</strong>
@@ -291,7 +403,7 @@ include __DIR__ . '/../../includes/header.php';
                 <thead class="table-light">
                     <tr>
                         <th style="width:16%">Tipo de item</th>
-                        <th>Equipamento</th>
+                        <th>Item</th>
                         <th style="width:10%">Quantidade</th>
                         <th style="width:14%">Patrimônio</th>
                         <th style="width:5%"></th>
@@ -314,6 +426,7 @@ include __DIR__ . '/../../includes/header.php';
             <select class="form-select form-select-sm item-modo-select">
                 <option value="existente">Já cadastrado</option>
                 <option value="novo">+ Novo equipamento</option>
+                <option value="estoque">Item de Estoque</option>
             </select>
         </td>
         <td>
@@ -335,6 +448,15 @@ include __DIR__ . '/../../includes/header.php';
                     <input type="text" class="form-control form-control-sm" name="" placeholder="Nome / modelo">
                 </div>
             </div>
+            <select class="form-select form-select-sm item-estoque-select d-none" name="">
+                <option value="">Selecione...</option>
+                <?php foreach ($estoquesDisponiveis as $es): ?>
+                    <?php $labelEs = trim($es['nome'] . ' ' . ($es['marca'] ?? '') . ' ' . ($es['modelo'] ?? '')); ?>
+                    <option value="<?= (int) $es['id'] ?>" data-quantidade="<?= (int) $es['quantidade'] ?>">
+                        <?= e($labelEs) ?> — disponível: <?= (int) $es['quantidade'] ?><?= $es['local_nome'] ? ' (' . e($es['local_nome']) . ')' : '' ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
         </td>
         <td>
             <input type="number" min="1" max="999" value="1" class="form-control form-control-sm item-quantidade-input" name="" disabled>

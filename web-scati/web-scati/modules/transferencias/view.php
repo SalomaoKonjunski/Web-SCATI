@@ -18,8 +18,13 @@ if (!$transferencia) {
 }
 
 $stmtItens = $pdo->prepare(
-    'SELECT ti.*, e.tipo AS equipamento_tipo, e.patrimonio AS equipamento_patrimonio
-     FROM transferencia_itens ti LEFT JOIN equipamentos e ON e.id = ti.equipamento_id
+    'SELECT ti.*,
+            e.tipo AS equipamento_tipo, e.patrimonio AS equipamento_patrimonio,
+            ce.nome AS estoque_categoria_nome
+     FROM transferencia_itens ti
+     LEFT JOIN equipamentos e ON e.id = ti.equipamento_id
+     LEFT JOIN estoque es ON es.id = ti.estoque_id
+     LEFT JOIN categorias_estoque ce ON ce.id = es.categoria_id
      WHERE ti.transferencia_id = :id ORDER BY ti.id ASC'
 );
 $stmtItens->execute(['id' => $id]);
@@ -38,7 +43,7 @@ include __DIR__ . '/../../includes/header.php';
     <div class="d-flex gap-2">
         <a href="index.php" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Voltar</a>
         <a href="delete.php?id=<?= (int) $transferencia['id'] ?>" class="btn btn-outline-danger js-confirm-delete"
-           data-confirm-msg="Excluir esta transferência? Os equipamentos não voltam ao local de origem automaticamente.">
+           data-confirm-msg="Excluir esta transferência? Os itens não voltam ao local de origem automaticamente.">
             <i class="bi bi-trash"></i> Excluir
         </a>
     </div>
@@ -78,24 +83,35 @@ include __DIR__ . '/../../includes/header.php';
     <div class="table-responsive">
         <table class="table mb-0 align-middle">
             <thead class="table-light">
-                <tr><th>Equipamento</th><th>Tipo</th><th>Patrimônio</th><th></th></tr>
+                <tr><th>Item</th><th>Tipo</th><th>Quantidade</th><th>Patrimônio</th><th></th></tr>
             </thead>
             <tbody>
                 <?php foreach ($itens as $item): ?>
+                    <?php $ehEstoque = $item['tipo_item'] === 'estoque'; ?>
                     <tr>
                         <td>
-                            <?= e($item['equipamento_nome']) ?>
-                            <?php if ((int) $item['equipamento_novo'] === 1): ?>
+                            <?php if ($ehEstoque): ?>
+                                <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle me-1"><i class="bi bi-box-seam"></i> Estoque</span>
+                            <?php else: ?>
+                                <span class="badge bg-secondary me-1"><i class="bi bi-pc-display"></i> Equipamento</span>
+                            <?php endif; ?>
+                            <?= e($item['item_nome']) ?>
+                            <?php if (!$ehEstoque && (int) $item['equipamento_novo'] === 1): ?>
                                 <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle ms-1">Novo</span>
                             <?php endif; ?>
-                            <?php if (!$item['equipamento_id']): ?>
+                            <?php if (($ehEstoque && !$item['estoque_id']) || (!$ehEstoque && !$item['equipamento_id'])): ?>
                                 <span class="badge bg-secondary ms-1">Excluído</span>
                             <?php endif; ?>
                         </td>
-                        <td><?= e($item['equipamento_tipo'] ?? '-') ?></td>
-                        <td><?= $item['equipamento_patrimonio'] ? e($item['equipamento_patrimonio']) : '-' ?></td>
+                        <td><?= $ehEstoque ? e($item['estoque_categoria_nome'] ?? '-') : e($item['equipamento_tipo'] ?? '-') ?></td>
+                        <td><?= $ehEstoque ? (int) $item['quantidade'] : '-' ?></td>
+                        <td><?= (!$ehEstoque && $item['equipamento_patrimonio']) ? e($item['equipamento_patrimonio']) : '-' ?></td>
                         <td class="text-end">
-                            <?php if ($item['equipamento_id']): ?>
+                            <?php if ($ehEstoque && $item['estoque_id']): ?>
+                                <a href="../estoque/form.php?id=<?= (int) $item['estoque_id'] ?>" class="btn btn-sm btn-outline-secondary">
+                                    <i class="bi bi-box-arrow-up-right"></i> Ver item
+                                </a>
+                            <?php elseif (!$ehEstoque && $item['equipamento_id']): ?>
                                 <a href="../equipamentos/view.php?id=<?= (int) $item['equipamento_id'] ?>" class="btn btn-sm btn-outline-secondary">
                                     <i class="bi bi-box-arrow-up-right"></i> Ver ficha
                                 </a>

@@ -90,7 +90,7 @@ include __DIR__ . '/../../includes/header.php';
                         <td class="text-end">
                             <a href="view.php?id=<?= (int) $t['id'] ?>" class="btn btn-sm btn-outline-secondary"><i class="bi bi-eye"></i> Ver</a>
                             <a href="delete.php?id=<?= (int) $t['id'] ?>" class="btn btn-sm btn-outline-danger js-confirm-delete"
-                               data-confirm-msg="Excluir esta transferência (<?= e($t['origem']) ?> &rarr; <?= e($t['destino']) ?>)? Os equipamentos não voltam ao local de origem automaticamente.">
+                               data-confirm-msg="Excluir esta transferência (<?= e($t['origem']) ?> &rarr; <?= e($t['destino']) ?>)? Os itens não voltam ao local de origem automaticamente.">
                                 <i class="bi bi-trash"></i>
                             </a>
                         </td>

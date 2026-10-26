@@ -662,25 +662,39 @@ web-scati/
   Destino) e também no cadastro de Estoque. Na primeira vez que a tela é
   aberta, qualquer local que já estivesse em uso em algum Equipamento (mas
   ainda não em Locais de Estoque) é automaticamente cadastrado lá, pra não
-  "desaparecer" do dropdown. Abaixo do cabeçalho, uma tabela de itens permite adicionar
-  quantas linhas forem necessárias, cada uma marcada como **"Já
-  cadastrado"** (escolhe um equipamento existente numa lista) ou **"+ Novo
-  equipamento"** (cadastra na hora, só com Tipo e Nome — Patrimônio é
-  opcional). Um item "+ Novo equipamento" também tem um campo
+  "desaparecer" do dropdown. Ao escolher a Origem, um painel **"Itens
+  disponíveis em [local]"** aparece com o que já está cadastrado
+  naquele local, em duas listas separadas — **Itens de Estoque** (com
+  checkbox + quantidade, já que dá pra mover só parte do que tem lá) e
+  **Equipamentos** (com checkbox simples, cada um é uma unidade só) —
+  marcando o que quiser e clicando em "Adicionar selecionados" eles entram
+  na tabela de itens de uma vez, sem configurar linha por linha.
+  Abaixo do cabeçalho, a tabela de itens também permite adicionar
+  manualmente quantas linhas forem necessárias, cada uma marcada como
+  **"Já cadastrado"** (escolhe um equipamento existente numa lista),
+  **"+ Novo equipamento"** (cadastra na hora, só com Tipo e Nome —
+  Patrimônio é opcional) ou **"Item de Estoque"** (escolhe um item já
+  cadastrado em qualquer local, com a quantidade limitada ao que está
+  disponível). Um item "+ Novo equipamento" também tem um campo
   **Quantidade**: informando mais de 1 (ex.: 4 monitores iguais vindos da
   mesma obra), o sistema cria um cadastro em `equipamentos` para cada
   unidade de uma só vez, em vez de precisar adicionar uma linha pra cada —
   o nome de cada unidade recebe "(unidade N/total)" pra não ficarem
   indistinguíveis na listagem, e o Patrimônio só pode ser informado
   quando a quantidade for 1 (cada equipamento tem patrimônio único). Ao
-  confirmar, todos os equipamentos da transferência têm sua
-  Localização atualizada para o Destino informado (os novos já nascem
-  assim) e recebem um registro no histórico com Origem, Destino e
-  Responsável. A listagem (com filtro por Origem/Destino e por
-  Responsável) mostra a contagem de itens de cada transferência, e a tela
-  "Ver" lista cada item com link direto pra ficha do equipamento. Na
-  mesma tela "Ver", uma seção **Anexos** permite enviar arquivos pra
-  aquela transferência (PDF do formulário físico, fotos, notas fiscais
+  confirmar, cada equipamento da transferência tem sua Localização
+  atualizada para o Destino informado (os novos já nascem assim) e cada
+  item de estoque muda de local junto com a quantidade movida — se for a
+  quantidade inteira, o item simplesmente muda de lugar; se for só parte,
+  a quantidade diminui na Origem e é somada a um item igual (mesmo nome,
+  marca e modelo) já existente no Destino, ou cria um novo lá se não
+  houver — tudo registrado no histórico de cada item/equipamento com
+  Origem, Destino e Responsável. A listagem (com filtro por Origem/Destino
+  e por Responsável) mostra a contagem de itens de cada transferência, e a
+  tela "Ver" lista cada item (com uma etiqueta "Equipamento" ou "Estoque")
+  com link direto pra ficha correspondente. Na mesma tela "Ver", uma seção
+  **Anexos** permite enviar arquivos pra aquela transferência (PDF do
+  formulário físico, fotos, notas fiscais
   etc.) — mesmo padrão de upload/download/exclusão já usado na ficha do
   Equipamento, com limite de 10 MB por arquivo.
 - **Itens Vinculados**: aba na ficha do equipamento para vincular itens já
