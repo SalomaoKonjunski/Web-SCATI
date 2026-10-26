@@ -941,7 +941,11 @@ web-scati/
   em Usuários — nunca em texto puro) e aparece mascarada por padrão na
   tela, com botões para mostrar ou copiar. Acesso ao cofre inteiro é
   controlado pela permissão "Senhas" em Perfis de Acesso (por padrão só
-  o Administrador tem).
+  o Administrador tem). Sem nenhum filtro escolhido, a listagem vem
+  agrupada por **Categoria** (na ordem configurada em Configurações >
+  Categorias de Senha), e por Nome dentro de cada categoria; além da
+  pesquisa livre e do filtro por Categoria, também dá pra filtrar por
+  **Usuário** (o login/e-mail cadastrado em cada senha).
   - **Compartilhar senha**: quem tem "Senhas: Alterar" pode liberar uma
     senha específica (botão de compartilhar, ícone de "share", na
     listagem) para qualquer pessoa do sistema, mesmo que ela não tenha a

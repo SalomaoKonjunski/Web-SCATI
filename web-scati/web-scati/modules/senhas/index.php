@@ -24,25 +24,38 @@ if (!$temAcessoTotal && !temAlgumaSenhaCompartilhada($usuarioId)) {
 if ($temAcessoTotal) {
     $busca = trim($_GET['busca'] ?? '');
     $filtroCategoria = $_GET['categoria'] ?? '';
+    $filtroUsuario = $_GET['usuario'] ?? '';
 
-    $sql = 'SELECT * FROM senhas WHERE 1=1';
+    $sql = 'SELECT s.* FROM senhas s LEFT JOIN categorias_senha cs ON cs.nome = s.categoria WHERE 1=1';
     $params = [];
 
     if ($busca !== '') {
-        $sql .= ' AND (nome LIKE :busca_nome OR usuario LIKE :busca_usuario OR observacoes LIKE :busca_obs)';
+        $sql .= ' AND (s.nome LIKE :busca_nome OR s.usuario LIKE :busca_usuario OR s.observacoes LIKE :busca_obs)';
         $params['busca_nome'] = '%' . $busca . '%';
         $params['busca_usuario'] = '%' . $busca . '%';
         $params['busca_obs'] = '%' . $busca . '%';
     }
     if ($filtroCategoria !== '') {
-        $sql .= ' AND categoria = :categoria';
+        $sql .= ' AND s.categoria = :categoria';
         $params['categoria'] = $filtroCategoria;
     }
+    if ($filtroUsuario !== '') {
+        $sql .= ' AND s.usuario = :usuario';
+        $params['usuario'] = $filtroUsuario;
+    }
 
-    $sql .= ' ORDER BY nome ASC';
+    // Padrão: agrupado por Categoria (na ordem configurada em Categorias de
+    // Senha — categoria como critério de desempate quando o "ordem" é
+    // igual entre categorias, pra sempre agrupar visualmente mesmo sem
+    // reordenar nada em Configurações), e por Nome dentro de cada categoria.
+    $sql .= ' ORDER BY cs.ordem ASC, s.categoria ASC, s.nome ASC';
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
     $senhas = $stmt->fetchAll();
+
+    $usuariosExistentes = $pdo->query(
+        "SELECT DISTINCT usuario FROM senhas WHERE usuario IS NOT NULL AND TRIM(usuario) <> '' ORDER BY usuario ASC"
+    )->fetchAll(PDO::FETCH_COLUMN);
 } else {
     // Visão restrita: só as senhas compartilhadas com este usuário, sem
     // pesquisa/filtro (lista tende a ser pequena) e sem botão "Nova Senha".
@@ -74,11 +87,11 @@ include __DIR__ . '/../../includes/header.php';
 <div class="card mb-3">
     <div class="card-body">
         <form method="get" class="row g-2 align-items-end">
-            <div class="col-md-5">
+            <div class="col-md-4">
                 <label class="form-label small text-muted mb-1">Pesquisar</label>
                 <input type="text" name="busca" class="form-control" placeholder="Nome, usuário, observações..." value="<?= e($busca) ?>">
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <label class="form-label small text-muted mb-1">Categoria</label>
                 <select name="categoria" class="form-select">
                     <option value="">Todas</option>
@@ -87,7 +100,16 @@ include __DIR__ . '/../../includes/header.php';
                     <?php endforeach; ?>
                 </select>
             </div>
-            <div class="col-md-3 d-flex gap-2">
+            <div class="col-md-3">
+                <label class="form-label small text-muted mb-1">Usuário</label>
+                <select name="usuario" class="form-select">
+                    <option value="">Todos</option>
+                    <?php foreach ($usuariosExistentes as $u): ?>
+                        <option value="<?= e($u) ?>" <?= $filtroUsuario === $u ? 'selected' : '' ?>><?= e($u) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="col-md-2 d-flex gap-2">
                 <button type="submit" class="btn btn-outline-primary w-100"><i class="bi bi-search"></i> Filtrar</button>
                 <a href="index.php" class="btn btn-outline-secondary" title="Limpar"><i class="bi bi-x-lg"></i></a>
             </div>
