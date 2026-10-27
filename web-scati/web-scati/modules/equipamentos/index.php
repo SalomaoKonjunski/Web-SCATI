@@ -25,6 +25,7 @@ $filtroRede = $_GET['rede_id'] ?? '';
 $colunasOrdenaveis = [
     'responsavel' => 'e.usuario_responsavel',
     'tipo'        => 'e.tipo',
+    'localizacao' => 'e.localizacao',
     'marca'       => 'e.marca, e.modelo',
     'rede'        => 'r.nome',
     'status'      => 'e.status',
@@ -189,6 +190,7 @@ include __DIR__ . '/../../includes/header.php';
                     <th>Nome</th>
                     <th>Patrimônio</th>
                     <th><a class="text-dark text-decoration-none" href="<?= e(linkOrdenacao('tipo', $ordenarPor, $direcao)) ?>">Tipo<?= iconeOrdenacao('tipo', $ordenarPor, $direcao) ?></a></th>
+                    <th><a class="text-dark text-decoration-none" href="<?= e(linkOrdenacao('localizacao', $ordenarPor, $direcao)) ?>">Localização<?= iconeOrdenacao('localizacao', $ordenarPor, $direcao) ?></a></th>
                     <th><a class="text-dark text-decoration-none" href="<?= e(linkOrdenacao('marca', $ordenarPor, $direcao)) ?>">Marca / Modelo<?= iconeOrdenacao('marca', $ordenarPor, $direcao) ?></a></th>
                     <th>Hostname</th>
                     <th><a class="text-dark text-decoration-none" href="<?= e(linkOrdenacao('responsavel', $ordenarPor, $direcao)) ?>">Responsável<?= iconeOrdenacao('responsavel', $ordenarPor, $direcao) ?></a></th>
@@ -199,7 +201,7 @@ include __DIR__ . '/../../includes/header.php';
             </thead>
             <tbody>
                 <?php if (empty($equipamentos)): ?>
-                    <tr><td colspan="9" class="text-center text-muted py-4">Nenhum equipamento encontrado.</td></tr>
+                    <tr><td colspan="10" class="text-center text-muted py-4">Nenhum equipamento encontrado.</td></tr>
                 <?php endif; ?>
                 <?php foreach ($equipamentos as $eq): ?>
                     <tr data-href="view.php?id=<?= (int) $eq['id'] ?>">
@@ -218,6 +220,7 @@ include __DIR__ . '/../../includes/header.php';
                             <?php endif; ?>
                         </td>
                         <td><?= badgeCor($eq['tipo'], corCategoriaEquipamento($eq['tipo'])) ?></td>
+                        <td><?= e($eq['localizacao']) ?: '-' ?></td>
                         <td><?= e(trim(($eq['marca'] ?? '') . ' ' . ($eq['modelo'] ?? ''))) ?: '-' ?></td>
                         <td><?= e($eq['hostname']) ?: '-' ?></td>
                         <td><?= e($eq['usuario_responsavel']) ?: '-' ?></td>

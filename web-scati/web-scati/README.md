@@ -545,7 +545,8 @@ web-scati/
   (ou "N selecionados", com mais de um marcado). Sem nenhuma coluna
   escolhida no cabeçalho, a listagem vem agrupada por **Tipo** (e por Nome
   dentro de cada tipo) — clicar em qualquer cabeçalho ordenável continua
-  reordenando normalmente. Ficha individual com
+  reordenando normalmente, inclusive pela coluna **Localização**, que
+  também aparece na listagem. Ficha individual com
   abas de Dados Gerais, Hardware, Licenciamento,
   Financeiro, Histórico e Observações. Todo equipamento tem um campo
   **Nome do Equipamento** (obrigatório, ex.: "Notebook do Financeiro"),
