@@ -591,9 +591,29 @@ function origensRelatorioPersonalizado(): array
                 // se o nome concatenado aqui também usasse vírgula, um
                 // equipamento com 2+ itens vinculados viraria dois valores
                 // errados ao marcar o checkbox (quebrando o filtro).
+                // Conta quantos vínculos existem com aquele mesmo nome (não só
+                // aquele estoque_id — dois cadastros de estoque com o mesmo
+                // nome mas marca/modelo diferentes contam juntos, igual já
+                // acontece na aba "Itens Vinculados" da ficha, que agrupa por
+                // nome) e acrescenta " (xN)" quando for mais de 1, pra não
+                // "desaparecer" quando o mesmo item está vinculado mais de
+                // uma vez.
                 'itens_vinculados'    => [
                     'label' => 'Itens Vinculados',
-                    'sql' => "(SELECT GROUP_CONCAT(DISTINCT es_iv.nome ORDER BY es_iv.nome SEPARATOR ' | ')
+                    'sql' => "(SELECT GROUP_CONCAT(DISTINCT
+                                   CONCAT(
+                                       es_iv.nome,
+                                       IF(
+                                           (SELECT COUNT(*) FROM itens_vinculados iv2
+                                            JOIN estoque es2 ON es2.id = iv2.estoque_id
+                                            WHERE iv2.equipamento_id = e.id AND es2.nome = es_iv.nome) > 1,
+                                           CONCAT(' (x', (SELECT COUNT(*) FROM itens_vinculados iv2
+                                               JOIN estoque es2 ON es2.id = iv2.estoque_id
+                                               WHERE iv2.equipamento_id = e.id AND es2.nome = es_iv.nome), ')'),
+                                           ''
+                                       )
+                                   )
+                                   ORDER BY es_iv.nome SEPARATOR ' | ')
                                FROM itens_vinculados iv JOIN estoque es_iv ON es_iv.id = iv.estoque_id
                                WHERE iv.equipamento_id = e.id)",
                     'tipo' => 'texto',
