@@ -837,7 +837,12 @@ web-scati/
     Memória RAM, Armazenamento, Sistema Operacional, Placa Mãe e Placa de
     Vídeo) — para equipamentos de um tipo sem o grupo Hardware habilitado
     (ex.: Monitor, Switch), essas colunas aparecem em branco na tabela, como
-    qualquer outro campo não preenchido. Os cabeçalhos da tabela de
+    qualquer outro campo não preenchido. Também há a coluna **Itens
+    Vinculados**, que mostra os nomes dos itens de Estoque vinculados a
+    cada equipamento (aba "Itens Vinculados" da ficha), separados por
+    " | " — igual aos demais campos de texto, filtra por "contém" ou,
+    se houver poucas combinações diferentes já cadastradas, aparece como
+    checkbox. Os cabeçalhos da tabela de
     **Resultado** são clicáveis para **ordenar** por qualquer coluna que
     esteja no relatório (ex.: Localização, Tipo...) — clicar de novo
     inverte a direção (crescente/decrescente), preservando origem, colunas

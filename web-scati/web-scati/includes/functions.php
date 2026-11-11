@@ -579,6 +579,25 @@ function origensRelatorioPersonalizado(): array
                 'fornecedor'          => ['label' => 'Fornecedor', 'sql' => 'e.fornecedor', 'tipo' => 'texto'],
                 'valor_atual'         => ['label' => 'Valor Atual', 'sql' => 'e.valor_atual', 'tipo' => 'dinheiro'],
                 'acesso_usb'          => ['label' => 'Acesso USB', 'sql' => 'e.acesso_usb', 'tipo' => 'booleano', 'opcoes' => ['Sim', 'Não']],
+                // Itens de Estoque vinculados a este equipamento (aba "Itens
+                // Vinculados" na ficha) — subconsulta correlacionada que
+                // concatena os nomes num texto só, igual a qualquer outro
+                // campo "texto" aqui: filtrável por "contém"/"está vazio" e
+                // promovido a checkbox automaticamente se houver poucas
+                // combinações distintas (valoresDistintosRelatorioPersonalizado()).
+                // Separador " | " (não ", ") de propósito: o valor marcado de
+                // um filtro de múltipla escolha é serializado com vírgula
+                // (ver renderFiltroLinha()/montarRelatorioPersonalizado()) —
+                // se o nome concatenado aqui também usasse vírgula, um
+                // equipamento com 2+ itens vinculados viraria dois valores
+                // errados ao marcar o checkbox (quebrando o filtro).
+                'itens_vinculados'    => [
+                    'label' => 'Itens Vinculados',
+                    'sql' => "(SELECT GROUP_CONCAT(DISTINCT es_iv.nome ORDER BY es_iv.nome SEPARATOR ' | ')
+                               FROM itens_vinculados iv JOIN estoque es_iv ON es_iv.id = iv.estoque_id
+                               WHERE iv.equipamento_id = e.id)",
+                    'tipo' => 'texto',
+                ],
                 // Campos do grupo "Hardware" do cadastro de Equipamentos — só
                 // preenchidos pra tipos com esse grupo habilitado (Computador,
                 // Notebook ou um tipo personalizado com o grupo ligado em
