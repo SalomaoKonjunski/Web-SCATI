@@ -810,8 +810,13 @@ web-scati/
   - **Construtor de Relatório**: além dos relatórios fixos acima, uma tela
     de relatório configurável — escolha a **origem dos dados**
     (Equipamentos, Estoque, Licenças ou Chamados), quais **colunas**
-    aparecem e quantos **filtros** quiser, combinados sempre com E (ex.:
-    Status "Em uso" **e** Tipo "Computador"). Um campo com um conjunto
+    aparecem (e em que **ordem**: logo abaixo da grade de checkboxes, as
+    colunas marcadas aparecem numa lista com setas pra mover cada uma pra
+    cima/baixo — essa é a ordem em que elas saem na tabela de resultado,
+    no CSV exportado e na impressão; marcar ou desmarcar uma coluna
+    adiciona ou remove ela dessa lista automaticamente, sem perder a
+    posição das demais) e quantos **filtros** quiser, combinados sempre
+    com E (ex.: Status "Em uso" **e** Tipo "Computador"). Um campo com um conjunto
     fechado de opções mostra **todas as opções já visíveis como
     checkbox, organizadas em colunas alinhadas** (mesmo layout em grade
     de "Colunas", acima), sem precisar escolher um operador antes — pode marcar

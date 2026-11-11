@@ -345,6 +345,79 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    // Construtor de Relatório: ordem das colunas no relatório final. As
+    // checkboxes de "Colunas" não têm mais name="colunas[]" — só marcam
+    // quais existem; a ordem de verdade (e o que realmente é enviado no
+    // formulário) vem desta lista abaixo delas, com um <input type="hidden"
+    // name="colunas[]"> por linha, na ordem em que elas aparecem no DOM.
+    // Marcar/desmarcar uma coluna adiciona/remove sua linha aqui; as setas
+    // só trocam a linha de posição com a vizinha.
+    const listaOrdemColunas = document.getElementById('listaOrdemColunas');
+    const ordemColunasWrap = document.getElementById('ordemColunasWrap');
+    if (listaOrdemColunas && ordemColunasWrap) {
+        function criarLinhaOrdemColuna(chave, label) {
+            const li = document.createElement('li');
+            li.className = 'list-group-item d-flex justify-content-between align-items-center py-1 px-2';
+            li.dataset.coluna = chave;
+
+            const span = document.createElement('span');
+            span.textContent = label;
+
+            const grupoBotoes = document.createElement('span');
+            grupoBotoes.className = 'btn-group btn-group-sm';
+            const btnCima = document.createElement('button');
+            btnCima.type = 'button';
+            btnCima.className = 'btn btn-outline-secondary btn-mover-coluna-cima';
+            btnCima.title = 'Mover pra cima';
+            btnCima.innerHTML = '<i class="bi bi-arrow-up"></i>';
+            const btnBaixo = document.createElement('button');
+            btnBaixo.type = 'button';
+            btnBaixo.className = 'btn btn-outline-secondary btn-mover-coluna-baixo';
+            btnBaixo.title = 'Mover pra baixo';
+            btnBaixo.innerHTML = '<i class="bi bi-arrow-down"></i>';
+            grupoBotoes.appendChild(btnCima);
+            grupoBotoes.appendChild(btnBaixo);
+
+            const inputOculto = document.createElement('input');
+            inputOculto.type = 'hidden';
+            inputOculto.name = 'colunas[]';
+            inputOculto.value = chave;
+
+            li.appendChild(span);
+            li.appendChild(grupoBotoes);
+            li.appendChild(inputOculto);
+            return li;
+        }
+
+        document.querySelectorAll('.coluna-checkbox').forEach(function (checkbox) {
+            checkbox.addEventListener('change', function () {
+                if (checkbox.checked) {
+                    if (!listaOrdemColunas.querySelector('[data-coluna="' + checkbox.value + '"]')) {
+                        listaOrdemColunas.appendChild(criarLinhaOrdemColuna(checkbox.value, checkbox.dataset.label));
+                    }
+                } else {
+                    const linhaExistente = listaOrdemColunas.querySelector('[data-coluna="' + checkbox.value + '"]');
+                    if (linhaExistente) {
+                        linhaExistente.remove();
+                    }
+                }
+                ordemColunasWrap.classList.toggle('d-none', listaOrdemColunas.children.length === 0);
+            });
+        });
+
+        listaOrdemColunas.addEventListener('click', function (e) {
+            const linha = e.target.closest('li');
+            if (!linha) return;
+            if (e.target.closest('.btn-mover-coluna-cima')) {
+                const anterior = linha.previousElementSibling;
+                if (anterior) listaOrdemColunas.insertBefore(linha, anterior);
+            } else if (e.target.closest('.btn-mover-coluna-baixo')) {
+                const proxima = linha.nextElementSibling;
+                if (proxima) listaOrdemColunas.insertBefore(proxima, linha);
+            }
+        });
+    }
+
     // Botão de mostrar/ocultar em campos de senha (cadastro de Usuários:
     // Senha de login e Senha do Email Corporativo). Sempre começa oculto.
     document.querySelectorAll('.senha-toggle-btn').forEach(function (botao) {

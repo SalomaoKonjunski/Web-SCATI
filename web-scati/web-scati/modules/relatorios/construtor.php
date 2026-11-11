@@ -502,12 +502,41 @@ include __DIR__ . '/../../includes/header.php';
                 <?php foreach ($origemDefAtual['colunas'] as $chaveCol => $defCol): ?>
                     <div class="col-md-3 col-6">
                         <div class="form-check">
-                            <input class="form-check-input" type="checkbox" name="colunas[]" value="<?= e($chaveCol) ?>" id="col_<?= e($chaveCol) ?>"
+                            <input class="form-check-input coluna-checkbox" type="checkbox" value="<?= e($chaveCol) ?>" id="col_<?= e($chaveCol) ?>"
+                                   data-label="<?= e($defCol['label']) ?>"
                                    <?= in_array($chaveCol, $colunasSelecionadas, true) ? 'checked' : '' ?>>
                             <label class="form-check-label" for="col_<?= e($chaveCol) ?>"><?= e($defCol['label']) ?></label>
                         </div>
                     </div>
                 <?php endforeach; ?>
+            </div>
+
+            <?php
+                // Só as colunas marcadas que realmente existem nesta origem
+                // (uma coluna de um favorito salvo antes de uma mudança no
+                // sistema pode não existir mais — ignorada, igual já acontece
+                // em montarRelatorioPersonalizado()).
+                $colunasSelecionadasValidas = array_values(array_filter(
+                    $colunasSelecionadas,
+                    static fn ($c) => isset($origemDefAtual['colunas'][$c])
+                ));
+            ?>
+            <div class="mt-3 <?= empty($colunasSelecionadasValidas) ? 'd-none' : '' ?>" id="ordemColunasWrap">
+                <label class="form-label small text-muted mb-1">
+                    Ordem das colunas no relatório <span class="fw-normal">(use as setas pra reordenar)</span>
+                </label>
+                <ul class="list-group" id="listaOrdemColunas">
+                    <?php foreach ($colunasSelecionadasValidas as $chaveCol): ?>
+                        <li class="list-group-item d-flex justify-content-between align-items-center py-1 px-2" data-coluna="<?= e($chaveCol) ?>">
+                            <span><?= e($origemDefAtual['colunas'][$chaveCol]['label']) ?></span>
+                            <span class="btn-group btn-group-sm">
+                                <button type="button" class="btn btn-outline-secondary btn-mover-coluna-cima" title="Mover pra cima"><i class="bi bi-arrow-up"></i></button>
+                                <button type="button" class="btn btn-outline-secondary btn-mover-coluna-baixo" title="Mover pra baixo"><i class="bi bi-arrow-down"></i></button>
+                            </span>
+                            <input type="hidden" name="colunas[]" value="<?= e($chaveCol) ?>">
+                        </li>
+                    <?php endforeach; ?>
+                </ul>
             </div>
         </div>
     </div>
