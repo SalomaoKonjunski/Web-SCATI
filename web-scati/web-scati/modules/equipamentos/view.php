@@ -110,6 +110,93 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['vincular_item'])) {
     redirect('/modules/equipamentos/view.php?id=' . $id . '#' . $abaRetorno);
 }
 
+// Edita o cadastro de um item de Estoque vinculado, direto pela aba "Itens
+// Vinculados" (modal aberto pelo botão de lápis em cada marca/modelo) — sem
+// precisar ir até o módulo Estoque só pra corrigir nome/categoria/marca/
+// modelo/quantidade. Mesma validação do modo de edição em
+// modules/estoque/form.php, com a mesma permissão já usada nas outras
+// ações desta aba (quem edita a ficha do equipamento edita os itens
+// vinculados a ele).
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['editar_item_estoque'])) {
+    exigirPermissao('equipamentos', 'alterar');
+    $abaRetorno = ehImpressora($eq['tipo']) ? 'toner' : 'itens';
+    $estoqueIdEditado = (int) ($_POST['estoque_id'] ?? 0);
+
+    $stmtItemAtual = $pdo->prepare('SELECT * FROM estoque WHERE id = :id');
+    $stmtItemAtual->execute(['id' => $estoqueIdEditado]);
+    $itemAtual = $stmtItemAtual->fetch();
+
+    if (!$itemAtual) {
+        flash('danger', 'Item de estoque não encontrado.');
+        redirect('/modules/equipamentos/view.php?id=' . $id . '#' . $abaRetorno);
+    }
+
+    $nomeEditado = trim($_POST['nome'] ?? '');
+    $categoriaIdEditada = $_POST['categoria_id'] ?? '';
+    $marcaEditada = trim($_POST['marca'] ?? '');
+    $modeloEditado = trim($_POST['modelo'] ?? '');
+    $quantidadeEditada = $_POST['quantidade'] ?? '0';
+    $quantidadeMinimaEditada = $_POST['quantidade_minima'] ?? '0';
+    $localIdEditado = $_POST['local_id'] ?? '';
+    $observacoesEditadas = trim($_POST['observacoes'] ?? '');
+
+    $errosEdicao = [];
+    if ($nomeEditado === '') {
+        $errosEdicao[] = 'O campo Nome é obrigatório.';
+    }
+    if ($categoriaIdEditada === '') {
+        $errosEdicao[] = 'Selecione uma categoria.';
+    }
+    if (!is_numeric($quantidadeEditada) || (int) $quantidadeEditada < 0) {
+        $errosEdicao[] = 'A quantidade não pode ser negativa.';
+    }
+    if (!is_numeric($quantidadeMinimaEditada) || (int) $quantidadeMinimaEditada < 0) {
+        $errosEdicao[] = 'A quantidade mínima não pode ser negativa.';
+    }
+
+    if (!empty($errosEdicao)) {
+        flash('danger', implode(' ', $errosEdicao));
+        redirect('/modules/equipamentos/view.php?id=' . $id . '#' . $abaRetorno);
+    }
+
+    $dadosEditados = [
+        'id' => $estoqueIdEditado,
+        'nome' => $nomeEditado,
+        'categoria_id' => (int) $categoriaIdEditada,
+        'marca' => $marcaEditada ?: null,
+        'modelo' => $modeloEditado ?: null,
+        'quantidade' => (int) $quantidadeEditada,
+        'quantidade_minima' => (int) $quantidadeMinimaEditada,
+        'local_id' => $localIdEditado !== '' ? (int) $localIdEditado : null,
+        'observacoes' => $observacoesEditadas ?: null,
+    ];
+
+    $pdo->prepare(
+        'UPDATE estoque SET nome=:nome, categoria_id=:categoria_id, marca=:marca, modelo=:modelo,
+         quantidade=:quantidade, quantidade_minima=:quantidade_minima, local_id=:local_id,
+         observacoes=:observacoes WHERE id=:id'
+    )->execute($dadosEditados);
+
+    if ((int) $itemAtual['quantidade'] !== $dadosEditados['quantidade']) {
+        $stmtCatEditada = $pdo->prepare('SELECT nome FROM categorias_estoque WHERE id = :id');
+        $stmtCatEditada->execute(['id' => $dadosEditados['categoria_id']]);
+        $categoriaNomeEditada = $stmtCatEditada->fetchColumn() ?: null;
+
+        $diferencaEditada = $dadosEditados['quantidade'] - (int) $itemAtual['quantidade'];
+        $sinalEditado = $diferencaEditada > 0 ? '+' . $diferencaEditada : (string) $diferencaEditada;
+        registrarHistoricoEstoque(
+            $estoqueIdEditado,
+            $dadosEditados['nome'],
+            $categoriaNomeEditada,
+            'Alteração',
+            'Quantidade alterada de ' . (int) $itemAtual['quantidade'] . ' para ' . $dadosEditados['quantidade'] . ' (' . $sinalEditado . ')'
+        );
+    }
+
+    flash('success', 'Item de estoque "' . $dadosEditados['nome'] . '" atualizado com sucesso.');
+    redirect('/modules/equipamentos/view.php?id=' . $id . '#' . $abaRetorno);
+}
+
 // Registra a troca física do toner: reinicia a contagem do prazo de alerta
 // a partir de hoje, independente da vinculação de itens do Estoque.
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['registrar_troca_toner'])) {
@@ -408,12 +495,14 @@ $anexos = $anexos->fetchAll();
 // mantendo a quantidade de cada marca/modelo separada para exibição.
 $itensVinculadosPorRegistro = $pdo->prepare(
     'SELECT MIN(iv.id) AS vinculo_id, es.id AS estoque_id, es.nome, es.marca, es.modelo, es.observacoes,
+            es.categoria_id, es.quantidade, es.quantidade_minima, es.local_id,
             COUNT(iv.id) AS qtd_registro, c.nome AS categoria_nome
      FROM itens_vinculados iv
      JOIN estoque es ON es.id = iv.estoque_id
      JOIN categorias_estoque c ON c.id = es.categoria_id
      WHERE iv.equipamento_id = :id
-     GROUP BY es.id, es.nome, es.marca, es.modelo, es.observacoes, c.nome
+     GROUP BY es.id, es.nome, es.marca, es.modelo, es.observacoes,
+              es.categoria_id, es.quantidade, es.quantidade_minima, es.local_id, c.nome
      ORDER BY es.nome, es.marca, es.modelo'
 );
 $itensVinculadosPorRegistro->execute(['id' => $id]);
@@ -439,6 +528,16 @@ foreach ($itensVinculadosPorRegistro as $registroItem) {
         'qtd' => (int) $registroItem['qtd_registro'],
         'estoque_id' => (int) $registroItem['estoque_id'],
         'observacoes' => $registroItem['observacoes'],
+        // Dados completos do cadastro de Estoque, usados só para
+        // pré-preencher o modal "Editar Item de Estoque" (ver botão de
+        // lápis logo abaixo, na tabela de Itens Vinculados).
+        'nome' => $registroItem['nome'],
+        'marca' => $registroItem['marca'],
+        'modelo' => $registroItem['modelo'],
+        'categoria_id' => (int) $registroItem['categoria_id'],
+        'quantidade' => (int) $registroItem['quantidade'],
+        'quantidade_minima' => (int) $registroItem['quantidade_minima'],
+        'local_id' => $registroItem['local_id'],
     ];
 }
 $itensVinculados = array_values($itensVinculadosAgrupados);
@@ -484,8 +583,10 @@ if (ehImpressora($eq['tipo'])) {
     $tonersVinculados = $stmtToners->fetchAll();
 }
 
-// Categorias de estoque, usadas no formulário de cadastro rápido de item (abaixo)
+// Categorias e locais de estoque, usados no formulário de cadastro rápido de
+// item e no modal de edição de um item já vinculado (abaixo)
 $categoriasEstoque = $pdo->query('SELECT id, nome FROM categorias_estoque ORDER BY ordem ASC, nome ASC')->fetchAll();
+$locaisEstoque = $pdo->query('SELECT id, nome FROM locais_estoque ORDER BY nome ASC')->fetchAll();
 
 // Compartilhamentos de rede (apenas para equipamentos do tipo Servidor)
 $compartilhamentos = $pdo->prepare('SELECT * FROM compartilhamentos_servidor WHERE equipamento_id = :id ORDER BY nome');
@@ -801,6 +902,19 @@ include __DIR__ . '/../../includes/header.php';
                                     </span>
                                     <span class="d-flex align-items-center gap-2">
                                         <span class="text-muted"><?= $marcaItem['qtd'] ?></span>
+                                        <button type="button" class="btn btn-link text-muted p-0" title="Editar cadastro deste item"
+                                                data-bs-toggle="modal" data-bs-target="#modalEditarItemVinculado"
+                                                data-estoque-id="<?= (int) $marcaItem['estoque_id'] ?>"
+                                                data-nome="<?= e($marcaItem['nome']) ?>"
+                                                data-categoria-id="<?= (int) $marcaItem['categoria_id'] ?>"
+                                                data-marca="<?= e($marcaItem['marca']) ?>"
+                                                data-modelo="<?= e($marcaItem['modelo']) ?>"
+                                                data-quantidade="<?= (int) $marcaItem['quantidade'] ?>"
+                                                data-quantidade-minima="<?= (int) $marcaItem['quantidade_minima'] ?>"
+                                                data-local-id="<?= $marcaItem['local_id'] !== null ? (int) $marcaItem['local_id'] : '' ?>"
+                                                data-observacoes="<?= e($marcaItem['observacoes']) ?>">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
                                         <a href="../estoque/form.php?id=<?= $marcaItem['estoque_id'] ?>" class="text-muted" title="Abrir cadastro do item no Estoque">
                                             <i class="bi bi-box-arrow-up-right"></i>
                                         </a>
@@ -844,6 +958,81 @@ include __DIR__ . '/../../includes/header.php';
                 </button>
             </div>
         </form>
+
+        <!-- Modal "Editar Item de Estoque": aberto pelo lápis de cada marca/
+             modelo na tabela acima, pré-preenchido via JS (ver scripts.js).
+             Mesma validação do modo de edição em modules/estoque/form.php,
+             só que sem sair desta página — volta direto pra esta aba. -->
+        <div class="modal fade" id="modalEditarItemVinculado" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <form method="post">
+                        <input type="hidden" name="estoque_id" id="editarItemEstoqueId">
+                        <div class="modal-header">
+                            <h5 class="modal-title"><i class="bi bi-pencil me-2"></i>Editar Item de Estoque</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">Nome *</label>
+                                    <input type="text" name="nome" id="editarItemNome" class="form-control" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Categoria *</label>
+                                    <select name="categoria_id" id="editarItemCategoriaId" class="form-select" required>
+                                        <option value="">Selecione...</option>
+                                        <?php foreach ($categoriasEstoque as $catOpt): ?>
+                                            <option value="<?= (int) $catOpt['id'] ?>"><?= e($catOpt['nome']) ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Marca</label>
+                                    <input type="text" name="marca" id="editarItemMarca" class="form-control">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Modelo</label>
+                                    <input type="text" name="modelo" id="editarItemModelo" class="form-control">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Quantidade *</label>
+                                    <input type="number" min="0" name="quantidade" id="editarItemQuantidade" class="form-control" required>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Quantidade Mínima *</label>
+                                    <input type="number" min="0" name="quantidade_minima" id="editarItemQuantidadeMinima" class="form-control" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Localização</label>
+                                    <select name="local_id" class="form-select" id="selectLocalEstoque">
+                                        <option value="">Nenhuma</option>
+                                        <?php foreach ($locaisEstoque as $localOpt): ?>
+                                            <option value="<?= (int) $localOpt['id'] ?>"><?= e($localOpt['nome']) ?></option>
+                                        <?php endforeach; ?>
+                                        <option value="novo">+ Novo local...</option>
+                                    </select>
+                                    <div class="input-group input-group-sm mt-2 d-none" id="novoLocalEstoqueWrap">
+                                        <input type="text" class="form-control" id="novoLocalEstoqueNome" placeholder="Nome do novo local">
+                                        <button type="button" class="btn btn-primary" id="novoLocalEstoqueSalvar"><i class="bi bi-check-lg"></i> Salvar</button>
+                                        <button type="button" class="btn btn-outline-secondary" id="novoLocalEstoqueCancelar"><i class="bi bi-x-lg"></i></button>
+                                    </div>
+                                    <div class="form-text text-danger d-none" id="novoLocalEstoqueErro"></div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Observações</label>
+                                    <input type="text" name="observacoes" id="editarItemObservacoes" class="form-control">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                            <button type="submit" name="editar_item_estoque" value="1" class="btn btn-primary"><i class="bi bi-check-lg"></i> Salvar</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
 
         <div class="mt-3">
             <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#novoItemEstoqueCollapse">

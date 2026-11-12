@@ -714,9 +714,12 @@ web-scati/
   em sua própria linha com a respectiva quantidade vinculada (ex.:
   "Asus VP32AQ — 2" e "Acer V227Q — 1"). Cada linha de marca/modelo tem um
   ícone de observação (com o texto completo ao passar o mouse, quando o
-  item tem alguma anotação) e um link para abrir o cadastro completo
-  daquele item no Estoque — sem precisar sair da ficha do equipamento
-  para conferir os detalhes. "Desvincular" sempre remove 1
+  item tem alguma anotação), um botão de **editar** (lápis) e um link para
+  abrir o cadastro completo daquele item no Estoque. O lápis abre um modal
+  com o cadastro completo daquele item (Nome, Categoria, Marca, Modelo,
+  Quantidade, Quantidade Mínima, Localização — inclusive "+ Novo local..."
+  — e Observações) sem sair da ficha do equipamento; ao salvar, volta
+  direto pra esta mesma aba. "Desvincular" sempre remove 1
   unidade por vez. Ao desvincular (ou ao
   excluir o equipamento), a unidade volta automaticamente para a
   quantidade disponível do item. Se o item ainda não existir no Estoque,

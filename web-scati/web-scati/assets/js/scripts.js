@@ -119,6 +119,31 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    // Ficha do equipamento, aba "Itens Vinculados": o botão de lápis em
+    // cada marca/modelo abre o modal "Editar Item de Estoque" já
+    // pré-preenchido com os dados daquele item (vêm dos atributos
+    // data-* do próprio botão clicado) — evita ter que abrir o módulo
+    // Estoque só pra corrigir nome/categoria/marca/modelo/quantidade.
+    const modalEditarItemVinculado = document.getElementById('modalEditarItemVinculado');
+    if (modalEditarItemVinculado) {
+        modalEditarItemVinculado.addEventListener('show.bs.modal', function (evento) {
+            const botao = evento.relatedTarget;
+            if (!botao) return;
+            document.getElementById('editarItemEstoqueId').value = botao.dataset.estoqueId || '';
+            document.getElementById('editarItemNome').value = botao.dataset.nome || '';
+            document.getElementById('editarItemCategoriaId').value = botao.dataset.categoriaId || '';
+            document.getElementById('editarItemMarca').value = botao.dataset.marca || '';
+            document.getElementById('editarItemModelo').value = botao.dataset.modelo || '';
+            document.getElementById('editarItemQuantidade').value = botao.dataset.quantidade || '0';
+            document.getElementById('editarItemQuantidadeMinima').value = botao.dataset.quantidadeMinima || '0';
+            document.getElementById('editarItemObservacoes').value = botao.dataset.observacoes || '';
+            const selectLocalModal = document.getElementById('selectLocalEstoque');
+            if (selectLocalModal) {
+                selectLocalModal.value = botao.dataset.localId || '';
+            }
+        });
+    }
+
     // Envia automaticamente formulários marcados com .js-auto-submit assim que
     // um campo (select/input) dentro deles muda de valor (ex: trocar o status
     // de um chamado direto na listagem, sem precisar de um botão "Salvar").
